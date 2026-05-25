@@ -1,0 +1,53 @@
+{
+  "common": {
+    "language": "Language",
+    "toggle": "한/EN",
+    "korean": "Korean",
+    "english": "English",
+    "settings": "Settings",
+    "workspace": "Workspace",
+    "back_to_dashboard": "Back to Dashboard",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "nav": {
+    "brand_meaning_ops": "Brand MeaningOps",
+    "truth_studio": "Brand Truth Studio",
+    "semantic_core": "Semantic Core",
+    "objects_studio": "Objects Studio",
+    "surfaces": "Surface Contracts",
+    "website": "Semantic Website",
+    "persona": "Persona Spec",
+    "vibe_os": "Vibe OS",
+    "observatory": "AI Observatory",
+    "reports": "Benchmark Reports",
+    "fixit": "Fix-It Studio",
+    "gates": "Release Gates"
+  },
+  "dashboard": {
+    "title": "Brand Semantic Website OS",
+    "subtitle": "SaaS Platform for AEO & AI Search Answer Optimization",
+    "launch_seed": "Launch Full Demo Seed Data",
+    "seed_desc": "Populate local DB with stable seed data representing our three MVP domains (PureBarrier, Quick25, Lumiere Hall).",
+    "seeding_button": "Launch Full Demo Seed",
+    "seeding_success": "Demo Seed data successfully injected!",
+    "kbeauty_title": "K-Beauty Skincare (PureBarrier)",
+    "kbeauty_desc": "Trust-focused claims and YMYL sensitive skincare AI answer trace loop.",
+    "convenience_title": "Convenience Retail (Quick25)",
+    "convenience_desc": "Menu combo locator and local-business intent mapping trace loop.",
+    "wedding_title": "Wedding Services (Lumiere Hall)",
+    "wedding_desc": "Complex packaging contract integrity and wedding vendor comparison trace loop."
+  },
+  "observatory": {
+    "title": "AI Answer Observatory",
+    "subtitle": "Real-time AI search answer visibility and metric analytics",
+    "panel": "Probe Panel",
+    "run": "Observation Run",
+    "score": "Answer Relevancy Score (ARS)",
+    "aas": "Answer Alignment Score (AAS)",
+    "ocr": "Occurrence Rate (OCR)"
+  }
+}

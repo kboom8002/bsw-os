@@ -1,0 +1,53 @@
+{
+  "common": {
+    "language": "언어",
+    "toggle": "한/EN",
+    "korean": "한국어",
+    "english": "영어",
+    "settings": "설정",
+    "workspace": "워크스페이스",
+    "back_to_dashboard": "대시보드로 돌아가기",
+    "loading": "불러오는 중...",
+    "save": "저장",
+    "cancel": "취소",
+    "status": "상태",
+    "actions": "작업"
+  },
+  "nav": {
+    "brand_meaning_ops": "의미관리 (MeaningOps)",
+    "truth_studio": "브랜드 진실 스튜디오",
+    "semantic_core": "세맨틱 코어",
+    "objects_studio": "오브젝트 스튜디오",
+    "surfaces": "노출 스펙 (Surfaces)",
+    "website": "세맨틱 웹사이트",
+    "persona": "페르소나 정의",
+    "vibe_os": "바이브 OS (Vibe OS)",
+    "observatory": "AI 검색 관측소",
+    "reports": "벤치마크 리포트",
+    "fixit": "해결 스튜디오 (Fix-It)",
+    "gates": "릴리스 게이트"
+  },
+  "dashboard": {
+    "title": "브랜드 세맨틱 웹사이트 OS",
+    "subtitle": "AEO 및 AI 검색 최적화를 위한 브랜드 의미 관리 플랫폼",
+    "launch_seed": "전체 데모 시드 데이터 삽입",
+    "seed_desc": "3대 MVP 비즈니스 시나리오(PureBarrier, Quick25, Lumiere Hall)의 분석용 로컬 시드 데이터를 데이터베이스에 초기화하여 적재합니다.",
+    "seeding_button": "데모 시드 데이터 주입하기",
+    "seeding_success": "데모 데이터가 성공적으로 적재되었습니다!",
+    "kbeauty_title": "K-Beauty 스킨케어 (PureBarrier)",
+    "kbeauty_desc": "민감성 피부 스킨케어 브랜드의 사실적 신뢰 중심 데이터 및 AI 응답 최적화 루프",
+    "convenience_title": "편의점 유통 (Quick25)",
+    "convenience_desc": "조합 메뉴 및 점포별 재고 매핑 기반 지역 밀착형 로컬 AI 답변 최적화",
+    "wedding_title": "컨설팅 웨딩 (Lumiere Hall)",
+    "wedding_desc": "패키지 계약 및 협력 업체 비교 매트릭스 중심 신뢰 정합성 입증 루프"
+  },
+  "observatory": {
+    "title": "AI 검색 관측소 (Observatory)",
+    "subtitle": "실시간 AI 답변 엔진의 브랜드 노출 지수 분석",
+    "panel": "프로브 패널",
+    "run": "관측 실행",
+    "score": "답변 품질 지수 (ARS)",
+    "aas": "답변 정합성 (AAS)",
+    "ocr": "브랜드 출현율 (OCR)"
+  }
+}
