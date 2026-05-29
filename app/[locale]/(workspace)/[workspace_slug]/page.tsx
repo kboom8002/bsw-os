@@ -36,7 +36,7 @@ export default function WorkspaceDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <div className="text-xs text-cyan-400 font-mono font-bold tracking-wider uppercase mb-1">
-            Tenant Space
+            {t('dashboard.tenant_space')}
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
             {currentWorkspace.name}
@@ -48,11 +48,11 @@ export default function WorkspaceDashboard() {
         <div className="flex items-center gap-3">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-green-500/30 text-green-400 bg-green-950/30 text-xs font-mono">
             <ShieldCheck className="w-4 h-4" />
-            RLS Policy Active
+            {t('dashboard.rls_active')}
           </div>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 text-slate-300 bg-white/5 text-xs font-mono">
             <Database className="w-4 h-4" />
-            Postgres DB
+            {t('dashboard.postgres_db')}
           </div>
         </div>
       </div>
@@ -63,10 +63,10 @@ export default function WorkspaceDashboard() {
           <div className="absolute right-4 top-4 text-slate-700">
             <Activity className="w-8 h-8" />
           </div>
-          <div className="text-xs text-slate-500 font-mono uppercase mb-2">Semantic Health (S-MRI)</div>
+          <div className="text-xs text-slate-500 font-mono uppercase mb-2">{t('dashboard.health_title')}</div>
           <div className="text-3xl font-extrabold text-white mb-1">84.2%</div>
           <p className="text-xs text-green-500 flex items-center gap-1 font-semibold">
-            <span>↑ +2.4%</span> <span className="text-slate-500 font-normal">vs last month</span>
+            <span>↑ +2.4%</span> <span className="text-slate-500 font-normal">{t('dashboard.health_desc')}</span>
           </p>
         </div>
 
@@ -74,10 +74,10 @@ export default function WorkspaceDashboard() {
           <div className="absolute right-4 top-4 text-slate-700">
             <ShieldCheck className="w-8 h-8" />
           </div>
-          <div className="text-xs text-slate-500 font-mono uppercase mb-2">Operational Diagnosis Index (OPS-MRI)</div>
+          <div className="text-xs text-slate-500 font-mono uppercase mb-2">{t('dashboard.ops_title')}</div>
           <div className="text-3xl font-extrabold text-white mb-1">79.5%</div>
           <p className="text-xs text-green-500 flex items-center gap-1 font-semibold">
-            <span>↑ +1.1%</span> <span className="text-slate-500 font-normal">healthy boundary checks</span>
+            <span>↑ +1.1%</span> <span className="text-slate-500 font-normal">{t('dashboard.ops_desc')}</span>
           </p>
         </div>
 
@@ -96,10 +96,10 @@ export default function WorkspaceDashboard() {
           <div className="absolute right-4 top-4 text-slate-700">
             <Layers className="w-8 h-8" />
           </div>
-          <div className="text-xs text-slate-500 font-mono uppercase mb-2">Ontology Nodes Count</div>
+          <div className="text-xs text-slate-500 font-mono uppercase mb-2">{t('dashboard.nodes_title')}</div>
           <div className="text-3xl font-extrabold text-white mb-1">284</div>
           <p className="text-xs text-slate-400 font-mono">
-            Across {currentWorkspace.domainsCount} target domains
+            {t('dashboard.nodes_desc').replace('{count}', String(currentWorkspace.domainsCount))}
           </p>
         </div>
       </div>
@@ -107,7 +107,7 @@ export default function WorkspaceDashboard() {
       {/* Domain MVPs */}
       <section className="space-y-4">
         <h2 className="text-xl font-bold tracking-tight text-slate-200">
-          Target Domain Skeletons
+          {t('dashboard.skeletons_title')}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-6 rounded-2xl bg-slate-950/30 border border-white/5 hover:border-cyan-500/10 transition-all flex flex-col justify-between">
@@ -123,7 +123,7 @@ export default function WorkspaceDashboard() {
             <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4">
               <span className="text-slate-500">slug: k-beauty-skincare</span>
               <Link href={`/${locale}/${workspaceSlug}/demo/k-beauty`} className="text-cyan-400 font-bold hover:underline flex items-center gap-1">
-                Explore Domain <ArrowRight className="w-3.5 h-3.5" />
+                {t('dashboard.explore_domain')} <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
@@ -141,7 +141,7 @@ export default function WorkspaceDashboard() {
             <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4">
               <span className="text-slate-500">slug: convenience-retail</span>
               <Link href={`/${locale}/${workspaceSlug}/demo/convenience-retail`} className="text-purple-400 font-bold hover:underline flex items-center gap-1">
-                Explore Domain <ArrowRight className="w-3.5 h-3.5" />
+                {t('dashboard.explore_domain')} <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
@@ -159,7 +159,7 @@ export default function WorkspaceDashboard() {
             <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4">
               <span className="text-slate-500">slug: wedding-services</span>
               <Link href={`/${locale}/${workspaceSlug}/demo/wedding`} className="text-blue-400 font-bold hover:underline flex items-center gap-1">
-                Explore Domain <ArrowRight className="w-3.5 h-3.5" />
+                {t('dashboard.explore_domain')} <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
@@ -170,19 +170,19 @@ export default function WorkspaceDashboard() {
       <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 backdrop-blur-sm space-y-4">
         <h3 className="font-bold text-lg text-white flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-cyan-400" />
-          Multi-Tenant Workspace Guardrails (AG-B0/B1)
+          {t('dashboard.guardrails_title')}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
           <div className="space-y-2">
-            <div className="font-semibold text-slate-300">Strict Boundary Enforcement</div>
+            <div className="font-semibold text-slate-300">{t('dashboard.guardrails_desc1_title')}</div>
             <p className="text-slate-400 leading-relaxed text-xs">
-              Every data item generated in this lab is strictly tagged with <code className="px-1.5 py-0.5 rounded bg-white/5 text-cyan-400">workspace_id</code>. PostgreSQL Row-Level Security ensures that even high-performance query tools cannot leak tenant boundaries.
+              {t('dashboard.guardrails_desc1_text')}
             </p>
           </div>
           <div className="space-y-2">
-            <div className="font-semibold text-slate-300">Governable RBAC Policies</div>
+            <div className="font-semibold text-slate-300">{t('dashboard.guardrails_desc2_title')}</div>
             <p className="text-slate-400 leading-relaxed text-xs">
-              Your active role is <code className="px-1.5 py-0.5 rounded bg-white/5 text-cyan-400">owner</code>. Mutative actions (such as publishing brand truths or creating patches) will verify role permission matrices using backend-validated session signatures.
+              {t('dashboard.guardrails_desc2_text')}
             </p>
           </div>
         </div>
@@ -190,4 +190,3 @@ export default function WorkspaceDashboard() {
     </div>
   );
 }
-

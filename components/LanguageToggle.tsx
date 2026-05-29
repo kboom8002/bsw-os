@@ -7,23 +7,37 @@ export const LanguageToggle: React.FC = () => {
   const { locale, setLocale } = useTranslation();
 
   return (
-    <div className="flex items-center gap-1 p-1 bg-slate-900/50 backdrop-blur-md border border-slate-800/80 rounded-full shadow-inner">
+    <div className="relative flex items-center p-1 bg-slate-950/60 backdrop-blur-xl border border-white/5 rounded-full shadow-2xl shadow-cyan-500/5 select-none transition-all duration-300 hover:border-white/10 group">
+      {/* Sliding Active Overlay */}
+      <div 
+        className="absolute top-1 bottom-1 w-[46px] rounded-full bg-gradient-to-r from-cyan-400/20 to-blue-500/25 border border-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.2)] transition-all duration-300 ease-out"
+        style={{
+          transform: locale === 'ko' ? 'translateX(4px)' : 'translateX(50px)'
+        }}
+      />
+      
+      {/* KO Button */}
       <button
         onClick={() => setLocale('ko')}
-        className={`px-3 py-1 text-xs font-semibold rounded-full transition-all duration-300 ${
+        className={`relative z-10 w-11 py-1.5 text-[10px] font-black tracking-widest text-center rounded-full transition-all duration-300 cursor-pointer ${
           locale === 'ko'
-            ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-            : 'text-slate-400 hover:text-slate-200'
+            ? 'text-cyan-400 font-extrabold'
+            : 'text-slate-500 hover:text-slate-300'
         }`}
       >
         KO
       </button>
+      
+      {/* Divider */}
+      <span className="w-px h-3 bg-white/5 relative z-10 mx-0.5" />
+      
+      {/* EN Button */}
       <button
         onClick={() => setLocale('en')}
-        className={`px-3 py-1 text-xs font-semibold rounded-full transition-all duration-300 ${
+        className={`relative z-10 w-11 py-1.5 text-[10px] font-black tracking-widest text-center rounded-full transition-all duration-300 cursor-pointer ${
           locale === 'en'
-            ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-            : 'text-slate-400 hover:text-slate-200'
+            ? 'text-cyan-400 font-extrabold'
+            : 'text-slate-500 hover:text-slate-300'
         }`}
       >
         EN

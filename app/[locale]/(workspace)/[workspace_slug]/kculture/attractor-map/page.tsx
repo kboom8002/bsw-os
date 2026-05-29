@@ -16,6 +16,7 @@ import {
   Globe
 } from "lucide-react";
 import { getDomainPacks, getCulturalConcepts } from "@/app/actions/kculture";
+import { useTranslation } from "@/lib/i18n/context";
 
 // Dynamically import force graph to prevent SSR compile errors
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d").then((mod) => mod.default), { ssr: false });
@@ -26,6 +27,7 @@ export default function AttractorMapPage() {
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
   const workspaceId = "00000000-0000-0000-0000-000000000000";
+  const { t } = useTranslation();
 
   const [packs, setPacks] = useState<any[]>([]);
   const [selectedPack, setSelectedPack] = useState<any>(null);
@@ -65,7 +67,7 @@ export default function AttractorMapPage() {
       if (cc && cc.length > 0) {
         const nodes = cc.map((c: any) => ({
           id: c.concept_id,
-          name: c.preferred_label?.ko || c.concept_id,
+          name: locale === 'en' && c.preferred_label?.en ? c.preferred_label.en : (c.preferred_label?.ko || c.concept_id),
           val: 8,
           color: getNodeColor(c.concept_type),
           concept: c
@@ -147,9 +149,9 @@ export default function AttractorMapPage() {
           <div>
             <h1 className="text-sm font-bold text-white flex items-center gap-2">
               <Globe className="w-4 h-4 text-cyan-400" />
-              문화 어트랙터 의미 지도 (Attractor Map)
+              {t('attractor.title')}
             </h1>
-            <p className="text-[10px] text-slate-400 font-medium">실시간 로딩된 K-Culture 개념 네트워크 어트랙터 시각화</p>
+            <p className="text-[10px] text-slate-400 font-medium">{t('attractor.subtitle')}</p>
           </div>
         </div>
 
@@ -199,15 +201,15 @@ export default function AttractorMapPage() {
               <div className="absolute left-6 bottom-6 bg-slate-900/80 border border-white/5 rounded-2xl p-4 space-y-2 z-10 text-[9px] font-semibold text-slate-400 backdrop-blur-md">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-teal-500" />
-                  <span>원료 & 발효 (Ingredients & Fermentation)</span>
+                  <span>{t('attractor.legend_ingredients')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
-                  <span>루틴 & 스타일 (Routine & Culinary Style)</span>
+                  <span>{t('attractor.legend_routine')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-pink-500" />
-                  <span>철학 & 전통 (Philosophy & Heritage)</span>
+                  <span>{t('attractor.legend_philosophy')}</span>
                 </div>
               </div>
             </div>
@@ -226,7 +228,7 @@ export default function AttractorMapPage() {
                       onClick={() => setSelectedNode(null)}
                       className="text-[10px] text-slate-500 hover:text-white font-bold cursor-pointer"
                     >
-                      닫기
+                      {t('attractor.drawer_close')}
                     </button>
                   </div>
 
@@ -236,7 +238,7 @@ export default function AttractorMapPage() {
                   </div>
 
                   <div className="space-y-2 text-left">
-                    <h4 className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">개념 정의</h4>
+                    <h4 className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">{t('attractor.drawer_definition')}</h4>
                     <p className="text-xs text-slate-300 leading-relaxed font-medium">
                       {selectedNode.definition}
                     </p>
@@ -244,14 +246,14 @@ export default function AttractorMapPage() {
 
                   {/* Vectors progress metrics */}
                   <div className="space-y-4 text-left border-t border-white/5 pt-4">
-                    <h4 className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">문화 정량 텐서 벡터</h4>
+                    <h4 className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">{t('attractor.drawer_tensor')}</h4>
                     
                     {/* Affective */}
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] text-slate-400">
                         <span className="flex items-center gap-1">
                           <Heart className="w-3.5 h-3.5 text-rose-400" />
-                          정동 공명도 (Affective)
+                          {t('attractor.drawer_affective')}
                         </span>
                         <span className="font-bold text-slate-200">{(selectedNode.affective_vector?.premiumness || 0.85) * 100}%</span>
                       </div>
@@ -265,7 +267,7 @@ export default function AttractorMapPage() {
                       <div className="flex justify-between text-[10px] text-slate-400">
                         <span className="flex items-center gap-1">
                           <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                          상업 전이도 (Commerce)
+                          {t('attractor.drawer_commerce')}
                         </span>
                         <span className="font-bold text-slate-200">{(selectedNode.commerce_vector?.marketability || 0.9) * 100}%</span>
                       </div>
@@ -279,7 +281,7 @@ export default function AttractorMapPage() {
                       <div className="flex justify-between text-[10px] text-slate-400">
                         <span className="flex items-center gap-1">
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                          왜곡 위험성 (Risk)
+                          {t('attractor.drawer_risk')}
                         </span>
                         <span className="font-bold text-slate-200">{(selectedNode.risk_vector?.over_exaggeration || 0.1) * 100}%</span>
                       </div>
@@ -294,11 +296,11 @@ export default function AttractorMapPage() {
                     <div className="space-y-2 text-left border-t border-white/5 pt-4">
                       <h4 className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                         <Award className="w-3.5 h-3.5 text-cyan-400" />
-                        SSoT 보증 기록
+                        {t('attractor.drawer_ssot')}
                       </h4>
                       <div className="bg-slate-950/40 border border-white/5 rounded-xl p-3 text-[10px] text-slate-400 leading-relaxed font-medium">
-                        <div>- 유형: {selectedNode.evidence_sources[0].source_type}</div>
-                        <div className="mt-1 font-mono text-[9px]">- 출처: {selectedNode.evidence_sources[0].reference}</div>
+                        <div>- {t('attractor.drawer_ssot_type')}: {selectedNode.evidence_sources[0].source_type}</div>
+                        <div className="mt-1 font-mono text-[9px]">- {t('attractor.drawer_ssot_ref')}: {selectedNode.evidence_sources[0].reference}</div>
                       </div>
                     </div>
                   )}
