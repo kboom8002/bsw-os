@@ -14,6 +14,7 @@ const createMockQueryBuilder = (data: any = null, error: any = null) => {
   const qb: any = {
     eq: vi.fn().mockImplementation(() => qb),
     limit: vi.fn().mockImplementation(() => qb),
+    order: vi.fn().mockImplementation(() => qb),
     select: vi.fn().mockImplementation(() => qb),
     maybeSingle: vi.fn().mockImplementation(async () => ({ data, error })),
     single: vi.fn().mockImplementation(async () => ({ data, error })),

@@ -25,7 +25,8 @@
     "observatory": "AI 검색 관측소",
     "reports": "벤치마크 리포트",
     "fixit": "해결 스튜디오 (Fix-It)",
-    "gates": "릴리스 게이트"
+    "gates": "릴리스 게이트",
+    "kculture_studio": "K-컬처 인텔리전스"
   },
   "dashboard": {
     "title": "브랜드 세맨틱 웹사이트 OS",

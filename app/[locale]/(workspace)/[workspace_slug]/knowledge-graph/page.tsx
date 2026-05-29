@@ -1,7 +1,7 @@
 import React from 'react';
-import { getSupabaseAdminClient } from '../../../../lib/supabase';
-import { getKnowledgeGraphData } from '../../../../app/actions/semantic';
-import KnowledgeGraphCanvas from '../../../../components/graph/KnowledgeGraphCanvas';
+import { getSupabaseAdminClient } from '../../../../../lib/supabase';
+import { getKnowledgeGraphData } from '../../../../../app/actions/semantic';
+import KnowledgeGraphCanvas from '../../../../../components/graph/KnowledgeGraphCanvas';
 import { GitBranch, Info, AlertCircle } from 'lucide-react';
 
 interface PageProps {

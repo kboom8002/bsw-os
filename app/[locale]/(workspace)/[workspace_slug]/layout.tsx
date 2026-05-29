@@ -63,6 +63,7 @@ export default function WorkspaceLayout({
     { name: "nav.observatory", href: `/${locale}/${workspaceSlug}/observatory`, icon: Eye, badge: "AAS 41%", module: "observatory" },
     { name: "nav.reports", href: `/${locale}/${workspaceSlug}/reports`, icon: FileBarChart, module: "reports" },
     { name: "nav.fixit", href: `/${locale}/${workspaceSlug}/fixit`, icon: Wrench, badge: "Hypo", module: "fixit" },
+    { name: "nav.kculture_studio", href: `/${locale}/${workspaceSlug}/kculture`, icon: Building2, badge: "Hybrid", module: "kculture" },
   ];
 
   const switchWorkspace = (slug: string) => {

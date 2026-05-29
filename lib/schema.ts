@@ -850,6 +850,7 @@ export const benchmarkReportSchema = z.object({
   id: z.string().uuid().optional(),
   workspace_id: z.string().uuid(),
   report_name: z.string().min(2).max(255),
+  report_type: z.enum(['benchmark', 'ai_brand_mri']).default('benchmark'),
   panel_version: z.number().int().positive().default(1),
   scores: z.record(z.string(), z.any()).default({}),
   methodology_disclosure_id: z.string().uuid().optional().nullable(),
@@ -1225,6 +1226,195 @@ export const ymylRegulatoryReferenceSchema = z.object({
 });
 
 export type YmylRegulatoryReference = z.infer<typeof ymylRegulatoryReferenceSchema>;
+
+// --- TCO-GEO Concept Fidelity Module Schemas ---
+
+// 83. Concept Extraction Result
+export const conceptExtractionResultSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  probe_run_id: z.string().uuid(),
+  extracted_concepts: z.array(z.object({
+    concept_id: z.string(),
+    label: z.string(),
+    present: z.boolean(),
+    accuracy: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
+    matched_expression: z.string().nullable(),
+    rank: z.number().int(),
+    evidence_bound: z.boolean(),
+    distortion: z.boolean(),
+    distortion_type: z.string().nullable(),
+    hallucinated: z.boolean(),
+    confidence: z.number().min(0).max(1),
+  })),
+  extracted_relations: z.array(z.object({
+    source_concept_id: z.string(),
+    relation_type: z.string(),
+    target_concept_id: z.string(),
+    accuracy: z.number().min(0).max(1),
+  })).default([]),
+  extracted_claims: z.array(z.object({
+    claim_text: z.string(),
+    source_sentence: z.string(),
+  })).default([]),
+  judge_model: z.string().default('gemini-2.5-flash'),
+  judge_temperature: z.number().default(0.0),
+  raw_judge_output: z.string().optional().nullable(),
+  created_at: z.string().optional(),
+});
+
+export type ConceptExtractionResultSchemaType = z.infer<typeof conceptExtractionResultSchema>;
+
+// 84. Fidelity Judgment
+export const fidelityJudgmentSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  probe_run_id: z.string().uuid(),
+  concept_extraction_id: z.string().uuid().optional().nullable(),
+  brand_concept_fidelity: z.number(),
+  concept_transfer: z.number().optional().nullable(),
+  relation_accuracy: z.number().optional().nullable(),
+  differentiation_preservation: z.number().optional().nullable(),
+  evidence_binding: z.number().optional().nullable(),
+  forbidden_suppression: z.number().optional().nullable(),
+  policy_alignment: z.number().optional().nullable(),
+  main_issue: z.string().optional().nullable(),
+  grade: z.enum(['A', 'B', 'C', 'D', 'F']),
+  raw_judge_output: z.string().optional().nullable(),
+  created_at: z.string().optional(),
+});
+
+export type FidelityJudgmentSchemaType = z.infer<typeof fidelityJudgmentSchema>;
+
+// 85. Distortion Judgment
+export const distortionJudgmentSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  probe_run_id: z.string().uuid(),
+  concept_extraction_id: z.string().uuid().optional().nullable(),
+  distortions: z.array(z.object({
+    concept_id: z.string(),
+    distortion_type: z.enum(['category_distortion', 'function_distortion', 'claim_distortion', 'policy_distortion', 'boundary_distortion']),
+    severity: z.number().int().min(1).max(5),
+    response_expression: z.string(),
+    correct_definition: z.string(),
+    reason: z.string(),
+  })).default([]),
+  concept_distortion_rate: z.number(),
+  severity_weighted_rate: z.number().optional().nullable(),
+  raw_judge_output: z.string().optional().nullable(),
+  created_at: z.string().optional(),
+});
+
+export type DistortionJudgmentSchemaType = z.infer<typeof distortionJudgmentSchema>;
+
+// 86. Hallucination Judgment
+export const hallucinationJudgmentSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  probe_run_id: z.string().uuid(),
+  concept_extraction_id: z.string().uuid().optional().nullable(),
+  claims: z.array(z.object({
+    claim: z.string(),
+    support_status: z.enum(['supported', 'inferred', 'unsupported']),
+    hallucination_type: z.string().optional().nullable(),
+    severity: z.number().int().min(1).max(5),
+    reason: z.string(),
+  })).default([]),
+  hallucinated_concept_rate: z.number(),
+  critical_count: z.number().int().default(0),
+  raw_judge_output: z.string().optional().nullable(),
+  created_at: z.string().optional(),
+});
+
+export type HallucinationJudgmentSchemaType = z.infer<typeof hallucinationJudgmentSchema>;
+
+// 87. Risk Judgment
+export const riskJudgmentSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  probe_run_id: z.string().uuid(),
+  risk_score: z.number(),
+  hallucination_risk: z.number().optional().nullable(),
+  brand_distortion_risk: z.number().optional().nullable(),
+  critical_missing_risk: z.number().optional().nullable(),
+  unsafe_cta_risk: z.number().optional().nullable(),
+  evidence_omission_risk: z.number().optional().nullable(),
+  regulated_claim_risk: z.number().optional().nullable(),
+  trust_damage_risk: z.number().optional().nullable(),
+  floor_reason: z.string().optional().nullable(),
+  raw_judge_output: z.string().optional().nullable(),
+  created_at: z.string().optional(),
+});
+
+export type RiskJudgmentSchemaType = z.infer<typeof riskJudgmentSchema>;
+
+// 88. Policy Judgment
+export const policyJudgmentSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  probe_run_id: z.string().uuid(),
+  policy_alignment: z.number(),
+  answer_policy: z.number().optional().nullable(),
+  cta_policy: z.number().optional().nullable(),
+  evidence_policy: z.number().optional().nullable(),
+  safety_policy: z.number().optional().nullable(),
+  brand_tone: z.number().optional().nullable(),
+  violations: z.array(z.object({
+    policy: z.string(),
+    severity: z.number().int().min(1).max(5),
+    reason: z.string(),
+  })).default([]),
+  raw_judge_output: z.string().optional().nullable(),
+  created_at: z.string().optional(),
+});
+
+export type PolicyJudgmentSchemaType = z.infer<typeof policyJudgmentSchema>;
+
+// 89. Concept Fidelity Snapshot
+export const conceptFidelitySnapshotSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  ai_observation_run_id: z.string().uuid(),
+  condition: z.string().default('baseline'),
+  concept_transfer_rate: z.number().optional().nullable(),
+  citation_backed_rate: z.number().optional().nullable(),
+  brand_concept_fidelity: z.number().optional().nullable(),
+  concept_distortion_rate: z.number().optional().nullable(),
+  missing_concept_gap_count: z.number().int().default(0),
+  hallucinated_concept_rate: z.number().optional().nullable(),
+  attractor_stability: z.number().optional().nullable(),
+  drift_score: z.number().optional().nullable(),
+  floor_risk: z.number().optional().nullable(),
+  policy_alignment: z.number().optional().nullable(),
+  consensus_score: z.number().optional().nullable(),
+  variance_score: z.number().optional().nullable(),
+  aeo_geo_readiness: z.number().optional().nullable(),
+  grade: z.enum(['A', 'B', 'C', 'D', 'F']).optional().nullable(),
+  qbs_size: z.number().int().optional().nullable(),
+  runs_total: z.number().int().optional().nullable(),
+  details: z.record(z.string(), z.any()).default({}),
+  created_at: z.string().optional(),
+});
+
+export type ConceptFidelitySnapshotSchemaType = z.infer<typeof conceptFidelitySnapshotSchema>;
+
+// 90. Experiment Run
+export const experimentRunSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  experiment_name: z.string(),
+  baseline_run_id: z.string().uuid().optional().nullable(),
+  intervention_run_id: z.string().uuid().optional().nullable(),
+  intervention_type: z.string().optional().nullable(),
+  status: z.enum(['draft', 'running', 'completed', 'failed']).default('draft'),
+  comparison_results: z.record(z.string(), z.any()).default({}),
+  created_at: z.string().optional(),
+  completed_at: z.string().optional().nullable(),
+});
+
+export type ExperimentRunSchemaType = z.infer<typeof experimentRunSchema>;
+
 
 
 

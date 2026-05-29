@@ -24,6 +24,14 @@ export class BairEngine {
   public async computeBAIR(workspaceId: string, brandKeyword: string): Promise<BairResult> {
     const supabase = getSupabaseAdminClient();
 
+    // 1. Check if precision TCO-GEO snapshots exist for this workspace
+    const { data: latestSnapshot } = await supabase
+      .from("concept_fidelity_snapshots")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
     // In production, queries real probe runs and response judgments
     const { data: runs } = await supabase
       .from("probe_runs")
@@ -32,9 +40,9 @@ export class BairEngine {
       .limit(50);
 
     // Default mock stats backed by historical observations
-    let bsf = 55; // 55% share of voice
+    let bsf = 55; // 55% share of voice (falls back to BCF if snapshot exists)
     let aas = 0.82; // 82% favorable sentiment
-    let ocr = 0.30; // 30% direct recommendation
+    let ocr = 0.30; // 30% direct recommendation (falls back to Citation Rate if snapshot exists)
     let swel = 1.12; // 12% Exposure Lift from Semantic Pages
 
     if (runs && runs.length > 0) {
@@ -80,6 +88,17 @@ export class BairEngine {
         bsf = Math.round((matched / total) * 100);
         aas = Number((positive / matched).toFixed(2));
         ocr = Number((recommended / matched).toFixed(2));
+      }
+    }
+
+    // Upgrade BSF with Brand Concept Fidelity (BCF * 100) and OCR with Citation Rate if snapshot exists
+    if (latestSnapshot && latestSnapshot.length > 0) {
+      const snap = latestSnapshot[0];
+      if (snap.brand_concept_fidelity !== null) {
+        bsf = Math.round(Number(snap.brand_concept_fidelity) * 100);
+      }
+      if (snap.citation_backed_rate !== null) {
+        ocr = Number(snap.citation_backed_rate);
       }
     }
 

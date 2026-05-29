@@ -15,6 +15,7 @@ export interface SbsIndexReport {
   industryRankings: IndustryAiprResult[];
   beautyAipr: any[];
   weddingAipr: any[];
+  conceptFidelity?: any;
   timestamp: string;
 }
 
@@ -37,6 +38,16 @@ export class SbsIndexRunner {
     const supabase = getSupabaseAdminClient();
     const kaivi = await this.kaiviEngine.computeKAIVI(workspaceId);
     const aiti = await this.bairEngine.computeAITI(workspaceId);
+
+    // Fetch the latest concept fidelity snapshot if available
+    const { data: latestCfSnap } = await supabase
+      .from("concept_fidelity_snapshots")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const conceptFidelity = latestCfSnap && latestCfSnap.length > 0 ? latestCfSnap[0] : undefined;
 
     // Dynamically fetch all probe_panels and group by industry
     const { data: panels } = await supabase
@@ -80,6 +91,7 @@ export class SbsIndexRunner {
       industryRankings,
       beautyAipr,
       weddingAipr,
+      conceptFidelity,
       timestamp: new Date().toISOString()
     };
   }

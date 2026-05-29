@@ -364,6 +364,7 @@ export async function createBenchmarkReport(workspaceId: string, data: any) {
     .insert({
       workspace_id: workspaceId,
       report_name: data.report_name,
+      report_type: data.report_type || "benchmark",
       panel_version: data.panel_version || 1,
       scores: data.scores || {}
     })
@@ -390,6 +391,7 @@ export async function updateBenchmarkReport(workspaceId: string, id: string, dat
     .from("benchmark_reports")
     .update({
       report_name: data.report_name,
+      report_type: data.report_type,
       panel_version: data.panel_version,
       scores: data.scores,
       methodology_disclosure_id: data.methodology_disclosure_id
