@@ -84,7 +84,7 @@ export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
     icon: '📸',
     description: '웨딩 포토 스튜디오 브랜드 AI 가시성 지표',
     industryType: 'wedding_studio',
-    sampleQuestionsForLight: 10,
+    sampleQuestionsForLight: 20,
     sampleQuestionsForFull: 25,
     brands: [
       {
