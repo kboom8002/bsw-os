@@ -349,70 +349,65 @@ export class QuickSiteAnalyzer {
     const cards: ReversedAnswerCard[] = [];
     const now = new Date().toISOString();
 
-    // Group entities by type and create cards for strategic groups
-    const factoids = entities.filter(e => e.surface_type === 'factoid').slice(0, 3);
-    const procedurals = entities.filter(e => e.surface_type === 'procedural').slice(0, 2);
-    const authorities = entities.filter(e => e.surface_type === 'authority').slice(0, 2);
+    // Map surface_type → card_type
+    const typeToCard: Record<string, ReversedAnswerCard['card_type']> = {
+      factoid: 'direct_answer',
+      procedural: 'how_to',
+      comparative: 'comparison',
+      authority: 'direct_answer',
+      schema_org: 'product',
+      topical_cluster: 'faq',
+      local_geo: 'local'
+    };
 
-    for (const ent of factoids) {
+    // Generate trigger queries based on entity type
+    const makeTriggers = (ent: SurfaceEntity): string[] => {
+      const name = ent.entity_name.length > 60
+        ? ent.entity_name.substring(0, 60)
+        : ent.entity_name;
+
+      switch (ent.surface_type) {
+        case 'factoid':
+          return [`${brandName} ${name}`, `${name}이란?`];
+        case 'procedural':
+          return [`${name} 방법`, `${brandName} ${name}`];
+        case 'comparative':
+          return [`${name} 비교`, `${brandName} 추천`];
+        case 'authority':
+          return [`${brandName} 인증`, `${brandName} 전문성 신뢰도`];
+        case 'schema_org': {
+          const schemaType = ent.entity_content?.['@type'] || '';
+          return [`${brandName} ${name}`, `${schemaType} ${brandName}`];
+        }
+        case 'topical_cluster':
+          return [`${name}`, `${brandName} ${name} 정보`];
+        case 'local_geo':
+          return [`${brandName} 위치`, `${brandName} 매장 주소`];
+        default:
+          return [`${brandName} ${name}`];
+      }
+    };
+
+    // Create cards from ALL entities (cap at 15 total)
+    for (const ent of entities.slice(0, 15)) {
+      const cardType = typeToCard[ent.surface_type] || 'direct_answer';
+      const isSchemaSupported = ent.has_schema_support;
+
       cards.push({
         id: `card-q-${cards.length}`,
         workspace_id: workspaceId,
         website_url: websiteUrl,
-        card_type: 'product',
+        card_type: cardType,
         headline: ent.entity_name,
-        trigger_queries: [
-          `${brandName} ${ent.entity_name} 정보`,
-          `${ent.entity_name}란?`
-        ],
-        body_entity_ids: [ent.id!],
+        trigger_queries: makeTriggers(ent),
+        body_entity_ids: [ent.id || `ent-${cards.length}`],
         source_page_urls: [ent.source_page_url],
         linked_canonical_question_id: null,
         linked_qis_scene_ids: [],
         completeness_score: ent.completeness_score,
         eeat_strength: ent.eeat_strength,
-        schema_support_level: ent.has_schema_support ? 'partial' : 'none',
-        optimization_status: ent.has_schema_support ? 'optimized' : 'raw',
-        created_at: now
-      });
-    }
-
-    for (const ent of procedurals) {
-      cards.push({
-        id: `card-q-${cards.length}`,
-        workspace_id: workspaceId,
-        website_url: websiteUrl,
-        card_type: 'how_to',
-        headline: ent.entity_name,
-        trigger_queries: [`${brandName} ${ent.entity_name}`],
-        body_entity_ids: [ent.id!],
-        source_page_urls: [ent.source_page_url],
-        linked_canonical_question_id: null,
-        linked_qis_scene_ids: [],
-        completeness_score: ent.completeness_score,
-        eeat_strength: ent.eeat_strength,
-        schema_support_level: 'none',
-        optimization_status: 'raw',
-        created_at: now
-      });
-    }
-
-    for (const ent of authorities) {
-      cards.push({
-        id: `card-q-${cards.length}`,
-        workspace_id: workspaceId,
-        website_url: websiteUrl,
-        card_type: 'direct_answer',
-        headline: ent.entity_name,
-        trigger_queries: [`${brandName} 인증`, `${brandName} 전문성`],
-        body_entity_ids: [ent.id!],
-        source_page_urls: [ent.source_page_url],
-        linked_canonical_question_id: null,
-        linked_qis_scene_ids: [],
-        completeness_score: ent.completeness_score,
-        eeat_strength: ent.eeat_strength,
-        schema_support_level: 'none',
-        optimization_status: 'raw',
+        schema_support_level: isSchemaSupported ? 'full' : 'none',
+        optimization_status: isSchemaSupported ? 'optimized' : 'raw',
         created_at: now
       });
     }
