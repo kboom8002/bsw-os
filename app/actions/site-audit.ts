@@ -30,6 +30,47 @@ export interface AuditResult {
 }
 
 /**
+ * 크롤링된 엔티티와 URL 기반 업종 자동 감지
+ */
+function detectIndustry(websiteUrl: string, entities: SurfaceEntity[]): string {
+  const allText = [
+    websiteUrl.toLowerCase(),
+    ...entities.map(e => `${e.entity_name} ${JSON.stringify(e.entity_content)}`)
+  ].join(' ').toLowerCase();
+
+  const INDUSTRY_KEYWORDS: Record<string, string[]> = {
+    wedding_studio: ['웨딩', '스튜디오', '촬영', '포토', '스냅', '결혼', 'wedding', 'studio', 'photo', 'bridal', '드레스'],
+    skincare: ['스킨케어', '화장품', '뷰티', '코스메틱', '피부', '세럼', '크림', 'skincare', 'cosmetic', 'beauty', 'serum', '클렌저'],
+    beauty: ['메이크업', '헤어', '살롱', '네일', 'makeup', 'salon', 'nail', 'hair'],
+    clinic: ['병원', '클리닉', '의원', '진료', '치료', 'clinic', 'hospital', 'medical', '피부과', '성형'],
+    restaurant: ['레스토랑', '음식점', '맛집', '카페', '배달', 'restaurant', 'cafe', 'dining'],
+    real_estate: ['부동산', '아파트', '매물', '분양', 'real estate', 'property', 'apartment'],
+    education: ['학원', '교육', '강의', '수업', '튜터', 'education', 'academy', 'tutor', 'course'],
+    travel: ['여행', '투어', '호텔', '숙소', '관광', 'travel', 'tour', 'hotel', 'tourism'],
+    pet: ['반려동물', '펫', '강아지', '고양이', 'pet', 'dog', 'cat', 'veterinary'],
+    convenience_retail: ['편의점', '리테일', '매장', '소매', 'convenience', 'retail', 'store'],
+    fashion_ecommerce: ['패션', '의류', '쇼핑몰', '옷', 'fashion', 'clothing', 'apparel', 'ecommerce'],
+    it_software: ['소프트웨어', '앱', 'SaaS', '개발', 'software', 'app', 'tech', 'platform'],
+    food_beverage: ['식품', '음료', '건강식품', '식자재', 'food', 'beverage', 'nutrition'],
+  };
+
+  let bestMatch = '';
+  let bestScore = 0;
+
+  for (const [industry, keywords] of Object.entries(INDUSTRY_KEYWORDS)) {
+    const matchCount = keywords.filter(kw => allText.includes(kw)).length;
+    if (matchCount > bestScore) {
+      bestScore = matchCount;
+      bestMatch = industry;
+    }
+  }
+
+  const detected = bestScore >= 2 ? bestMatch : 'default';
+  console.log(`[Audit] Industry auto-detected: "${detected}" (score: ${bestScore})`);
+  return detected;
+}
+
+/**
  * Quick Audit: HTML 크롤링만으로 즉시 추정 (AI API 호출 없음, ~5초)
  */
 export async function runQuickSiteAudit(
@@ -145,12 +186,17 @@ export async function runFullSiteAudit(
       console.warn(`[Audit] Step 5 FAIL (probes): ${e.message}. Skipping reflection.`);
     }
 
-    // ── Step 6: QIS Cross Map ──
+    // ── Step 6: QIS Cross Map (업종 자동 감지) ──
     let mappings: any[] = [];
+    const detectedIndustry = detectIndustry(websiteUrl, kg.entities);
     try {
-      const crossMapper = new QisCrossMapper();
-      mappings = await crossMapper.crossMap("skincare", customProbes);
-      console.log(`[Audit] Step 6 OK: ${mappings.length} mappings`);
+      if (detectedIndustry !== 'default') {
+        const crossMapper = new QisCrossMapper();
+        mappings = await crossMapper.crossMap(detectedIndustry, customProbes);
+        console.log(`[Audit] Step 6 OK: ${mappings.length} mappings (industry: ${detectedIndustry})`);
+      } else {
+        console.log(`[Audit] Step 6 SKIP: no matching industry panel for this site.`);
+      }
     } catch (e: any) {
       console.warn(`[Audit] Step 6 FAIL (QIS): ${e.message}.`);
     }
@@ -179,7 +225,7 @@ export async function runFullSiteAudit(
     // ── Step 8: AEPI Score ──
     if (snapshot && hasReflection) {
       try {
-        const aepi = AepiCalculator.calculate(snapshot, "skincare");
+        const aepi = AepiCalculator.calculate(snapshot, detectedIndustry);
         snapshot.aepi_score = aepi;
         console.log(`[Audit] Step 8 OK: AEPI = ${aepi}`);
       } catch (e: any) {
