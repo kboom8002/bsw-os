@@ -127,7 +127,9 @@ export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
         name: '섬 스튜디오',
         name_en: 'Som Studio',
         domains: ['somstudio.kr', 'som-studio.com'],
-        keywords: ['섬 스튜디오', '섬스튜디오', 'som studio', 'somstudio'],
+        // 키워드 주의: '섬 스튜디오'는 한국어 보통명사(섬=섬) 오탐 위험 있음
+        // '섬스튜디오'(붙여쓰기), 'somstudio', '경기 하남 섬 스튜디오'로 특정
+        keywords: ['섬스튜디오', 'somstudio', 'som studio', '하남 섬 스튜디오', '섬 스튜디오 웨딩'],
         color: '#f59e0b',
       },
     ],

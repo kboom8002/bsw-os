@@ -289,7 +289,7 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         try {
           // Gemini REST API 직접 호출 (브라우저 → Google API, Vercel 무관)
           const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
