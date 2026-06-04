@@ -30,6 +30,7 @@ interface SiteAuditDashboardProps {
   observedPersona: ObservedParametricPersona | null;
   personaSpec: PersonaSpec | null;
   gaps: SurfaceGapAnalysis[];
+  auditMode?: 'estimated' | 'measured' | 'partial';
   onTriggerReRun?: () => Promise<any>;
 }
 
@@ -42,12 +43,14 @@ export default function SiteAuditDashboard({
   observedPersona,
   personaSpec,
   gaps,
+  auditMode: initialAuditMode = 'estimated',
   onTriggerReRun
 }: SiteAuditDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState("diagnostic");
   const [running, setRunning] = useState(false);
+  const [currentAuditMode, setCurrentAuditMode] = useState<'estimated' | 'measured' | 'partial'>(initialAuditMode);
 
   // URL edit state
   const [urlEditMode, setUrlEditMode] = useState(false);
@@ -84,6 +87,7 @@ export default function SiteAuditDashboard({
         if (res.snapshot) setLocalSnapshot(res.snapshot);
         if (res.observedPersona) setLocalObservedPersona(res.observedPersona);
         if (res.gaps) setLocalGaps(res.gaps);
+        if (res.auditMode) setCurrentAuditMode(res.auditMode);
       }
     } catch (err) {
       console.error("Re-run audit error:", err);
@@ -198,6 +202,7 @@ export default function SiteAuditDashboard({
               eeatScore={localSnapshot.eeat_mod_score}
               totalEntities={localSnapshot.total_entities_checked}
               reflectedEntities={localSnapshot.total_entities_reflected}
+              auditMode={currentAuditMode}
             />
           </div>
         )}

@@ -1,4 +1,4 @@
-import { getFallbackAuditData, runFullSiteAudit } from "../../actions/site-audit";
+import { runQuickSiteAudit, runFullSiteAudit } from "../../actions/site-audit";
 import SiteAuditDashboard from "../../../components/site-audit/SiteAuditDashboard";
 import SiteAuditLanding from "../../../components/site-audit/SiteAuditLanding";
 
@@ -32,10 +32,10 @@ export default async function SiteAuditPage({ params, searchParams }: Props) {
 
   const workspaceId = "c2498c4f-aee3-49e0-bb80-171a0852128f";
 
-  // Always load fallback data first for fast rendering
-  const initialData = await getFallbackAuditData(workspaceId, targetUrl, brandName);
+  // Quick Audit: crawl-only estimation (~5 sec, no AI API calls)
+  const initialData = await runQuickSiteAudit(workspaceId, targetUrl, brandName);
 
-  // Bind server action to the current URL so the "실시간 감사 실행" button works for ANY site
+  // Bind Full Audit server action for "실시간 감사 실행" button
   const boundRunAudit = runFullSiteAudit.bind(null, workspaceId, targetUrl, brandName);
 
   return (
@@ -48,6 +48,7 @@ export default async function SiteAuditPage({ params, searchParams }: Props) {
       observedPersona={initialData.observedPersona}
       personaSpec={initialData.personaSpec}
       gaps={initialData.gaps}
+      auditMode={initialData.auditMode}
       onTriggerReRun={boundRunAudit}
     />
   );
