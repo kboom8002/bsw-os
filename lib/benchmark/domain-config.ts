@@ -91,24 +91,27 @@ export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
         slug: 'the-cheongdam-studio',
         name: '더청담스튜디오',
         name_en: 'The Cheongdam Studio',
-        domains: ['thecheongdamstudio.com', 'cheongdamstudio.kr'],
-        keywords: ['더청담스튜디오', '더청담', '청담스튜디오', 'cheongdam studio', 'thecheongdam'],
+        // 실측 확인된 공식 도메인: thechungdamstudio.com (2026-06 검증)
+        domains: ['thechungdamstudio.com', 'thecheongdamstudio.com'],
+        keywords: ['더청담스튜디오', '더청담', '청담스튜디오', 'cheongdam studio', 'chungdam studio', 'thecheongdam', 'thechungdam'],
         color: '#6366f1',
       },
       {
         slug: 'ephoto-essay',
         name: '이포토에세이',
         name_en: 'E Photo Essay',
-        domains: ['ephotooessay.com', 'ephotoessay.co.kr'],
-        keywords: ['이포토에세이', '이포토', 'ephotoessay', 'e photo essay', 'e포토에세이'],
+        // 실측 확인된 공식 도메인: ephotoessay.com (2026-06 검증)
+        domains: ['ephotoessay.com', 'ephotoessay.co.kr'],
+        keywords: ['이포토에세이', '이포토', 'ephotoessay', 'e photo essay', 'e포토에세이', 'e-photo essay'],
         color: '#8b5cf6',
       },
       {
         slug: 'lumiere-studio',
         name: '루미에 스튜디오',
         name_en: 'Lumière Studio',
-        domains: ['lumierstudio.kr', 'lumierstudio.com'],
-        keywords: ['루미에 스튜디오', '루미에', 'lumiere studio', 'lumière', 'lumierstudio'],
+        // 실측 확인된 공식 도메인: lumierestudio.co.kr (2026-06 검증)
+        domains: ['lumierestudio.co.kr', 'lumierestudio.com', 'lumierstudio.kr'],
+        keywords: ['루미에 스튜디오', '루미에', 'lumiere studio', 'lumière studio', 'lumierestudio', 'lumierstudio'],
         color: '#ec4899',
       },
       {
