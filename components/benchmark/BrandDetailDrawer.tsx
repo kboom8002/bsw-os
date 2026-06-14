@@ -4,9 +4,16 @@ import React, { useState, useEffect } from "react";
 import {
   X, ExternalLink, Activity, Globe, Shield,
   TrendingUp, TrendingDown, Minus, BarChart3,
-  Target, Eye, Search, Zap
+  Target, Eye, Search, Zap, FileText, MessageSquare, Link2, ChevronDown, ChevronUp
 } from "lucide-react";
 import type { BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark";
+import type { QuestionDetail } from "../../lib/benchmark/lightweight-metric-runner";
+
+interface RawQueryResult {
+  questionIdx: number;
+  text: string;
+  citations: { url: string; domain: string; title: string }[];
+}
 
 interface BrandDetailDrawerProps {
   brand: BenchmarkLeaderboardEntry | null;
@@ -14,6 +21,8 @@ interface BrandDetailDrawerProps {
   domainName: string;
   history: BenchmarkHistoryPoint[];
   onClose: () => void;
+  questionDetails?: QuestionDetail[];
+  rawQueryResults?: RawQueryResult[];
 }
 
 function TrendBadge({ value }: { value: number }) {
@@ -152,9 +161,11 @@ function MetricRing({ value, label, color, icon: Icon }: {
 
 // ─── Main Drawer ──────────────────────────────────────────
 export default function BrandDetailDrawer({
-  brand, domainSlug, domainName, history, onClose
+  brand, domainSlug, domainName, history, onClose,
+  questionDetails = [], rawQueryResults = []
 }: BrandDetailDrawerProps) {
   const [visible, setVisible] = useState(false);
+  const [activeDrawerTab, setActiveDrawerTab] = useState<'overview' | 'evidence'>('overview');
 
   useEffect(() => {
     if (brand) {
@@ -207,10 +218,34 @@ export default function BrandDetailDrawer({
               <X className="h-5 w-5" />
             </button>
           </div>
+        {/* Tabs */}
+          <div className="flex items-center gap-1 bg-slate-800/60 rounded-lg p-1">
+            <button
+              onClick={() => setActiveDrawerTab('overview')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                activeDrawerTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <BarChart3 className="h-3 w-3" /> 지표
+            </button>
+            <button
+              onClick={() => setActiveDrawerTab('evidence')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                activeDrawerTab === 'evidence' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileText className="h-3 w-3" /> 근거 ({questionDetails.filter(qd => {
+                const eng = Object.keys(qd.per_engine)[0];
+                return eng && qd.per_engine[eng].brands_mentioned.includes(brand?.brand_name ?? '');
+              }).length})
+            </button>
+          </div>
         </div>
 
         {/* Content */}
+        {activeDrawerTab === 'overview' ? (
         <div className="p-6 space-y-6">
+
           {/* Trend Badge */}
           <div className="flex items-center gap-3">
             <TrendBadge value={brand.aas_trend} />
@@ -309,6 +344,14 @@ export default function BrandDetailDrawer({
             </a>
           </div>
         </div>
+        ) : (
+          // Evidence Tab
+          <EvidenceTab
+            brandName={brand?.brand_name ?? ''}
+            questionDetails={questionDetails}
+            rawQueryResults={rawQueryResults}
+          />
+        )}
       </div>
     </>
   );
@@ -339,6 +382,162 @@ function MetricExplainer({
         </div>
         <p className="text-[10px] text-slate-500 leading-relaxed">{description}</p>
       </div>
+    </div>
+  );
+}
+
+// ─── Sub-component: Evidence Tab ───────────────────────────
+interface RawQueryResultLocal {
+  questionIdx: number;
+  text: string;
+  citations: { url: string; domain: string; title: string }[];
+}
+function EvidenceTab({
+  brandName,
+  questionDetails,
+  rawQueryResults,
+}: {
+  brandName: string;
+  questionDetails: QuestionDetail[];
+  rawQueryResults: RawQueryResultLocal[];
+}) {
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  const brandQuestions = questionDetails.filter((qd) => {
+    const eng = Object.keys(qd.per_engine)[0];
+    return eng && qd.per_engine[eng].brands_mentioned.includes(brandName);
+  });
+
+  const missedQuestions = questionDetails.filter((qd) => {
+    const eng = Object.keys(qd.per_engine)[0];
+    return eng && !qd.per_engine[eng].brands_mentioned.includes(brandName);
+  });
+
+  function highlight(text: string, brand: string) {
+    const parts = text.split(new RegExp(`(${brand})`, "gi"));
+    return parts.map((p, i) =>
+      p.toLowerCase() === brand.toLowerCase()
+        ? <mark key={i} className="bg-amber-400/30 text-amber-200 rounded px-0.5">{p}</mark>
+        : p
+    );
+  }
+
+  function getSnippet(text: string, brand: string, radius = 200) {
+    const lower = text.toLowerCase();
+    const idx = lower.indexOf(brand.toLowerCase());
+    if (idx === -1) return text.slice(0, radius * 2);
+    const s = Math.max(0, idx - radius);
+    const e = Math.min(text.length, idx + brand.length + radius);
+    return (s > 0 ? "…" : "") + text.slice(s, e) + (e < text.length ? "…" : "");
+  }
+
+  return (
+    <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-220px)]">
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-emerald-950/30 border border-emerald-800/30 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black text-emerald-400">{brandQuestions.length}</div>
+          <div className="text-[10px] text-emerald-300/70 mt-0.5">언급된 질문</div>
+        </div>
+        <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black text-slate-400">{missedQuestions.length}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">미언급 질문</div>
+        </div>
+      </div>
+
+      {/* Mentioned questions */}
+      {brandQuestions.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+            <FileText className="w-3 h-3" /> 언급된 질문 — AI 응답 근거
+          </h4>
+          {brandQuestions.map((qd, i) => {
+            const globalIdx = questionDetails.indexOf(qd);
+            const raw = rawQueryResults.find((r) => r.questionIdx === globalIdx);
+            const fullText = raw?.text ?? Object.values(qd.per_engine)[0]?.raw_response_text ?? "";
+            const snippet = getSnippet(fullText, brandName);
+            const citations = raw?.citations ?? [];
+            const citDomains = Object.values(qd.per_engine)[0]?.citation_domains ?? [];
+            const isExpanded = expandedIdx === i;
+
+            return (
+              <div
+                key={i}
+                className="border border-emerald-800/30 bg-emerald-950/10 rounded-xl overflow-hidden"
+              >
+                <button
+                  className="w-full text-left p-3 flex items-start justify-between gap-2"
+                  onClick={() => setExpandedIdx(isExpanded ? null : i)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-200 leading-snug">{qd.question_text}</p>
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">{qd.question_type} · {qd.layer}</span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />}
+                </button>
+
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-2 border-t border-emerald-900/30">
+                    {/* Snippet */}
+                    <div className="bg-slate-950/60 rounded-lg p-2.5 mt-2">
+                      <p className="text-[11px] text-slate-300 leading-relaxed font-mono">
+                        {highlight(snippet, brandName)}
+                      </p>
+                    </div>
+                    {/* Citations */}
+                    {citations.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {citations.slice(0, 4).map((c, ci) => (
+                          <a key={ci} href={c.url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] text-cyan-400 bg-cyan-950/30 border border-cyan-800/30 rounded px-2 py-0.5 hover:text-cyan-300">
+                            <Globe className="w-2.5 h-2.5" />
+                            {c.domain}
+                          </a>
+                        ))}
+                      </div>
+                    ) : citDomains.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {citDomains.slice(0, 4).map((d, di) => (
+                          <span key={di} className="inline-flex items-center gap-1 text-[10px] text-cyan-400/60 bg-cyan-950/20 border border-cyan-900/20 rounded px-2 py-0.5">
+                            <Globe className="w-2.5 h-2.5" />
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sample of missed questions */}
+      {missedQuestions.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Search className="w-3 h-3" /> 미언급 질문 샘플 (기회 영역)
+          </h4>
+          {missedQuestions.slice(0, 5).map((qd, i) => (
+            <div key={i} className="border border-slate-800 bg-slate-900/20 rounded-xl p-3">
+              <p className="text-xs text-slate-400 leading-snug">{qd.question_text}</p>
+              <span className="text-[10px] text-slate-600 mt-0.5 block">{qd.question_type} · {qd.layer}</span>
+            </div>
+          ))}
+          {missedQuestions.length > 5 && (
+            <p className="text-[10px] text-slate-600 text-center">+{missedQuestions.length - 5}개 더...</p>
+          )}
+        </div>
+      )}
+
+      {brandQuestions.length === 0 && (
+        <div className="py-12 text-center">
+          <Search className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+          <p className="text-slate-400 text-sm">이번 측정에서 AI가 {brandName}을 언급하지 않았습니다.</p>
+          <p className="text-slate-600 text-xs mt-2">「즉시 실측 실행」 버튼을 클릭하여 측정하면 근거가 표시됩니다.</p>
+        </div>
+      )}
     </div>
   );
 }

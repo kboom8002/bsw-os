@@ -14,6 +14,7 @@ import { BENCHMARK_DOMAINS } from "../../lib/benchmark/domain-config";
 import { OpportunityAnalyzer, type BrandOpportunityReport } from "../../lib/benchmark/opportunity-analyzer";
 import type { QuestionDetail } from "../../lib/benchmark/lightweight-metric-runner";
 import OpportunityIntelligenceSection from "./OpportunityIntelligenceSection";
+import EvidenceExplorer from "./EvidenceExplorer";
 import BrandDetailDrawer from "./BrandDetailDrawer";
 
 interface BenchmarkDashboardProps {
@@ -222,6 +223,9 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
   const [progressMsg, setProgressMsg] = useState('');
   const [elapsedSec, setElapsedSec] = useState(0);
   const [opportunities, setOpportunities] = useState<BrandOpportunityReport | null>(null);
+  const [questionDetails, setQuestionDetails] = useState<QuestionDetail[]>([]);
+  const [rawQueryResults, setRawQueryResults] = useState<{questionIdx:number;text:string;citations:{url:string;domain:string;title:string}[]}[]>([]);
+  const [runBrands, setRunBrands] = useState<{slug:string;name:string}[]>([]);
 
   // 마운트 시 URL hash에서 탭 복원
   React.useEffect(() => {
@@ -407,6 +411,11 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         const report = OpportunityAnalyzer.analyze(targetBrand.name, targetBrand.slug, questionDetails, undefined);
         setOpportunities(report);
       }
+
+      // Persist raw query results and question details in state for Evidence UI
+      setQuestionDetails(questionDetails);
+      setRawQueryResults(queryResults);
+      setRunBrands(brands.map((b: any) => ({ slug: b.slug, name: b.name })));
 
       // Step 4: 결과 저장
       setProgressMsg('Supabase에 결과 저장 중...');
@@ -673,6 +682,15 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         {/* Opportunity Intelligence */}
         {opportunities && <OpportunityIntelligenceSection report={opportunities} />}
 
+        {/* Evidence Explorer */}
+        {questionDetails.length > 0 && (
+          <EvidenceExplorer
+            questionDetails={questionDetails}
+            rawQueryResults={rawQueryResults}
+            allBrandNames={runBrands.map(b => b.name)}
+          />
+        )}
+
         {/* Methodology Disclosure */}
         <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/20 backdrop-blur-md flex items-start gap-3">
           <HelpCircle className="h-5 w-5 text-violet-400 shrink-0 mt-0.5" />
@@ -712,6 +730,8 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         domainName={activeDomainConfig?.name ?? ''}
         history={activeSummary?.history ?? []}
         onClose={() => setSelectedBrand(null)}
+        questionDetails={questionDetails}
+        rawQueryResults={rawQueryResults}
       />
     </div>
   );
