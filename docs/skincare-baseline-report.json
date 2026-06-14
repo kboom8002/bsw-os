@@ -1,0 +1,171 @@
+{
+  "generated_at": "2026-06-01T12:05:13.949Z",
+  "mode": "live",
+  "engines": [
+    "chatgpt_search",
+    "gemini_grounding"
+  ],
+  "metrics": {
+    "ARS": 18.93,
+    "BSF": 20.71,
+    "OCR": 0,
+    "AAS": 42.86,
+    "BAIR": 8.88
+  },
+  "raw_runs": [
+    {
+      "question": "스킨케어 루틴 기본 순서 알려줘",
+      "layer": "L1_universal",
+      "engine": "chatgpt_search",
+      "ars": 40,
+      "bsf": 80,
+      "aas": 0,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "스킨케어 루틴 기본 순서 알려줘",
+      "layer": "L1_universal",
+      "engine": "gemini_grounding",
+      "ars": 0,
+      "bsf": 0,
+      "aas": 0,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "민감성 피부 보습크림 추천해줘",
+      "layer": "L2_competitive",
+      "engine": "chatgpt_search",
+      "ars": 25,
+      "bsf": 50,
+      "aas": 0,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "민감성 피부 보습크림 추천해줘",
+      "layer": "L2_competitive",
+      "engine": "gemini_grounding",
+      "ars": 15,
+      "bsf": 30,
+      "aas": 0,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "레티놀 효과와 작용 메커니즘",
+      "layer": "L3_ingredient",
+      "engine": "chatgpt_search",
+      "ars": 50,
+      "bsf": 100,
+      "aas": 0,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "레티놀 효과와 작용 메커니즘",
+      "layer": "L3_ingredient",
+      "engine": "gemini_grounding",
+      "ars": 0,
+      "bsf": 0,
+      "aas": 0,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "닥터오 브랜드 철학이 뭐야?",
+      "layer": "L4_journey",
+      "engine": "chatgpt_search",
+      "ars": 20,
+      "bsf": 0,
+      "aas": 100,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "닥터오 브랜드 철학이 뭐야?",
+      "layer": "L4_journey",
+      "engine": "gemini_grounding",
+      "ars": 20,
+      "bsf": 0,
+      "aas": 100,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "임산부 닥터오 제품 써도 되나요?",
+      "layer": "L5_ymyl",
+      "engine": "chatgpt_search",
+      "ars": 20,
+      "bsf": 0,
+      "aas": 100,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "임산부 닥터오 제품 써도 되나요?",
+      "layer": "L5_ymyl",
+      "engine": "gemini_grounding",
+      "ars": 20,
+      "bsf": 0,
+      "aas": 100,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "2026 K-뷰티 스킨케어 신 트렌드",
+      "layer": "L6_trend",
+      "engine": "chatgpt_search",
+      "ars": 15,
+      "bsf": 30,
+      "aas": 0,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "2026 K-뷰티 스킨케어 신 트렌드",
+      "layer": "L6_trend",
+      "engine": "gemini_grounding",
+      "ars": 0,
+      "bsf": 0,
+      "aas": 0,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "닥터오의 브랜드 슬로건과 핵심 철학",
+      "layer": "L7_brand",
+      "engine": "chatgpt_search",
+      "ars": 20,
+      "bsf": 0,
+      "aas": 100,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    },
+    {
+      "question": "닥터오의 브랜드 슬로건과 핵심 철학",
+      "layer": "L7_brand",
+      "engine": "gemini_grounding",
+      "ars": 20,
+      "bsf": 0,
+      "aas": 100,
+      "ocr": 0,
+      "citationsCount": 0,
+      "isHallucinated": false
+    }
+  ]
+}

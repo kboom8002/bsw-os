@@ -16,7 +16,9 @@ import {
   ChevronDown,
   LayoutDashboard,
   Menu,
-  X
+  X,
+  Search,
+  Award
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -55,6 +57,9 @@ export default function WorkspaceLayout({
 
   const navigation: SidebarItem[] = [
     { name: "common.workspace", href: `/${locale}/${workspaceSlug}`, icon: LayoutDashboard, module: "dashboard" },
+    { name: "nav.site_audit", href: `/${locale}/site-audit`, icon: Search, badge: "Crawl", module: "site-audit" },
+    { name: "nav.benchmark", href: `/${locale}/benchmark`, icon: FileBarChart, badge: "Live", module: "benchmark" },
+    { name: "nav.sbs_index", href: `/${locale}/sbs-index`, icon: Award, badge: "Public", module: "sbs-index" },
     { name: "nav.truth_studio", href: `/${locale}/${workspaceSlug}/truth`, icon: ShieldAlert, badge: "L2 Gate", module: "truth" },
     { name: "nav.semantic_core", href: `/${locale}/${workspaceSlug}/semantic-core`, icon: HelpCircle, badge: "CQ/QIS", module: "semantic-core" },
     { name: "nav.objects_studio", href: `/${locale}/${workspaceSlug}/objects`, icon: Layers, module: "objects" },

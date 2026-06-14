@@ -9,10 +9,10 @@
  */
 
 import { getSupabaseAdminClient } from '../../lib/supabase';
-import { LightweightMetricRunner } from '../../lib/benchmark/lightweight-metric-runner';
+import { LightweightMetricRunner, type LightweightBrandResult } from '../../lib/benchmark/lightweight-metric-runner';
+import { OpportunityAnalyzer, type BrandOpportunityReport } from '../../lib/benchmark/opportunity-analyzer';
 import { BENCHMARK_DOMAINS, type DomainSlug, type DomainConfig } from '../../lib/benchmark/domain-config';
 import { INDUSTRY_PANELS_DATA } from '../../db/seed/industry-panels/questions-data';
-import type { LightweightBrandResult } from '../../lib/benchmark/lightweight-metric-runner';
 
 const TABLE = 'industry_benchmark_snapshots';
 
@@ -53,8 +53,9 @@ export interface DomainLeaderboardResult {
 export async function runLightBenchmark(
   domainSlug: DomainSlug,
   workspaceId?: string,
-  engines: string[] = ['chatgpt_search', 'gemini_grounding']
-): Promise<{ success: boolean; message: string; results?: LightweightBrandResult[] }> {
+  engines: string[] = ['chatgpt_search', 'gemini_grounding'],
+  targetBrandSlug?: string
+): Promise<{ success: boolean; message: string; results?: LightweightBrandResult[]; opportunities?: BrandOpportunityReport }> {
   try {
     const supabase = getSupabaseAdminClient();
     let actualWorkspaceId = workspaceId;
@@ -105,10 +106,25 @@ export async function runLightBenchmark(
       // 테이블이 없어도 측정 결과는 반환
     }
 
+    // Opportunity Analysis
+    let opportunities: BrandOpportunityReport | undefined;
+    if (targetBrandSlug && result.question_details) {
+      const targetBrand = domainConfig.brands.find(b => b.slug === targetBrandSlug);
+      if (targetBrand) {
+        opportunities = OpportunityAnalyzer.analyze(
+          targetBrand.name,
+          targetBrand.slug,
+          result.question_details,
+          undefined // No history available in light benchmark yet
+        );
+      }
+    }
+
     return {
       success: true,
       message: `Light benchmark completed for ${domainConfig.name}. ${records.length} brand snapshots saved.`,
       results: result.brand_results,
+      opportunities,
     };
   } catch (err: any) {
     return { success: false, message: err.message };

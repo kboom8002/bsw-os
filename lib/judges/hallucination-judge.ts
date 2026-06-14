@@ -69,7 +69,7 @@ Return JSON matching this schema:
   "hallucinated_concept_rate": number
 }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {

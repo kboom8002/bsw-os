@@ -106,6 +106,7 @@ export class SbsIndexRunner {
     const brandMap: Record<string, string> = {
       beauty: "PureBarrier",
       wedding: "LumiereHall",
+      convenience_retail: "CU",
     };
     return brandMap[industry] ?? "DefaultBrand";
   }
@@ -115,6 +116,7 @@ export class SbsIndexRunner {
     const competitorMap: Record<string, string[]> = {
       beauty: ["레티놀랩", "더마뷰티", "민감장벽"],
       wedding: ["아펠가모", "더채플", "베뉴지"],
+      convenience_retail: ["GS25", "세븐일레븐", "이마트24"],
       clinic: ["경쟁사A-클리닉", "경쟁사B-클리닉", "경쟁사C-클리닉"],
       restaurant: ["경쟁사A-레스토랑", "경쟁사B-레스토랑", "경쟁사C-레스토랑"],
       real_estate: ["경쟁사A-부동산", "경쟁사B-부동산", "경쟁사C-부동산"],

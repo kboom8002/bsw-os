@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from '../../lib/supabase';
 import { seedCore } from './demo-core';
 import { seedKBeauty } from './domains/k-beauty';
+import { seedSkincare } from './domains/skincare';
 import { seedConvenience } from './domains/convenience-retail';
 import { seedWedding } from './domains/wedding';
 
@@ -29,17 +30,21 @@ export async function seedFullDemo() {
     .select('id, slug')
     .eq('workspace_id', workspace.id);
 
-  if (!domains || domains.length < 3) {
+  if (!domains || domains.length < 4) {
     throw new Error('Seeding Failed: Initial Domain skeletons are incomplete.');
   }
 
   const kBeautyDomain = domains.find(d => d.slug === 'k-beauty-skincare');
+  const skincareDomain = domains.find(d => d.slug === 'skincare-dro');
   const convenienceDomain = domains.find(d => d.slug === 'convenience-retail');
   const weddingDomain = domains.find(d => d.slug === 'wedding-services');
 
   // 3. Execute domain specific seeding loops
   if (kBeautyDomain) {
     await seedKBeauty(workspace.id, kBeautyDomain.id);
+  }
+  if (skincareDomain) {
+    await seedSkincare(workspace.id, skincareDomain.id);
   }
   if (convenienceDomain) {
     await seedConvenience(workspace.id, convenienceDomain.id);

@@ -6,10 +6,10 @@ import { INDUSTRY_PANELS_DATA } from '../../../../db/seed/industry-panels/questi
  * GET /api/benchmark/config?domain=skincare
  *
  * 측정에 필요한 설정(브랜드, 질문 목록)을 반환합니다.
- * 질문은 sampleQuestionsForLight 수만큼 가중 샘플링합니다.
- * - L7_brand: 50% (브랜드당 최소 1개 보장)
- * - L2_competitive: 30%
- * - 기타: 20%
+ * 공정성 확보(Fair-Play Benchmark v2):
+ * - L7_brand, L2_competitive, L4_journey 레이어 완전 배제
+ * - target_keyword가 '{brand}' 플레이스홀더가 아닌 질문(특정 브랜드명 하드코딩) 동적 필터링
+ * - 오직 순수 제네릭 질문(L1, L3, L5, L6 중 비브랜드)만 100% 샘플링
  */
 export async function GET(request: NextRequest) {
   const domain = request.nextUrl.searchParams.get('domain');
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `No panel data for: ${industryType}` }, { status: 404 });
   }
 
-  // 가중 샘플링 (L7 브랜드 우선, 브랜드당 최소 1개 L7 보장)
+  // 공정성 기반 제네릭 질문 샘플링
   const allQuestions = panelData.questions;
   const sampleCount = domainConfig.sampleQuestionsForLight;
   const brands = domainConfig.brands;
@@ -57,16 +57,31 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * L7 브랜드 우선 가중 샘플링
- * - 브랜드당 최소 1개의 L7 질문 보장
- * - L7: 50%, L2: 30%, 기타: 20% 목표 분포
+ * 공정성(Fair-Play v2) 기반 순수 제네릭 샘플링
+ * 배제 조건:
+ *  1. layer === 'L7_brand' | 'L2_competitive' | 'L4_journey'
+ *  2. target_keyword가 '{brand}' 플레이스홀더가 아닌 질문
+ *     (특정 브랜드명이 하드코딩된 질문 동적 제거)
  */
 function sampleQuestionsWeighted(
   questions: any[],
   count: number,
   brands: { keywords: string[] }[]
 ): any[] {
-  if (questions.length <= count) return [...questions];
+  const EXCLUDED_LAYERS = new Set(['L7_brand', 'L2_competitive', 'L4_journey']);
+
+  // 순수 제네릭 질문만 추출
+  // - 배제 레이어 제거
+  // - target_keyword가 '{brand}' 또는 비어있지 않은 고유 브랜드명인 질문 제거
+  const genericQuestions = questions.filter(q => {
+    if (EXCLUDED_LAYERS.has(q.layer)) return false;
+    const tk = (q.target_keyword ?? '').trim();
+    // '{brand}' 플레이스홀더이거나 비어있는 경우만 허용
+    if (tk !== '' && tk !== '{brand}' && tk !== '{competitor}') return false;
+    return true;
+  });
+
+  if (genericQuestions.length <= count) return [...genericQuestions];
 
   const selected: any[] = [];
   const selectedTexts = new Set<string>();
@@ -80,64 +95,12 @@ function sampleQuestionsWeighted(
     return false;
   };
 
-  // 레이어별 분류
-  const l7Questions = questions.filter(q => q.layer === 'L7_brand');
-  const l2Questions = questions.filter(q => q.layer === 'L2_competitive');
-  const otherQuestions = questions.filter(q => q.layer !== 'L7_brand' && q.layer !== 'L2_competitive');
-
-  // 브랜드 키워드 매칭 헬퍼
-  const matchesBrand = (q: any, brand: { keywords: string[] }): boolean => {
-    const text = ((q.question_text ?? '') + ' ' + (q.target_keyword ?? '')).toLowerCase();
-    return brand.keywords.some(kw => text.includes(kw.toLowerCase()));
-  };
-
-  // Step 1: 브랜드당 L7 질문 최소 1개 보장
-  for (const brand of brands) {
-    const brandL7 = l7Questions.filter(q => matchesBrand(q, brand));
-    if (brandL7.length > 0) {
-      const pick = brandL7[Math.floor(Math.random() * brandL7.length)];
-      add(pick);
-    }
+  // 무작위 샘플링
+  const shuffled = [...genericQuestions].sort(() => Math.random() - 0.5);
+  for (const q of shuffled) {
+    if (selected.length >= count) break;
+    add(q);
   }
 
-  // Step 2: 목표 분포 계산
-  const targetL7 = Math.round(count * 0.5);
-  const targetL2 = Math.round(count * 0.3);
-  const targetOther = count - targetL7 - targetL2;
-
-  // L7 추가 채우기
-  const remainingL7 = l7Questions.filter(q => !selectedTexts.has(q.question_text));
-  const shuffledL7 = [...remainingL7].sort(() => Math.random() - 0.5);
-  const needL7 = Math.max(0, targetL7 - selected.length);
-  for (let i = 0; i < Math.min(needL7, shuffledL7.length); i++) {
-    add(shuffledL7[i]);
-  }
-
-  // L2 채우기
-  const shuffledL2 = [...l2Questions].sort(() => Math.random() - 0.5);
-  let l2Added = 0;
-  for (const q of shuffledL2) {
-    if (l2Added >= targetL2) break;
-    if (add(q)) l2Added++;
-  }
-
-  // 기타 채우기
-  const shuffledOther = [...otherQuestions].sort(() => Math.random() - 0.5);
-  let otherAdded = 0;
-  for (const q of shuffledOther) {
-    if (otherAdded >= targetOther) break;
-    if (add(q)) otherAdded++;
-  }
-
-  // 슬롯이 남을 경우 미선택 질문으로 채우기
-  if (selected.length < count) {
-    const allRemaining = questions.filter(q => !selectedTexts.has(q.question_text));
-    const shuffledRemaining = [...allRemaining].sort(() => Math.random() - 0.5);
-    for (const q of shuffledRemaining) {
-      if (selected.length >= count) break;
-      add(q);
-    }
-  }
-
-  return selected.slice(0, count);
+  return selected;
 }

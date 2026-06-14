@@ -46,7 +46,7 @@ Return JSON matching this schema:
   }]
 }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {

@@ -30,7 +30,7 @@ export async function runAIResponseProbeAgent(workspaceId: string, runId: string
   if (auditErr || !agentRun) throw new Error("Agent audit log failed.");
 
   try {
-    const isMockMode = process.env.AI_PROVIDER_MODE !== 'gemini' || 
+    const isMockMode = !['gemini', 'openai'].includes(process.env.AI_PROVIDER_MODE || '') || 
       ['success_fixture', 'mixed_source_fixture', 'dark_pattern_fixture', 'error_fixture'].includes(engineName);
 
     let runsCount = 0;

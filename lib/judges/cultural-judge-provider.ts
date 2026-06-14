@@ -78,7 +78,7 @@ export class CulturalJudgeProvider {
       }]
     }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {
@@ -164,7 +164,7 @@ export class CulturalJudgeProvider {
         extracted_concepts: result.extracted_concepts,
         extracted_relations: result.extracted_relations,
         extracted_claims: result.extracted_claims,
-        judge_model: mode === 'gemini' ? 'gemini-2.5-flash' : 'mock_provider',
+        judge_model: mode === 'gemini' ? 'gemini-2.5-flash' : mode === 'openai' ? 'gpt-4o-mini' : 'mock_provider',
         judge_temperature: 0.0,
         raw_judge_output: rawOutput,
       })
@@ -231,7 +231,7 @@ export class CulturalJudgeProvider {
       "main_issue": "string"
     }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {
@@ -344,7 +344,7 @@ export class CulturalJudgeProvider {
       "concept_distortion_rate": number
     }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {
@@ -427,7 +427,7 @@ export class CulturalJudgeProvider {
       "hallucinated_concept_rate": number
     }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {
@@ -520,7 +520,7 @@ export class CulturalJudgeProvider {
       "floor_reason": "string"
     }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {
@@ -626,7 +626,7 @@ export class CulturalJudgeProvider {
       }]
     }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {

@@ -36,9 +36,9 @@ describe('SBS Joint Index Industry Probe Panels Test Suite (Phase 1A)', () => {
     vi.mocked(checkWorkspacePermission).mockResolvedValue(true);
   });
 
-  it('should verify that all 25 industries are fully defined in dataset', () => {
+  it('should verify that all 26 industries are fully defined in dataset', () => {
     const industries = Object.keys(INDUSTRY_PANELS_DATA);
-    expect(industries).toHaveLength(25);
+    expect(industries).toHaveLength(26);
     expect(industries).toContain('beauty');
     expect(industries).toContain('wedding');
     expect(industries).toContain('clinic');

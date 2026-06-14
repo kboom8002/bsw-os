@@ -47,6 +47,11 @@ export async function seedCore() {
       description: 'Ingredient trust, scientific evidence sheets, routines, and clinical claims.'
     },
     {
+      name: 'Skincare DR.O',
+      slug: 'skincare-dro',
+      description: 'Skincare industry post-procedure clinical trust, routines, and brand truths.'
+    },
+    {
       name: 'Convenience Retail',
       slug: 'convenience-retail',
       description: 'Local store menus, stock promotions, and direct geo-location answers.'

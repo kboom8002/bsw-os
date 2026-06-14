@@ -19,7 +19,7 @@ export class BairEngine {
 
   /**
    * 1. Computes BAIR (Brand AI Reputation Index) for a brand inside a workspace.
-   * BAIR = BSF * AAS * (1 + OCR) * SWEL
+   * BAIR = (BSF/100) * AAS * (1 + OCR) * SWEL * 100  (정규화: 0~100 범위)
    */
   public async computeBAIR(workspaceId: string, brandKeyword: string): Promise<BairResult> {
     const supabase = getSupabaseAdminClient();
@@ -103,7 +103,8 @@ export class BairEngine {
     }
 
     // Mathematical combination formula
-    const bair = Number((bsf * aas * (1 + ocr) * swel).toFixed(2));
+    // 정규화: BSF(0~100)를 0~1로 변환 → 곱셈 합성 → 0~100 스케일 복원
+    const bair = Number(((bsf / 100) * aas * (1 + ocr) * swel * 100).toFixed(2));
 
     return {
       brand: brandKeyword,

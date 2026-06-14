@@ -783,6 +783,30 @@ export const probeRunSchema = z.object({
   probe_question_id: z.string().uuid(),
   engine_name: z.string().min(2).max(100).default('mock_provider'),
   raw_response_text: z.string().min(1),
+
+  // ═══ Multi-Engine 관측 확장 필드 ═══
+  citations: z.array(z.object({
+    url: z.string().url(),
+    domain: z.string(),
+    title: z.string().optional(),
+    position: z.number().int(),
+    is_brand_domain: z.boolean(),
+  })).default([]),
+
+  response_metadata: z.object({
+    model_version: z.string().optional(),
+    search_grounding: z.boolean().default(false),
+    response_latency_ms: z.number().default(0),
+    has_structured_data: z.boolean().default(false),
+    provider_type: z.enum(['api', 'scraper', 'hybrid', 'search']).default('api'),
+  }).default(() => ({
+    search_grounding: false,
+    response_latency_ms: 0,
+    has_structured_data: false,
+    provider_type: 'api' as const,
+  })),
+  // ══════════════════════════════════
+
   metadata: z.record(z.string(), z.any()).default({}),
   created_at: z.string().optional(),
 });
@@ -1414,6 +1438,173 @@ export const experimentRunSchema = z.object({
 });
 
 export type ExperimentRunSchemaType = z.infer<typeof experimentRunSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 91. Industry Benchmark Snapshot — 정기 발표용 대시보드 스냅샷
+// ─────────────────────────────────────────────────────────────
+export const industryBenchmarkSnapshotSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  domain_slug: z.string().min(1).max(100),        // 'skincare' | 'wedding_studio'
+  brand_slug: z.string().min(1).max(100),          // 'dr-o' | 'the-cheongdam-studio' ...
+  brand_name: z.string().min(1).max(200),          // 표시용 브랜드명
+  engine_name: z.string().min(1).max(100),         // 'chatgpt_search' | 'gemini_grounding' | 'composite'
+  aas: z.number().min(0).max(100).default(0),      // Answer Share % (0-100)
+  ocr: z.number().min(0).max(100).default(0),      // Citation Rate % (0-100)
+  bsf: z.number().min(0).max(100).nullable().default(null), // Semantic Fidelity (null = 미측정)
+  ars: z.number().min(0).max(100).nullable().default(null), // AEO Readiness (null = 미측정)
+  bair: z.number().min(0).max(100).nullable().default(null),// Recommendation Index (null = 미측정)
+  mention_count: z.number().int().min(0).default(0),
+  citation_count: z.number().int().min(0).default(0),
+  sample_size: z.number().int().min(0).default(0), // 측정된 질문 수
+  measurement_type: z.enum(['daily_light', 'weekly_full', 'monthly_deep']),
+  measured_at: z.string(),                         // ISO datetime
+  created_at: z.string().optional(),
+});
+
+export type IndustryBenchmarkSnapshot = z.infer<typeof industryBenchmarkSnapshotSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 92. SurfaceEntity — 추출된 엔티티
+// ─────────────────────────────────────────────────────────────
+export const surfaceEntitySchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  website_url: z.string().url(),                       // 대상 웹사이트 루트 URL
+  source_page_url: z.string().url(),                   // 추출된 페이지 URL
+  surface_type: z.enum([
+    'factoid', 'procedural', 'comparative', 'authority',
+    'schema_org', 'topical_cluster', 'local_geo'
+  ]),
+  entity_name: z.string().min(1).max(500),
+  entity_content: z.record(z.string(), z.any()).default({}),
+  linked_claim_node_id: z.string().uuid().optional().nullable(),        // ClaimNode(#25) FK
+  linked_rep_object_id: z.string().uuid().optional().nullable(),        // RepObject(#29) FK
+  linked_tco_concept_id: z.string().uuid().optional().nullable(),       // TcoConcept(#22) FK
+  linked_evidence_item_id: z.string().uuid().optional().nullable(),     // EvidenceItem(#14) FK
+  linked_schema_mapping_id: z.string().uuid().optional().nullable(),    // SchemaMapping(#34) FK
+  completeness_score: z.number().min(0).max(100).default(0),
+  eeat_strength: z.number().min(0).max(100).default(0),
+  has_schema_support: z.boolean().default(false),
+  extraction_model: z.string().default('gemini-flash'),                 // 추출에 사용된 모델
+  extraction_confidence: z.number().min(0).max(100).default(0),
+  extracted_at: z.string(),
+  created_at: z.string().optional(),
+});
+
+export type SurfaceEntity = z.infer<typeof surfaceEntitySchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 93. ReversedAnswerCard — 역설계된 Answer Card
+// ─────────────────────────────────────────────────────────────
+export const reversedAnswerCardSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  website_url: z.string().url(),
+  card_type: z.enum(['direct_answer', 'how_to', 'comparison', 'list', 'faq', 'product', 'local']),
+  headline: z.string().min(1).max(500),
+  trigger_queries: z.array(z.string()).default([]),
+  body_entity_ids: z.array(z.string().uuid()).default([]),             // SurfaceEntity(#92) FK[]
+  source_page_urls: z.array(z.string()).default([]),
+  linked_canonical_question_id: z.string().uuid().optional().nullable(), // CanonicalQuestion(#20) FK
+  linked_qis_scene_ids: z.array(z.string().uuid()).default([]),          // QisScene(#21) FK[]
+  completeness_score: z.number().min(0).max(100).default(0),
+  eeat_strength: z.number().min(0).max(100).default(0),
+  schema_support_level: z.enum(['full', 'partial', 'none']).default('none'),
+  optimization_status: z.enum(['optimized', 'partial', 'raw', 'missing']).default('raw'),
+  created_at: z.string().optional(),
+});
+
+export type ReversedAnswerCard = z.infer<typeof reversedAnswerCardSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 94. EntityReflectionSnapshot — 엔티티 반영률 스냅샷
+// ─────────────────────────────────────────────────────────────
+export const entityReflectionSnapshotSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  website_url: z.string().url(),
+  engine_name: z.string().min(1).max(100),              // 'chatgpt_search' | 'gemini_grounding' | 'composite'
+  err_factoid: z.number().min(0).max(100).default(0),
+  err_procedural: z.number().min(0).max(100).default(0),
+  err_comparative: z.number().min(0).max(100).default(0),
+  err_authority: z.number().min(0).max(100).default(0),
+  err_schema: z.number().min(0).max(100).default(0),
+  err_topical: z.number().min(0).max(100).default(0),
+  err_geo: z.number().min(0).max(100).default(0),
+  aepi_score: z.number().min(0).max(100).default(0),
+  tech_mod_score: z.number().min(0).max(100).default(0),
+  eeat_mod_score: z.number().min(0).max(100).default(0),
+  tech_audit: z.record(z.string(), z.any()).default({}),
+  eeat_audit: z.record(z.string(), z.any()).default({}),
+  total_entities_checked: z.number().int().default(0),
+  total_entities_reflected: z.number().int().default(0),
+  measured_at: z.string(),
+  created_at: z.string().optional(),
+});
+
+export type EntityReflectionSnapshot = z.infer<typeof entityReflectionSnapshotSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 95. ObservedParametricPersona — 관측된 AI 페르소나 프로파일
+// ─────────────────────────────────────────────────────────────
+export const observedParametricPersonaSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  website_url: z.string().url(),
+  engine_name: z.string().min(1).max(100),
+  linked_persona_spec_id: z.string().uuid().optional().nullable(),     // PersonaSpec(#37) FK
+  linked_vibe_spec_id: z.string().uuid().optional().nullable(),        // VibeSpec(#42) FK
+  tone_warmth: z.number().min(0).max(1).default(0.5),
+  tone_formality: z.number().min(0).max(1).default(0.5),
+  tone_confidence: z.number().min(0).max(1).default(0.5),
+  tone_expertise: z.number().min(0).max(1).default(0.5),
+  tone_empathy: z.number().min(0).max(1).default(0.5),
+  brand_term_usage: z.number().min(0).max(100).default(0),
+  technical_term_ratio: z.number().min(0).max(100).default(0),
+  hedging_ratio: z.number().min(0).max(100).default(0),
+  category_placement: z.string().default(''),
+  competitive_frame: z.array(z.string()).default([]),
+  sentiment_valence: z.number().min(-1).max(1).default(0),
+  recommendation_strength: z.number().min(0).max(100).default(0),
+  persona_alignment_score: z.number().min(0).max(100).nullable().default(null),
+  vibe_alignment_score: z.number().min(0).max(100).nullable().default(null),
+  analysis_details: z.record(z.string(), z.any()).default({}),
+  sample_size: z.number().int().default(0),
+  measured_at: z.string(),
+  created_at: z.string().optional(),
+});
+
+export type ObservedParametricPersona = z.infer<typeof observedParametricPersonaSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 96. SurfaceGapAnalysis — 4-사분면 갭 분석
+// ─────────────────────────────────────────────────────────────
+export const surfaceGapAnalysisSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  website_url: z.string().url(),
+  entity_name: z.string().min(1).max(500),
+  entity_type: z.string().min(1).max(100),
+  quadrant: z.enum(['green', 'yellow', 'red', 'white']),
+  industry_qis_layer: z.string().optional().nullable(),    // 'L1_universal' ~ 'L7_brand'
+  linked_canonical_question_id: z.string().uuid().optional().nullable(),
+  linked_surface_entity_id: z.string().uuid().optional().nullable(),
+  prescription_type: z.enum([
+    'add_schema', 'improve_heading', 'add_eeat_signal',
+    'create_content', 'improve_internal_linking',
+    'add_faq_markup', 'improve_meta', 'opportunity_content'
+  ]).optional().nullable(),
+  prescription_detail: z.string().optional().nullable(),
+  estimated_aepi_impact: z.number().min(0).max(100).default(0),
+  priority_score: z.number().min(0).max(100).default(0),
+  analyzed_at: z.string(),
+  created_at: z.string().optional(),
+});
+
+export type SurfaceGapAnalysis = z.infer<typeof surfaceGapAnalysisSchema>;
+
+
 
 
 

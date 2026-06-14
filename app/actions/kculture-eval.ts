@@ -89,7 +89,7 @@ export async function runKCultureEvaluation(
       workspace_id: workspaceId,
       name: `K-Culture ${domainPack.slug.toUpperCase()} Evaluation (${condition.toUpperCase()})`,
       run_condition: condition,
-      ai_engine: process.env.AI_PROVIDER_MODE === 'gemini' ? 'gemini-2.5-flash' : 'mock_engine',
+      ai_engine: process.env.AI_PROVIDER_MODE === 'gemini' ? 'gemini-2.5-flash' : process.env.AI_PROVIDER_MODE === 'openai' ? 'gpt-4o-mini' : 'mock_engine',
       status: 'running',
     })
     .select('id')
@@ -113,13 +113,23 @@ export async function runKCultureEvaluation(
 
       if (!question) continue;
 
-      // Simulated/Mock AI Response Generation
+      // AI Response Generation (live or mock)
+      const providerMode = process.env.AI_PROVIDER_MODE || 'mock';
       let responseText = "";
-      if (condition === "baseline") {
-        responseText = `여기 K-컬처 대표 추천입니다. ${question.question_text}에 관해서는 한국의 대표적인 뷰티/푸드 노하우가 유명합니다. 일반적으로 외국인들에게 매우 신비하고 이국적인 오리엔탈 감성을 자아내며, 전통적인 양념과 성분으로 피부나 건강을 한눈에 개선하는 신비한 효능을 가지고 있다고 알려져 있습니다.`;
+      if (providerMode === 'gemini' || providerMode === 'openai') {
+        const { getAIProvider } = await import('../../lib/ai/ai-provider');
+        const ai = getAIProvider();
+        const ssePrompt = condition === 'intervention'
+          ? `다음 질문에 대해 K-Culture SSoT 공식 지침을 준수하여 한국어로 정확하게 답변하세요. 과장된 신비주의 표현을 지양하고, 과학적 근거와 전통 발효 기법의 영양학적 근거를 포함하세요: ${question.question_text}`
+          : `다음 질문에 대해 일반적인 AI 어시스턴트로서 한국어로 답변하세요: ${question.question_text}`;
+        responseText = await ai.generateText(ssePrompt, { temperature: 0.3 });
       } else {
-        // Intervention SSoT applied response (accurate, zero stereotypes, evidence backed)
-        responseText = `K-컬처 공식 SSoT 지침에 따른 답변입니다. ${question.question_text}에 관해 핵심 성분들의 과학적인 피부 장벽 복구 매커니즘과 전통 발효 기법의 깊은 영양학적 조화는 신뢰할 수 있는 학술 기록과 연구에 근거하고 있습니다. 과장된 신비주의 표현을 지양하며, 피부 본연의 자연스러운 건강함과 건강한 bansang 식문화를 일상 루틴으로 정착시키는 데 집중합니다.`;
+        // Mock baseline/intervention 하드코딩 유지
+        if (condition === "baseline") {
+          responseText = `여기 K-컬처 대표 추천입니다. ${question.question_text}에 관해서는 한국의 대표적인 뷰티/푸드 노하우가 유명합니다. 일반적으로 외국인들에게 매우 신비하고 이국적인 오리엔탈 감성을 자아내며, 전통적인 양념과 성분으로 피부나 건강을 한눈에 개선하는 신비한 효능을 가지고 있다고 알려져 있습니다.`;
+        } else {
+          responseText = `K-컬처 공식 SSoT 지침에 따른 답변입니다. ${question.question_text}에 관해 핵심 성분들의 과학적인 피부 장벽 복구 매커니즘과 전통 발효 기법의 깊은 영양학적 조화는 신뢰할 수 있는 학술 기록과 연구에 근거하고 있습니다. 과장된 신비주의 표현을 지양하며, 피부 본연의 자연스러운 건강함과 건강한 bansang 식문화를 일상 루틴으로 정착시키는 데 집중합니다.`;
+        }
       }
 
       // Create probe_runs record

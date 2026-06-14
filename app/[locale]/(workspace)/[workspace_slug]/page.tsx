@@ -12,7 +12,9 @@ import {
   Eye, 
   FileText, 
   ArrowRight,
-  Database
+  Database,
+  Search,
+  Award
 } from "lucide-react";
 import { useTranslation } from "../../../../lib/i18n/context";
 
@@ -161,6 +163,69 @@ export default function WorkspaceDashboard() {
               <Link href={`/${locale}/${workspaceSlug}/demo/wedding`} className="text-blue-400 font-bold hover:underline flex items-center gap-1">
                 {t('dashboard.explore_domain')} <ArrowRight className="w-3.5 h-3.5" />
               </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Global AI Audit & Benchmark Tools */}
+      <section className="space-y-4">
+        <h2 className="text-xl font-bold tracking-tight text-slate-200">
+          {locale === "ko" ? "글로벌 AI 진단 및 벤치마크 도구" : "Global AI Audit & Benchmark Tools"}
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-6 rounded-2xl bg-slate-950/40 border border-cyan-500/20 hover:border-cyan-500/40 transition-all flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute right-4 top-4 text-cyan-500/10">
+              <Search className="w-16 h-16" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Search className="w-5 h-5 text-cyan-400" />
+                <h3 className="font-bold text-lg text-white">
+                  {locale === "ko" ? "사이트 서피스 역설계 분석 (Site Audit)" : "Site Surface Reverse Engineering Audit"}
+                </h3>
+              </div>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                {locale === "ko" 
+                  ? "특정 사이트 URL을 크롤링하여 AI 검색 엔진(ChatGPT, Gemini) 노출용 엔서카드 생성 및 세맨틱 갭을 역설계 분석하고, 최적화 처방전을 생성합니다."
+                  : "Crawl a target URL to reverse engineer semantic gaps, extract generated answer cards, and calculate simulated AEPI scores for AI search engine visibility."}
+              </p>
+            </div>
+            <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4">
+              <span className="text-slate-500">Route: /site-audit</span>
+              <Link href={`/${locale}/site-audit`} className="text-cyan-400 font-bold hover:underline flex items-center gap-1">
+                {locale === "ko" ? "분석 도구 실행" : "Run Audit Tool"} <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-slate-950/40 border border-purple-500/20 hover:border-purple-500/40 transition-all flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute right-4 top-4 text-purple-500/10">
+              <Award className="w-16 h-16" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Award className="w-5 h-5 text-purple-400" />
+                <h3 className="font-bold text-lg text-white">
+                  {locale === "ko" ? "업종별 공개 평판 지수 & 벤치마크" : "Industry Public Benchmark & AI Index"}
+                </h3>
+              </div>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                {locale === "ko" 
+                  ? "스킨케어, 웨딩홀, 피부과 리프팅 등 주요 산업군별 브랜드들의 실시간 AI 검색 출현율(OCR) 및 답변 정합성(AAS) 실측 순위를 투명하게 확인하고 진단합니다."
+                  : "Compare brand performance (AAS, OCR, BAIR) across key industry sectors (skincare, wedding, lifting clinic) with real-time public indexes."}
+              </p>
+            </div>
+            <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4 gap-2">
+              <span className="text-slate-500">Routes: /benchmark, /sbs-index</span>
+              <div className="flex gap-4">
+                <Link href={`/${locale}/benchmark`} className="text-purple-400 font-bold hover:underline flex items-center gap-1">
+                  {locale === "ko" ? "실측 벤치마크" : "Live Benchmark"} <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+                <Link href={`/${locale}/sbs-index`} className="text-indigo-400 font-bold hover:underline flex items-center gap-1 border-l border-white/10 pl-3">
+                  {locale === "ko" ? "공개 평판지수" : "Public AI Index"} <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
           </div>
         </div>

@@ -11,6 +11,9 @@ import {
 // runLightBenchmark는 API Route(/api/benchmark/run)로 호출합니다 (maxDuration=60s)
 import type { DomainLeaderboardResult, BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark";
 import { BENCHMARK_DOMAINS } from "../../lib/benchmark/domain-config";
+import { OpportunityAnalyzer, type BrandOpportunityReport } from "../../lib/benchmark/opportunity-analyzer";
+import type { QuestionDetail } from "../../lib/benchmark/lightweight-metric-runner";
+import OpportunityIntelligenceSection from "./OpportunityIntelligenceSection";
 import BrandDetailDrawer from "./BrandDetailDrawer";
 
 interface BenchmarkDashboardProps {
@@ -218,6 +221,7 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
   const [isRunning, setIsRunning] = useState(false);
   const [progressMsg, setProgressMsg] = useState('');
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [opportunities, setOpportunities] = useState<BrandOpportunityReport | null>(null);
 
   // 마운트 시 URL hash에서 탭 복원
   React.useEffect(() => {
@@ -379,6 +383,30 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
 
         return { brand_slug: brand.slug, brand_name: brand.name, aas, ocr, bsf, bair, mention_count: mentionCount, citation_count: citationCount, sample_size: questions.length, measured_at: measuredAt };
       });
+
+      // ── 기회 분석(Opportunity Intelligence) 데이터 생성 ──
+      const questionDetails: QuestionDetail[] = questions.map((q: any, idx: number) => {
+        const qr = queryResults.find((r: any) => r.questionIdx === idx);
+        const engineRes = qr ? {
+          raw_response_text: qr.text,
+          brands_mentioned: brands.filter((b: any) => b.keywords.some((kw: string) => qr.text.toLowerCase().includes(kw.toLowerCase()))).map((b: any) => b.name),
+          citation_domains: qr.citations.map((c: any) => c.domain),
+          bsf_score: parseFloat((((q.must_include || []).filter((t: string) => qr.text.toLowerCase().includes(t.toLowerCase())).length / Math.max(1, (q.must_include || []).length) * 70) + ((q.should_include || []).filter((t: string) => qr.text.toLowerCase().includes(t.toLowerCase())).length / Math.max(1, (q.should_include || []).length) * 30)).toFixed(2))
+        } : { raw_response_text: '', brands_mentioned: [], citation_domains: [], bsf_score: 0 };
+        return {
+          question_text: q.question_text,
+          question_type: q.question_type,
+          layer: q.layer || 'unknown',
+          per_engine: { 'gemini_grounding': engineRes }
+        };
+      });
+
+      // 타겟 브랜드로 분석 (기본 1위 브랜드 또는 첫번째 브랜드)
+      const targetBrand = brands[0]; // TODO: 사용자가 선택할 수 있도록 개선
+      if (targetBrand) {
+        const report = OpportunityAnalyzer.analyze(targetBrand.name, targetBrand.slug, questionDetails, undefined);
+        setOpportunities(report);
+      }
 
       // Step 4: 결과 저장
       setProgressMsg('Supabase에 결과 저장 중...');
@@ -641,6 +669,9 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
             </div>
           )}
         </div>
+
+        {/* Opportunity Intelligence */}
+        {opportunities && <OpportunityIntelligenceSection report={opportunities} />}
 
         {/* Methodology Disclosure */}
         <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/20 backdrop-blur-md flex items-start gap-3">

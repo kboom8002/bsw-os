@@ -27,9 +27,9 @@ CREATE POLICY "Members can view observation engine configs inside their workspac
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM workspace_members
-      WHERE workspace_members.workspace_id = observation_engine_configs.workspace_id
-        AND workspace_members.user_id = auth.uid()
+      SELECT 1 FROM workspace_memberships
+      WHERE workspace_memberships.workspace_id = observation_engine_configs.workspace_id
+        AND workspace_memberships.user_id = auth.uid()
     )
   );
 
@@ -38,15 +38,15 @@ CREATE POLICY "Members can modify observation engine configs inside their worksp
   FOR ALL
   USING (
     EXISTS (
-      SELECT 1 FROM workspace_members
-      WHERE workspace_members.workspace_id = observation_engine_configs.workspace_id
-        AND workspace_members.user_id = auth.uid()
+      SELECT 1 FROM workspace_memberships
+      WHERE workspace_memberships.workspace_id = observation_engine_configs.workspace_id
+        AND workspace_memberships.user_id = auth.uid()
     )
   )
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM workspace_members
-      WHERE workspace_members.workspace_id = observation_engine_configs.workspace_id
-        AND workspace_members.user_id = auth.uid()
+      SELECT 1 FROM workspace_memberships
+      WHERE workspace_memberships.workspace_id = observation_engine_configs.workspace_id
+        AND workspace_memberships.user_id = auth.uid()
     )
   );

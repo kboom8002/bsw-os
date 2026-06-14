@@ -24,9 +24,9 @@ CREATE POLICY "Members can view embedding cache inside their workspace"
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM workspace_members
-      WHERE workspace_members.workspace_id = embedding_cache.workspace_id
-        AND workspace_members.user_id = auth.uid()
+      SELECT 1 FROM workspace_memberships
+      WHERE workspace_memberships.workspace_id = embedding_cache.workspace_id
+        AND workspace_memberships.user_id = auth.uid()
     )
   );
 
@@ -35,8 +35,8 @@ CREATE POLICY "Members can insert embedding cache inside their workspace"
   FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM workspace_members
-      WHERE workspace_members.workspace_id = embedding_cache.workspace_id
-        AND workspace_members.user_id = auth.uid()
+      SELECT 1 FROM workspace_memberships
+      WHERE workspace_memberships.workspace_id = embedding_cache.workspace_id
+        AND workspace_memberships.user_id = auth.uid()
     )
   );

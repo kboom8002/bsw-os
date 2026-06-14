@@ -30,6 +30,18 @@ export interface LightweightBrandResult {
   measured_at: string;
 }
 
+export interface QuestionDetail {
+  question_text: string;
+  question_type: string;
+  layer: string;
+  per_engine: Record<string, {
+    raw_response_text: string;
+    brands_mentioned: string[];
+    citation_domains: string[];
+    bsf_score: number;
+  }>;
+}
+
 export interface LightweightDomainResult {
   domain_slug: string;
   domain_name: string;
@@ -37,14 +49,27 @@ export interface LightweightDomainResult {
   engines: string[];
   brand_results: LightweightBrandResult[];
   measured_at: string;
+  question_details?: QuestionDetail[];
 }
 
 /**
- * 단일 응답에서 브랜드 키워드 AAS 산출 (pure text matching)
+ * 단일 응답에서 브랜드 키워드 AAS 산출
+ *
+ * - 한국어 키워드: 부분 문자열 매칭 (한국어는 단어 경계 개념 없음)
+ * - 영어/ASCII 키워드: 단어 경계(word boundary) 매칭으로 false positive 방지
+ *   예) 'dro' → hydro, drops, syndrome 등에서 오탐 방지
  */
 function calcAAS(responseText: string, keywords: string[]): boolean {
-  const text = responseText.toLowerCase();
-  return keywords.some(kw => text.includes(kw.toLowerCase()));
+  return keywords.some(kw => {
+    // 한국어 포함 키워드는 substring 매칭
+    if (/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(kw)) {
+      return responseText.toLowerCase().includes(kw.toLowerCase());
+    }
+    // 영어/ASCII 키워드는 단어 경계 매칭 (false positive 방지)
+    const escaped = kw.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
+    return pattern.test(responseText);
+  });
 }
 
 /**
@@ -121,32 +146,49 @@ export class LightweightMetricRunner {
     console.log(`\n[LightweightRunner] Domain: ${domainConfig.name} | ${sampledQuestions.length}Q × ${this.engines.length} engines`);
 
     // 모든 질문을 한 번만 API 호출하여 공유 (비용 절감)
+    // 병렬 배치 처리: 5개 질문씩 동시 실행하여 순차 실행 대비 ~5배 속도 향상
     const queryResults: Map<string, Record<string, { text: string; citations: any[] }>> = new Map();
+    const BATCH_SIZE = 5;
 
-    for (const q of sampledQuestions) {
-      const queryText = q.question_text.replace(/{brand}/g, ''); // brand placeholder 제거
-      console.log(`  → Query: "${queryText}"`);
+    for (let batchStart = 0; batchStart < sampledQuestions.length; batchStart += BATCH_SIZE) {
+      const batch = sampledQuestions.slice(batchStart, batchStart + BATCH_SIZE);
+      console.log(`  → Batch ${Math.floor(batchStart / BATCH_SIZE) + 1}/${Math.ceil(sampledQuestions.length / BATCH_SIZE)} (${batch.length}Q)`);
 
-      try {
-        // 모든 브랜드가 공유하는 단일 API 호출
-        const multiRes = await SearchProviderFactory.runMultiEngine(queryText, this.engines);
-
-        const perEngineResult: Record<string, { text: string; citations: any[] }> = {};
-        for (const engine of this.engines) {
-          const engineRes = multiRes.results[engine];
-          if (engineRes) {
-            perEngineResult[engine] = {
-              text: engineRes.raw_response_text,
-              citations: engineRes.citations || [],
-            };
+      await Promise.all(batch.map(async (q) => {
+        const queryText = q.question_text.replace(/{brand}/g, '').trim();
+        try {
+          const multiRes = await SearchProviderFactory.runMultiEngine(queryText, this.engines);
+          const perEngineResult: Record<string, { text: string; citations: any[] }> = {};
+          for (const engine of this.engines) {
+            const engineRes = multiRes.results[engine];
+            if (engineRes) {
+              perEngineResult[engine] = {
+                text: engineRes.raw_response_text,
+                citations: engineRes.citations || [],
+              };
+            }
           }
+          queryResults.set(q.question_text, perEngineResult);
+        } catch (err: any) {
+          console.warn(`  ⚠ Query failed: "${queryText}" — ${err.message}`);
+          queryResults.set(q.question_text, {});
         }
-        queryResults.set(q.question_text, perEngineResult);
-      } catch (err: any) {
-        console.warn(`  ⚠ Query failed: ${err.message}`);
-        queryResults.set(q.question_text, {});
+      }));
+    }
+
+    // ── AIPR 방식 AAS 분모 계산 ──────────────────────────────────────────
+    // 분모 = 패널 내 브랜드 중 1개라도 언급된 응답 수
+    // (정보형 질문 등 브랜드가 전혀 등장하지 않는 응답은 분모에서 제외)
+    let brandedResponseCount = 0;
+    for (const [_qt, engineResults] of queryResults.entries()) {
+      for (const engine of this.engines) {
+        const res = engineResults[engine];
+        if (!res) continue;
+        const anyBrand = domainConfig.brands.some(b => calcAAS(res.text, b.keywords));
+        if (anyBrand) brandedResponseCount++;
       }
     }
+    console.log(`\n  [AIPR] branded responses: ${brandedResponseCount} / ${queryResults.size * this.engines.length} total`);
 
     // 브랜드별 집계
     for (const brand of domainConfig.brands) {
@@ -188,7 +230,12 @@ export class LightweightMetricRunner {
 
       const mentionCount = compositeResults.filter(r => r.aas).length;
       const citationCount = compositeResults.filter(r => r.ocr).length;
-      const aas = parseFloat(((mentionCount / compositeResults.length) * 100).toFixed(1));
+
+      // AAS: AIPR 방식 — 브랜드 언급 응답 수를 분모로 사용 (Share of Voice)
+      // 전체 응답 대신 "브랜드가 1개라도 등장한 응답"만 분모로 삼아
+      // 정보형 질문의 브랜드 미언급이 수치를 희석하는 문제를 제거
+      const aiprDenominator = brandedResponseCount > 0 ? brandedResponseCount : compositeResults.length;
+      const aas = parseFloat(((mentionCount / aiprDenominator) * 100).toFixed(1));
       const ocr = parseFloat(((citationCount / compositeResults.length) * 100).toFixed(1));
       const bsf = parseFloat((compositeResults.reduce((s, r) => s + r.bsf, 0) / compositeResults.length).toFixed(1));
       const bair = parseFloat((aas * (bsf / 100)).toFixed(1));
@@ -207,6 +254,37 @@ export class LightweightMetricRunner {
       console.log(`    [${brand.name}] AAS: ${aas}% | OCR: ${ocr}% | BSF: ${bsf}% | BAIR: ${bair}`);
     }
 
+    // ── Question Details 수집 (Opportunity Intelligence용) ──
+    const questionDetails: QuestionDetail[] = [];
+    for (const [_qText, engineResults] of queryResults.entries()) {
+      const q = sampledQuestions.find(sq => sq.question_text === _qText);
+      if (!q) continue;
+
+      const detail: QuestionDetail = {
+        question_text: q.question_text,
+        question_type: q.question_type,
+        layer: q.layer || 'unknown',
+        per_engine: {}
+      };
+
+      for (const engine of this.engines) {
+        const res = engineResults[engine];
+        if (!res) continue;
+
+        const mentioned = domainConfig.brands.filter(b => calcAAS(res.text, b.keywords)).map(b => b.name);
+        const domains = res.citations.map(c => c.domain);
+        const bsf = calcBSF(res.text, q.must_include, q.should_include);
+
+        detail.per_engine[engine] = {
+          raw_response_text: res.text,
+          brands_mentioned: mentioned,
+          citation_domains: domains,
+          bsf_score: bsf
+        };
+      }
+      questionDetails.push(detail);
+    }
+
     return {
       domain_slug: domainConfig.slug,
       domain_name: domainConfig.name,
@@ -214,18 +292,33 @@ export class LightweightMetricRunner {
       engines: this.engines,
       brand_results: brandResults,
       measured_at: measuredAt,
+      question_details: questionDetails
     };
   }
 
   /**
-   * L7 브랜드 우선 및 가중 레이어 샘플링 (브랜드당 최소 1개 L7 보장)
+   * 공정성(Fair-Play v2) 기반 순수 제네릭 샘플링
+   * 배제 조건:
+   *  1. layer === 'L7_brand' | 'L2_competitive' | 'L4_journey'
+   *  2. target_keyword가 '{brand}' 플레이스홀더가 아닌 질문
+   *     (특정 브랜드명이 하드코딩된 질문 동적 제거)
    */
   private _sampleQuestions(
     questions: SeedProbeQuestion[],
     count: number,
     domainConfig: DomainConfig
   ): SeedProbeQuestion[] {
-    if (questions.length <= count) return [...questions];
+    const EXCLUDED_LAYERS = new Set(['L7_brand', 'L2_competitive', 'L4_journey']);
+
+    // 순수 제네릭 질문만 추출
+    const genericQuestions = questions.filter(q => {
+      if (EXCLUDED_LAYERS.has(q.layer ?? '')) return false;
+      const tk = (q.target_keyword ?? '').trim();
+      if (tk !== '' && tk !== '{brand}' && tk !== '{competitor}') return false;
+      return true;
+    });
+
+    if (genericQuestions.length <= count) return [...genericQuestions];
 
     const selected: SeedProbeQuestion[] = [];
     const selectedTexts = new Set<string>();
@@ -239,66 +332,13 @@ export class LightweightMetricRunner {
       return false;
     };
 
-    // 1. 레이어별 분류
-    const l7Questions = questions.filter(q => q.layer === 'L7_brand');
-    const l2Questions = questions.filter(q => q.layer === 'L2_competitive');
-    const otherQuestions = questions.filter(q => q.layer !== 'L7_brand' && q.layer !== 'L2_competitive');
-
-    // 2. 브랜드 매칭 헬퍼
-    const matchBrand = (q: SeedProbeQuestion, brand: any) => {
-      const text = (q.question_text + ' ' + (q.target_keyword || '')).toLowerCase();
-      return brand.keywords.some((kw: string) => text.includes(kw.toLowerCase()));
-    };
-
-    // 3. 브랜드당 1개의 L7 질문 우선 확보
-    domainConfig.brands.forEach(brand => {
-      const brandL7Qs = l7Questions.filter(q => matchBrand(q, brand));
-      if (brandL7Qs.length > 0) {
-        const randomQ = brandL7Qs[Math.floor(Math.random() * brandL7Qs.length)];
-        add(randomQ);
-      }
-    });
-
-    // 4. 목표 레이어 분포 계산 (L7: 50%, L2: 30%, 기타: 20%)
-    const targetL7 = Math.round(count * 0.5);
-    const targetL2 = Math.round(count * 0.3);
-    const targetOther = count - targetL7 - targetL2;
-
-    // L7 질문 추가 채우기 (목표치까지)
-    const remainingL7 = l7Questions.filter(q => !selectedTexts.has(q.question_text));
-    const shuffledL7 = [...remainingL7].sort(() => Math.random() - 0.5);
-    const currentL7Count = selected.length;
-    const needL7 = Math.max(0, targetL7 - currentL7Count);
-    for (let i = 0; i < Math.min(needL7, shuffledL7.length); i++) {
-      add(shuffledL7[i]);
+    // 무작위 샘플링
+    const shuffled = [...genericQuestions].sort(() => Math.random() - 0.5);
+    for (const q of shuffled) {
+      if (selected.length >= count) break;
+      add(q);
     }
 
-    // L2 경쟁 질문 채우기 (목표치까지)
-    const shuffledL2 = [...l2Questions].sort(() => Math.random() - 0.5);
-    let l2Added = 0;
-    for (const q of shuffledL2) {
-      if (l2Added >= targetL2) break;
-      if (add(q)) l2Added++;
-    }
-
-    // 기타 질문 채우기 (목표치까지)
-    const shuffledOther = [...otherQuestions].sort(() => Math.random() - 0.5);
-    let otherAdded = 0;
-    for (const q of shuffledOther) {
-      if (otherAdded >= targetOther) break;
-      if (add(q)) otherAdded++;
-    }
-
-    // 슬롯이 남을 경우 미선택 질문 중 무작위로 채움
-    if (selected.length < count) {
-      const allRemaining = questions.filter(q => !selectedTexts.has(q.question_text));
-      const shuffledRemaining = [...allRemaining].sort(() => Math.random() - 0.5);
-      for (const q of shuffledRemaining) {
-        if (selected.length >= count) break;
-        add(q);
-      }
-    }
-
-    return selected.slice(0, count);
+    return selected;
   }
 }

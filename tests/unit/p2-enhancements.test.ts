@@ -42,9 +42,9 @@ describe("BSW-OS P2 Enhancements Test Suite", () => {
 
   // --- WS-A: 15 New Industry Panels & Templates Tests ---
 
-  it("P2-01: 25개 신규 산업군 로드 및 크기 검증", () => {
+  it("P2-01: 26개 신규 산업군 로드 및 크기 검증", () => {
     const industries = Object.keys(INDUSTRY_PANELS_DATA);
-    expect(industries).toHaveLength(25);
+    expect(industries).toHaveLength(26);
     
     industries.forEach((ind) => {
       const data = INDUSTRY_PANELS_DATA[ind as IndustryType];
@@ -166,7 +166,7 @@ describe("BSW-OS P2 Enhancements Test Suite", () => {
     expect(mockFrom).toHaveBeenCalledWith("audit_events");
   });
 
-  it("P2-07: 25개 대규모 산업 통합 KAIVI 및 AIPR 스루풋 성능 측정", async () => {
+  it("P2-07: 26개 대규모 산업 통합 KAIVI 및 AIPR 스루풋 성능 측정", async () => {
     // SbsIndexRunner executes AIPR and KAIVI. Let's make sure it handles all 25 industries without errors
     const mockFrom = vi.fn().mockImplementation((table) => {
       if (table === "probe_panels") {

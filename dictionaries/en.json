@@ -26,6 +26,9 @@
     "reports": "Benchmark Reports",
     "fixit": "Fix-It Studio",
     "gates": "Release Gates",
+    "site_audit": "Site Surface Audit",
+    "benchmark": "Industry Benchmark",
+    "sbs_index": "Public AI Index (SBS)",
     "kculture_studio": "K-Culture Intelligence"
   },
   "dashboard": {

@@ -55,7 +55,57 @@ class GeminiEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
-// 2. Deterministic Mock Embedding Provider (Produces stable mock vectors based on text hash)
+// 2. OpenAI Embedding Provider (text-embedding-3-small)
+class OpenAIEmbeddingProvider implements EmbeddingProvider {
+  private model = 'text-embedding-3-small';
+  private endpoint = 'https://api.openai.com/v1/embeddings';
+
+  async embed(text: string): Promise<number[]> {
+    try {
+      const apiKey = process.env.OPENAI_API_KEY;
+      const res = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ input: text, model: this.model }),
+      });
+      if (!res.ok) {
+        throw new Error(`OpenAI API error: ${res.status} ${res.statusText}`);
+      }
+      const json = await res.json();
+      return json.data[0].embedding;
+    } catch (err: any) {
+      console.error(`OpenAI embed error: ${err.message}`);
+      throw new Error(`OpenAI Embedding API Failure: ${err.message}`);
+    }
+  }
+
+  async embedBatch(texts: string[]): Promise<number[][]> {
+    try {
+      const apiKey = process.env.OPENAI_API_KEY;
+      const res = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ input: texts, model: this.model }),
+      });
+      if (!res.ok) {
+        throw new Error(`OpenAI API error: ${res.status} ${res.statusText}`);
+      }
+      const json = await res.json();
+      return json.data.map((d: any) => d.embedding);
+    } catch (err: any) {
+      console.error(`OpenAI embedBatch error: ${err.message}`);
+      throw new Error(`OpenAI Embedding Batch API Failure: ${err.message}`);
+    }
+  }
+}
+
+// 3. Deterministic Mock Embedding Provider (Produces stable mock vectors based on text hash)
 class MockEmbeddingProvider implements EmbeddingProvider {
   private getDeterministicVector(text: string): number[] {
     const vec = new Array(768).fill(0.0);
@@ -87,6 +137,9 @@ class MockEmbeddingProvider implements EmbeddingProvider {
  */
 export function getEmbeddingProvider(): EmbeddingProvider {
   const mode = process.env.AI_PROVIDER_MODE || 'mock';
+  if (mode === 'openai') {
+    return new OpenAIEmbeddingProvider();
+  }
   if (mode === 'gemini') {
     return new GeminiEmbeddingProvider();
   }

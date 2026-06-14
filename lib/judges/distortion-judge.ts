@@ -61,7 +61,7 @@ Return JSON matching this schema:
   "concept_distortion_rate": number
 }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {

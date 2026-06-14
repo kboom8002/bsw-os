@@ -58,7 +58,7 @@ Return JSON matching this schema:
   "main_issue": "string"
 }`;
 
-    if (mode === 'gemini') {
+    if (mode === 'gemini' || mode === 'openai') {
       try {
         const ai = getAIProvider();
         const schema = {

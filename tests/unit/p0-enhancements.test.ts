@@ -76,13 +76,13 @@ describe("BSW-OS P0 Enhancements Test Suite", () => {
     expect(scoreCompA).not.toBe(scoreCompB);
   });
 
-  it("P0-03: SbsIndexRunner: 25개 업종 전부 AIPR 산출 확인", async () => {
+  it("P0-03: SbsIndexRunner: 26개 업종 전부 AIPR 산출 확인", async () => {
     const runner = new SbsIndexRunner();
     const mockFrom = vi.fn().mockImplementation(() => createMockQueryBuilder([]));
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: mockFrom } as any);
 
     const report = await runner.generateReport(workspaceId);
-    expect(report.industryRankings).toHaveLength(25);
+    expect(report.industryRankings).toHaveLength(26);
     const beautyRankings = report.industryRankings.find(r => r.industry === "beauty");
     expect(beautyRankings).toBeDefined();
     expect(beautyRankings?.rankings.length).toBeGreaterThan(0);
@@ -94,7 +94,7 @@ describe("BSW-OS P0 Enhancements Test Suite", () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: mockFrom } as any);
 
     const report = await runner.generateReport(workspaceId);
-    expect(report.industryRankings.length).toBe(25);
+    expect(report.industryRankings.length).toBe(26);
   });
 
   it("P0-05: BAIR 다중 감성 키워드 매칭: 긍정 8패턴 정확성", async () => {
