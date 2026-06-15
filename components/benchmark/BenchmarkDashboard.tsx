@@ -11,6 +11,7 @@ import {
 // runLightBenchmark는 API Route(/api/benchmark/run)로 호출합니다 (maxDuration=60s)
 import type { DomainLeaderboardResult, BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark";
 import { BENCHMARK_DOMAINS } from "../../lib/benchmark/domain-config";
+import { calculatePerLayerMetrics } from "../../lib/benchmark/per-layer-metrics";
 import { OpportunityAnalyzer, type BrandOpportunityReport } from "../../lib/benchmark/opportunity-analyzer";
 import type { QuestionDetail } from "../../lib/benchmark/lightweight-metric-runner";
 import OpportunityIntelligenceSection from "./OpportunityIntelligenceSection";
@@ -115,6 +116,7 @@ function LeaderboardTable({
             <th className="pb-3 font-semibold uppercase tracking-wider">브랜드</th>
             <th className="pb-3 font-semibold uppercase tracking-wider text-center">Answer Share</th>
             <th className="pb-3 font-semibold uppercase tracking-wider text-center">Citation Rate</th>
+            <th className="pb-3 font-semibold uppercase tracking-wider text-center">BDR / CWR</th>
             <th className="pb-3 font-semibold uppercase tracking-wider text-center">BAIR</th>
             <th className="pb-3 font-semibold uppercase tracking-wider text-center w-36">30일 트렌드</th>
           </tr>
@@ -167,6 +169,16 @@ function LeaderboardTable({
                     className="h-1.5 rounded-full transition-all"
                     style={{ width: `${entry.ocr}%`, backgroundColor: entry.color, opacity: 0.7 }}
                   />
+                </div>
+              </td>
+              <td className="py-4 text-center">
+                <div className="flex flex-col gap-1 items-center">
+                  <span className="text-[11px] font-bold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">
+                    BDR {entry.bdr !== null ? `${entry.bdr}%` : '-'}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">
+                    CWR {entry.cwr !== null ? `${entry.cwr}%` : '-'}
+                  </span>
                 </div>
               </td>
               <td className="py-4 text-center">
@@ -350,12 +362,33 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
       // Step 3: AAS/OCR/BSF/BAIR 집계
       setProgressMsg('브랜드별 AAS/OCR/BSF/BAIR 산출 중...');
       const measuredAt = new Date().toISOString();
+      // ── 기회 분석(Opportunity Intelligence) 및 고급 지표 계산용 데이터 생성 ──
+      const questionDetails: QuestionDetail[] = questions.map((q: any, idx: number) => {
+        const qr = queryResults.find((r: any) => r.questionIdx === idx);
+        const engineRes = qr ? {
+          raw_response_text: qr.text,
+          brands_mentioned: brands.filter((b: any) => b.keywords.some((kw: string) => qr.text.toLowerCase().includes(kw.toLowerCase()))).map((b: any) => b.name),
+          citation_domains: qr.citations.map((c: any) => c.domain),
+          bsf_score: parseFloat((((q.must_include || []).filter((t: string) => qr.text.toLowerCase().includes(t.toLowerCase())).length / Math.max(1, (q.must_include || []).length) * 70) + ((q.should_include || []).filter((t: string) => qr.text.toLowerCase().includes(t.toLowerCase())).length / Math.max(1, (q.should_include || []).length) * 30)).toFixed(2))
+        } : { raw_response_text: '', brands_mentioned: [], citation_domains: [], bsf_score: 0 };
+        return {
+          question_text: q.question_text,
+          question_type: q.question_type,
+          layer: q.layer || 'unknown',
+          per_engine: { 'gemini_grounding': engineRes }
+        };
+      });
+
       const brandResults = brands.map((brand: any) => {
         const compositeResults: { aas: boolean; ocr: boolean; bsf: number }[] = [];
+        let brandedResponseCount = 0;
 
         for (const qr of queryResults) {
           const q = questions[qr.questionIdx];
           const text = qr.text.toLowerCase();
+
+          const anyBrandHit = brands.some((b: any) => b.keywords.some((kw: string) => text.includes(kw.toLowerCase())));
+          if (anyBrandHit) brandedResponseCount++;
 
           const aasHit = brand.keywords.some((kw: string) => text.includes(kw.toLowerCase()));
           const ocrHit = qr.citations.some((c: any) => {
@@ -375,34 +408,20 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         }
 
         if (compositeResults.length === 0) {
-          return { brand_slug: brand.slug, brand_name: brand.name, aas: 0, ocr: 0, bsf: 0, bair: 0, mention_count: 0, citation_count: 0, sample_size: questions.length, measured_at: measuredAt };
+          return { brand_slug: brand.slug, brand_name: brand.name, aas: 0, ocr: 0, bsf: 0, bair: 0, bdr: 0, cwr: 0, iri: 0, opp: 0, mention_count: 0, citation_count: 0, sample_size: questions.length, measured_at: measuredAt };
         }
 
         const mentionCount = compositeResults.filter(r => r.aas).length;
         const citationCount = compositeResults.filter(r => r.ocr).length;
-        const aas = parseFloat(((mentionCount / compositeResults.length) * 100).toFixed(1));
+        const aiprDenominator = brandedResponseCount > 0 ? brandedResponseCount : compositeResults.length;
+        const aas = parseFloat(((mentionCount / aiprDenominator) * 100).toFixed(1));
         const ocr = parseFloat(((citationCount / compositeResults.length) * 100).toFixed(1));
         const bsf = parseFloat((compositeResults.reduce((s, r) => s + r.bsf, 0) / compositeResults.length).toFixed(1));
         const bair = parseFloat((aas * (bsf / 100)).toFixed(1));
 
-        return { brand_slug: brand.slug, brand_name: brand.name, aas, ocr, bsf, bair, mention_count: mentionCount, citation_count: citationCount, sample_size: questions.length, measured_at: measuredAt };
-      });
+        const advanced = calculatePerLayerMetrics(brand, questionDetails, questions, 'gemini_grounding');
 
-      // ── 기회 분석(Opportunity Intelligence) 데이터 생성 ──
-      const questionDetails: QuestionDetail[] = questions.map((q: any, idx: number) => {
-        const qr = queryResults.find((r: any) => r.questionIdx === idx);
-        const engineRes = qr ? {
-          raw_response_text: qr.text,
-          brands_mentioned: brands.filter((b: any) => b.keywords.some((kw: string) => qr.text.toLowerCase().includes(kw.toLowerCase()))).map((b: any) => b.name),
-          citation_domains: qr.citations.map((c: any) => c.domain),
-          bsf_score: parseFloat((((q.must_include || []).filter((t: string) => qr.text.toLowerCase().includes(t.toLowerCase())).length / Math.max(1, (q.must_include || []).length) * 70) + ((q.should_include || []).filter((t: string) => qr.text.toLowerCase().includes(t.toLowerCase())).length / Math.max(1, (q.should_include || []).length) * 30)).toFixed(2))
-        } : { raw_response_text: '', brands_mentioned: [], citation_domains: [], bsf_score: 0 };
-        return {
-          question_text: q.question_text,
-          question_type: q.question_type,
-          layer: q.layer || 'unknown',
-          per_engine: { 'gemini_grounding': engineRes }
-        };
+        return { brand_slug: brand.slug, brand_name: brand.name, aas, ocr, bsf, bair, bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp, mention_count: mentionCount, citation_count: citationCount, sample_size: questions.length, measured_at: measuredAt };
       });
 
       // 타겟 브랜드로 분석 (기본 1위 브랜드 또는 첫번째 브랜드)
@@ -455,6 +474,8 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
     ? parseFloat((allEntries.reduce((s, e) => s + e.ocr, 0) / allEntries.length).toFixed(1))
     : 0;
   const topBrand = allEntries[0];
+  const industryIRI = topBrand?.iri ?? 0;
+  const industryOPP = topBrand?.opp ?? 0;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -564,7 +585,7 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           {/* AAS */}
           <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl shadow-xl shadow-slate-950/40">
             <div className="absolute top-0 right-0 p-6 opacity-10">
@@ -638,6 +659,35 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
             ) : (
               <p className="text-slate-400 text-sm">측정 데이터 없음</p>
             )}
+          </div>
+
+          {/* Industry Readiness */}
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl shadow-xl shadow-slate-950/40">
+            <div className="absolute top-0 right-0 p-6 opacity-10">
+              <Activity className="h-20 w-20 text-emerald-500" />
+            </div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">
+                업계 준비도 (IRI)
+              </span>
+              <Activity className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-black bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                {industryIRI}
+              </span>
+              <span className="text-xs font-bold text-slate-500">%</span>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+              <span>기회 지수 (OPP)</span>
+              <span className="font-bold text-slate-300">{industryOPP}%</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-1 mt-1">
+              <div className="bg-rose-400 h-1 rounded-full" style={{ width: `${industryOPP}%` }} />
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+              제네릭 질문 방어율(IRI)과 아무도 노출되지 않은 레드오션 기회(OPP) 지표
+            </p>
           </div>
         </div>
 

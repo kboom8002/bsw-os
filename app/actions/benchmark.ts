@@ -25,6 +25,10 @@ export interface BenchmarkLeaderboardEntry {
   ocr: number;
   bsf: number | null;
   bair: number | null;
+  bdr: number | null;
+  cwr: number | null;
+  iri: number | null;
+  opp: number | null;
   aas_trend: number;   // 이전 대비 변화 (+/-/0)
   color: string;
 }
@@ -242,6 +246,10 @@ function _buildLeaderboard(
     const ocr = snap?.ocr ?? 0;
     const bsf = snap?.bsf ?? null;
     const bair = snap?.bair ?? null;
+    const bdr = snap?.bdr ?? null;
+    const cwr = snap?.cwr ?? null;
+    const iri = snap?.iri ?? null;
+    const opp = snap?.opp ?? null;
     const prevAas = prev?.aas ?? 0;
     const aasTrend = parseFloat((aas - prevAas).toFixed(1));
 
@@ -250,6 +258,7 @@ function _buildLeaderboard(
       brand_slug: brand.slug,
       brand_name: brand.name,
       aas, ocr, bsf, bair,
+      bdr, cwr, iri, opp,
       aas_trend: aasTrend,
       color: brand.color,
     };
@@ -281,6 +290,10 @@ function _getMockLeaderboard(
       ocr: mockOcr[i] ?? 10,
       bsf: null,
       bair: mockBair[i] ?? 20,
+      bdr: null,
+      cwr: null,
+      iri: null,
+      opp: null,
       aas_trend: 0,
       color: brand.color,
     }))

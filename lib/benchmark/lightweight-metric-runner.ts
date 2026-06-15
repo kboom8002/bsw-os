@@ -15,6 +15,7 @@
 import { SearchProviderFactory } from '../ai/search-provider-factory';
 import type { BrandConfig, DomainConfig } from './domain-config';
 import type { SeedProbeQuestion } from '../../db/seed/industry-panels/questions-data';
+import { calculatePerLayerMetrics } from './per-layer-metrics';
 
 export interface LightweightBrandResult {
   brand_slug: string;
@@ -24,6 +25,10 @@ export interface LightweightBrandResult {
   ocr: number;          // 0-100
   bsf: number;          // 0-100
   bair: number;         // 0-100
+  bdr?: number;
+  cwr?: number;
+  iri?: number;
+  opp?: number;
   mention_count: number;
   citation_count: number;
   sample_size: number;
@@ -221,6 +226,7 @@ export class LightweightMetricRunner {
           brand_name: brand.name,
           engine_name: 'composite',
           aas: 0, ocr: 0, bsf: 0, bair: 0,
+          bdr: 0, cwr: 0, iri: 0, opp: 0,
           mention_count: 0, citation_count: 0,
           sample_size: sampledQuestions.length,
           measured_at: measuredAt,
@@ -240,18 +246,38 @@ export class LightweightMetricRunner {
       const bsf = parseFloat((compositeResults.reduce((s, r) => s + r.bsf, 0) / compositeResults.length).toFixed(1));
       const bair = parseFloat((aas * (bsf / 100)).toFixed(1));
 
+      // Calculate Advanced Metrics
+      // First, we need to extract the question details for this brand's evaluation
+      // Actually, we can generate questionDetails map right here, but questionDetails is generated at the end.
+      // Let's just create a temporary array for this calculation.
+      const tempDetails: QuestionDetail[] = [];
+      for (const [_qText, engineResults] of queryResults.entries()) {
+        const q = sampledQuestions.find(sq => sq.question_text === _qText);
+        if (!q) continue;
+        const det: QuestionDetail = { question_text: q.question_text, question_type: q.question_type, layer: q.layer || 'unknown', per_engine: {} };
+        for (const engine of this.engines) {
+          const res = engineResults[engine];
+          if (!res) continue;
+          const mentioned = domainConfig.brands.filter(b => calcAAS(res.text, b.keywords)).map(b => b.name);
+          det.per_engine[engine] = { raw_response_text: res.text, brands_mentioned: mentioned, citation_domains: [], bsf_score: 0 };
+        }
+        tempDetails.push(det);
+      }
+      const advanced = calculatePerLayerMetrics(brand, tempDetails, sampledQuestions, 'composite');
+
       brandResults.push({
         brand_slug: brand.slug,
         brand_name: brand.name,
         engine_name: 'composite',
         aas, ocr, bsf, bair,
+        bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp,
         mention_count: mentionCount,
         citation_count: citationCount,
         sample_size: sampledQuestions.length,
         measured_at: measuredAt,
       });
 
-      console.log(`    [${brand.name}] AAS: ${aas}% | OCR: ${ocr}% | BSF: ${bsf}% | BAIR: ${bair}`);
+      console.log(`    [${brand.name}] AAS: ${aas}% | BDR: ${advanced.bdr}% | CWR: ${advanced.cwr}% | IRI: ${advanced.iri}%`);
     }
 
     // ── Question Details 수집 (Opportunity Intelligence용) ──
@@ -297,33 +323,24 @@ export class LightweightMetricRunner {
   }
 
   /**
-   * 공정성(Fair-Play v2) 기반 순수 제네릭 샘플링
-   * 배제 조건:
-   *  1. layer === 'L7_brand' | 'L2_competitive' | 'L4_journey'
-   *  2. target_keyword가 '{brand}' 플레이스홀더가 아닌 질문
-   *     (특정 브랜드명이 하드코딩된 질문 동적 제거)
+   * 3-Layer Mixed Goldilocks Sampling
    */
   private _sampleQuestions(
     questions: SeedProbeQuestion[],
     count: number,
     domainConfig: DomainConfig
   ): SeedProbeQuestion[] {
-    const EXCLUDED_LAYERS = new Set(['L7_brand', 'L2_competitive', 'L4_journey']);
-
-    // 순수 제네릭 질문만 추출
-    const genericQuestions = questions.filter(q => {
-      if (EXCLUDED_LAYERS.has(q.layer ?? '')) return false;
-      // target_keyword가 존재하더라도, 특정 브랜드 하드코딩이 아닌 일반 토픽이면 허용.
-      // (기존에는 tk === '' 나 '{brand}'만 허용하여 웨딩스튜디오 문항이 모두 누락되는 버그가 있었음)
-      return true;
-    });
-
-    if (genericQuestions.length <= count) return [...genericQuestions];
+    const brands = domainConfig.brands;
+    const genericLayers = new Set(['L1_universal', 'L3_ingredient', 'L5_ymyl', 'L6_trend']);
+    
+    const genericQuestions = questions.filter(q => genericLayers.has(q.layer || 'unknown') || !q.layer);
+    const l2Questions = questions.filter(q => q.layer === 'L2_competitive');
+    const l7Questions = questions.filter(q => q.layer === 'L7_brand');
 
     const selected: SeedProbeQuestion[] = [];
     const selectedTexts = new Set<string>();
 
-    const add = (q: SeedProbeQuestion) => {
+    const add = (q: SeedProbeQuestion): boolean => {
       if (!selectedTexts.has(q.question_text)) {
         selected.push(q);
         selectedTexts.add(q.question_text);
@@ -332,13 +349,46 @@ export class LightweightMetricRunner {
       return false;
     };
 
-    // 무작위 샘플링
-    const shuffled = [...genericQuestions].sort(() => Math.random() - 0.5);
-    for (const q of shuffled) {
+    // 1. L7_brand
+    if (l7Questions.length > 0) {
+      for (const brand of brands) {
+        const cand = l7Questions.filter(q => q.question_text.includes('{brand}') || q.target_keyword?.includes('{brand}') || q.question_text.includes(brand.name));
+        const bq = cand.length > 0 ? cand[Math.floor(Math.random() * cand.length)] : l7Questions[Math.floor(Math.random() * l7Questions.length)];
+        
+        const cloned = JSON.parse(JSON.stringify(bq)) as SeedProbeQuestion;
+        cloned.question_text = cloned.question_text.replace(/{brand}/g, brand.name);
+        cloned.target_keyword = (cloned.target_keyword || '').replace(/{brand}/g, brand.name);
+        if (cloned.must_include) cloned.must_include = cloned.must_include.map((t: string) => t.replace(/{brand}/g, brand.name));
+        if (cloned.should_include) cloned.should_include = cloned.should_include.map((t: string) => t.replace(/{brand}/g, brand.name));
+        add(cloned);
+      }
+    }
+
+    // 2. L2_competitive
+    if (l2Questions.length > 0) {
+      for (const brand of brands) {
+        const cand = l2Questions.filter(q => q.question_text.includes('{brand}') || q.target_keyword?.includes('{brand}') || q.question_text.includes(brand.name));
+        const bq = cand.length > 0 ? cand[Math.floor(Math.random() * cand.length)] : l2Questions[Math.floor(Math.random() * l2Questions.length)];
+        
+        const competitors = brands.filter(b => b.name !== brand.name);
+        const randomCompetitor = competitors.length > 0 ? competitors[Math.floor(Math.random() * competitors.length)].name : '타 브랜드';
+
+        const cloned = JSON.parse(JSON.stringify(bq)) as SeedProbeQuestion;
+        cloned.question_text = cloned.question_text.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor);
+        cloned.target_keyword = (cloned.target_keyword || '').replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor);
+        if (cloned.must_include) cloned.must_include = cloned.must_include.map((t: string) => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor));
+        if (cloned.should_include) cloned.should_include = cloned.should_include.map((t: string) => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor));
+        add(cloned);
+      }
+    }
+
+    // 3. Generic
+    const shuffledGeneric = [...genericQuestions].sort(() => Math.random() - 0.5);
+    for (const q of shuffledGeneric) {
       if (selected.length >= count) break;
       add(q);
     }
 
-    return selected;
+    return selected.sort(() => Math.random() - 0.5);
   }
 }
