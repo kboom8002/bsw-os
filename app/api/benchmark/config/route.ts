@@ -57,29 +57,17 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * 공정성(Fair-Play v2) 기반 순수 제네릭 샘플링
- * 배제 조건:
- *  1. layer === 'L7_brand' | 'L2_competitive' | 'L4_journey'
- *  2. target_keyword가 '{brand}' 플레이스홀더가 아닌 질문
- *     (특정 브랜드명이 하드코딩된 질문 동적 제거)
+ * 공정성(Fair-Play v2) 기반 혼합 샘플링
+ * 배제 조건 완화: 상대 평가를 위해 각 브랜드당 1개의 브랜드 탐색 질문(L7_brand)을 동적으로 주입.
+ * 나머지 분량은 순수 제네릭 질문으로 채웁니다.
  */
 function sampleQuestionsWeighted(
   questions: any[],
   count: number,
-  brands: { keywords: string[] }[]
+  brands: { name: string; keywords: string[] }[]
 ): any[] {
-  const EXCLUDED_LAYERS = new Set(['L7_brand', 'L2_competitive', 'L4_journey']);
-
-  // 순수 제네릭 질문만 추출
-  // - 배제 레이어 제거
-  // - L7_brand 등의 레이어가 없더라도 타겟 키워드에 특정 브랜드가 들어있으면 곤란하지만
-  //   일단 레이어로 1차 필터링합니다. (wedding_studio 패널 등에서 타겟 키워드가 일반 명사일 수 있음)
-  const genericQuestions = questions.filter(q => {
-    if (EXCLUDED_LAYERS.has(q.layer)) return false;
-    return true;
-  });
-
-  if (genericQuestions.length <= count) return [...genericQuestions];
+  const brandQuestions = questions.filter(q => q.layer === 'L7_brand' && (q.question_text.includes('{brand}') || q.target_keyword?.includes('{brand}')));
+  const genericQuestions = questions.filter(q => !['L7_brand', 'L2_competitive', 'L4_journey'].includes(q.layer));
 
   const selected: any[] = [];
   const selectedTexts = new Set<string>();
@@ -93,12 +81,26 @@ function sampleQuestionsWeighted(
     return false;
   };
 
-  // 무작위 샘플링
-  const shuffled = [...genericQuestions].sort(() => Math.random() - 0.5);
-  for (const q of shuffled) {
+  // 1. 브랜드별 1개의 브랜드 탐색 질문 동적 주입
+  if (brandQuestions.length > 0) {
+    for (const brand of brands) {
+      const bq = brandQuestions[Math.floor(Math.random() * brandQuestions.length)];
+      const cloned = JSON.parse(JSON.stringify(bq));
+      cloned.question_text = cloned.question_text.replace(/{brand}/g, brand.name);
+      cloned.target_keyword = (cloned.target_keyword || '').replace(/{brand}/g, brand.name);
+      if (cloned.must_include) cloned.must_include = cloned.must_include.map((t: string) => t.replace(/{brand}/g, brand.name));
+      if (cloned.should_include) cloned.should_include = cloned.should_include.map((t: string) => t.replace(/{brand}/g, brand.name));
+      add(cloned);
+    }
+  }
+
+  // 2. 남은 슬롯은 순수 제네릭 질문으로 채우기
+  const shuffledGeneric = [...genericQuestions].sort(() => Math.random() - 0.5);
+  for (const q of shuffledGeneric) {
     if (selected.length >= count) break;
     add(q);
   }
 
-  return selected;
+  // 3. 질문 섞기 (브랜드 질문이 앞쪽에 쏠리지 않도록)
+  return selected.sort(() => Math.random() - 0.5);
 }
