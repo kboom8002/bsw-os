@@ -72,12 +72,10 @@ function sampleQuestionsWeighted(
 
   // 순수 제네릭 질문만 추출
   // - 배제 레이어 제거
-  // - target_keyword가 '{brand}' 또는 비어있지 않은 고유 브랜드명인 질문 제거
+  // - L7_brand 등의 레이어가 없더라도 타겟 키워드에 특정 브랜드가 들어있으면 곤란하지만
+  //   일단 레이어로 1차 필터링합니다. (wedding_studio 패널 등에서 타겟 키워드가 일반 명사일 수 있음)
   const genericQuestions = questions.filter(q => {
     if (EXCLUDED_LAYERS.has(q.layer)) return false;
-    const tk = (q.target_keyword ?? '').trim();
-    // '{brand}' 플레이스홀더이거나 비어있는 경우만 허용
-    if (tk !== '' && tk !== '{brand}' && tk !== '{competitor}') return false;
     return true;
   });
 
