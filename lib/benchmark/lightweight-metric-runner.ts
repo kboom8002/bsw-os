@@ -313,8 +313,8 @@ export class LightweightMetricRunner {
     // 순수 제네릭 질문만 추출
     const genericQuestions = questions.filter(q => {
       if (EXCLUDED_LAYERS.has(q.layer ?? '')) return false;
-      const tk = (q.target_keyword ?? '').trim();
-      if (tk !== '' && tk !== '{brand}' && tk !== '{competitor}') return false;
+      // target_keyword가 존재하더라도, 특정 브랜드 하드코딩이 아닌 일반 토픽이면 허용.
+      // (기존에는 tk === '' 나 '{brand}'만 허용하여 웨딩스튜디오 문항이 모두 누락되는 버그가 있었음)
       return true;
     });
 
