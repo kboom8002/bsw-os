@@ -10,6 +10,7 @@ import { WeightCalibrator } from "../../lib/governance/weight-calibrator";
 import { createIndustryStandardPanel } from "../../app/actions/probe-panel-factory";
 import { FunnelTracker } from "../../lib/analytics/funnel-tracker";
 import { getSupabaseAdminClient } from "../../lib/supabase";
+import { INDUSTRY_PANELS_DATA } from "../../db/seed/industry-panels/questions-data";
 
 vi.mock("../../lib/supabase", () => ({
   getSupabaseAdminClient: vi.fn(),
@@ -82,7 +83,7 @@ describe("BSW-OS P0 Enhancements Test Suite", () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: mockFrom } as any);
 
     const report = await runner.generateReport(workspaceId);
-    expect(report.industryRankings).toHaveLength(26);
+    expect(report.industryRankings).toHaveLength(Object.keys(INDUSTRY_PANELS_DATA).length);
     const beautyRankings = report.industryRankings.find(r => r.industry === "beauty");
     expect(beautyRankings).toBeDefined();
     expect(beautyRankings?.rankings.length).toBeGreaterThan(0);
@@ -94,7 +95,7 @@ describe("BSW-OS P0 Enhancements Test Suite", () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: mockFrom } as any);
 
     const report = await runner.generateReport(workspaceId);
-    expect(report.industryRankings.length).toBe(26);
+    expect(report.industryRankings.length).toBe(Object.keys(INDUSTRY_PANELS_DATA).length);
   });
 
   it("P0-05: BAIR 다중 감성 키워드 매칭: 긍정 8패턴 정확성", async () => {

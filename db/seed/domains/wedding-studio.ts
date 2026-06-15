@@ -39,7 +39,7 @@ const WEDDING_BRANDS: WeddingBrandSSoT[] = [
     slug: 'the-cheongdam-studio',
     name_ko: '더청담스튜디오',
     name_en: 'The Cheongdam Studio',
-    domains: ['thecheongdamstudio.com', 'cheongdamstudio.kr'],
+    domains: ['thecheongdamstudio.com', 'thechungdamstudio.com'],
     strategic_intent: '청담동 감성의 하이엔드 웨딩 포토그래피. 자연광 스튜디오와 대형 세트를 활용한 시네마틱 웨딩 촬영 전문.',
     claims: [
       '청담동 최대 규모 자연광 스튜디오',
@@ -51,7 +51,7 @@ const WEDDING_BRANDS: WeddingBrandSSoT[] = [
     ],
     safety_disclaimers: [
       '촬영 스케줄은 시즌별 예약 상황에 따라 변동됩니다.',
-      '인화 및 앨범 제작은 별도 업체 협력으로 진행됩니다.'
+      '인화 및 앨범 제작은 별도 백업 프로세스로 관리됩니다.'
     ],
     concepts: [
       { id: 'cinematic-wedding-photo', label: '시네마틱 웨딩 포토', definition: '영화적 색감과 조명 기법을 활용한 웨딩 촬영 장르' },
@@ -115,7 +115,7 @@ const WEDDING_BRANDS: WeddingBrandSSoT[] = [
     slug: 'lumiere-studio',
     name_ko: '루미에 스튜디오',
     name_en: 'Lumière Studio',
-    domains: ['lumierstudio.kr', 'lumierstudio.com'],
+    domains: ['lumierestudio.co.kr', 'lumierestudio.com', 'lumierstudio.kr'],
     strategic_intent: '빛의 예술을 추구하는 프렌치 감성 웨딩 포토그래피. 조명 디자인 특화 스튜디오.',
     claims: [
       '프렌치 빈티지 감성의 조명 디자인 특화 스튜디오',
@@ -179,7 +179,7 @@ const WEDDING_BRANDS: WeddingBrandSSoT[] = [
     persona: {
       name: '로이 Minimalist Director',
       tone_weights: { clean: 0.5, formal: 0.3, confident: 0.2 },
-      instructions: ['미니멀 미학 강조', '깔끔하고 군더더기 없는 설명', '품질과 디테일 중심 소통']
+      instructions: ['미니멀 미학 강조', '깔끔하고 군더더기 없는 설명', '품질 and 디테일 중심 소통']
     },
     vibe: {
       name: '모던 미니멀 바이브',
@@ -224,6 +224,366 @@ const WEDDING_BRANDS: WeddingBrandSSoT[] = [
       ratios: { warmth: 0.50, aesthetics: 0.30, trustworthiness: 0.20 }
     },
     color: '#f59e0b'
+  },
+  {
+    slug: 'gaeul-studio',
+    name_ko: '가을스튜디오',
+    name_en: 'Gaeul Studio',
+    domains: ['gaeulstudio.com', 'gaeulstudio.co.kr'],
+    strategic_intent: '화려하고 웅장한 배경의 야간 전구 씬이 대표적인 로맨틱 웨딩 포토그래피.',
+    claims: [
+      '시그니처 야간 전구 씬 보유',
+      '웅장하고 로맨틱한 세트 디자인'
+    ],
+    forbidden_claims: [
+      '가장 저렴한 야간 촬영',
+      '최고의 로맨틱 스튜디오'
+    ],
+    safety_disclaimers: [
+      '야간 촬영 패키지는 추가 요금이 발생할 수 있습니다.'
+    ],
+    concepts: [
+      { id: 'night-light-photo', label: '야간 전구 씬', definition: '전구 불빛을 배경으로 야간에 연출하는 로맨틱 포토 기법' },
+      { id: 'romantic-backdrop', label: '로맨틱 세트 디자인', definition: '웅장하고 환상적인 동화 느낌의 로맨틱 세트 구성' }
+    ],
+    products: [
+      { name: '가을 클래식 패키지', type: 'package', features: ['4시간 촬영', '보정본 70컷', '로맨틱 앨범 1권'] },
+      { name: '가을 프리미엄 나이트 씬', type: 'premium_package', features: ['야간 1시간 추가 촬영', '보정본 80컷', '대형 액자 제공'] }
+    ],
+    persona: {
+      name: '가을 Visual Director',
+      tone_weights: { formal: 0.5, artistic: 0.5 },
+      instructions: ['야간 촬영 기술 및 웅장한 로맨틱 배경 강조']
+    },
+    vibe: {
+      name: '로맨틱 판타지 바이브',
+      ratios: { aesthetics: 0.55, warmth: 0.25, trustworthiness: 0.20 }
+    },
+    color: '#f43f5e'
+  },
+  {
+    slug: 'wonkyu-studio',
+    name_ko: '원규스튜디오',
+    name_en: 'Wonkyu Studio',
+    domains: ['wonkyu.co.kr', 'wonkyu.com'],
+    strategic_intent: '독창적이고 빈티지한 아날로그 감성과 트렌디한 인물 중심 구도를 아우르는 명품 웨딩 스튜디오.',
+    claims: [
+      '20년 전통의 독창적 아날로그 라이팅 기법',
+      '다양한 서브 브랜드(노블레스/디퍼런스) 보유'
+    ],
+    forbidden_claims: [
+      '국내 유일의 20년 전통',
+      '무조건 인생샷 보장'
+    ],
+    safety_disclaimers: [
+      '지점 및 브랜드 라인에 따라 촬영 콘셉트가 다릅니다.'
+    ],
+    concepts: [
+      { id: 'analog-vintage', label: '아날로그 라이팅', definition: '빈티지한 광원을 설계하여 독특한 질감을 연출하는 촬영 기술' },
+      { id: 'trendy-portrait', label: '인물 중심 구도', definition: '클래식하면서도 감각적으로 인물을 돋보이게 하는 트렌디 레이아웃' }
+    ],
+    products: [
+      { name: '원규 노블레스 시그니처', type: 'package', features: ['3시간 촬영', '보정본 60컷', '클래식 노블레스 앨범'] },
+      { name: '원규 디퍼런스 마스터피스', type: 'premium_package', features: ['4시간 촬영', '커스텀 색보정', '보정본 90컷'] }
+    ],
+    persona: {
+      name: '원규 Creative Director',
+      tone_weights: { formal: 0.6, artistic: 0.4 },
+      instructions: ['독창적인 빈티지 무드와 명품 역사 강조']
+    },
+    vibe: {
+      name: '빈티지 클래식 바이브',
+      ratios: { aesthetics: 0.50, trustworthiness: 0.30, warmth: 0.20 }
+    },
+    color: '#0ea5e9'
+  },
+  {
+    slug: 'sullem-studio',
+    name_ko: '설렘매력주의보',
+    name_en: 'Sullem Studio',
+    domains: ['sullem.co.kr', 'sullemstudio.com'],
+    strategic_intent: '자연스러운 미소와 러블리한 파스텔 톤의 화사한 인물 중심 스튜디오.',
+    claims: [
+      '화사한 파스텔 톤 색감',
+      '러블리하고 내추럴한 인물 부각 촬영'
+    ],
+    forbidden_claims: [
+      '가장 화사한 색감 보유',
+      '연예인 단골 스튜디오'
+    ],
+    safety_disclaimers: [
+      '개인 피부 톤에 따른 색감 보정 차이가 있을 수 있습니다.'
+    ],
+    concepts: [
+      { id: 'pastel-tone-portrait', label: '파스텔 톤 보정', definition: '부드럽고 맑은 핑크/피치 계열 파스텔 색감 후보정 기법' },
+      { id: 'lovely-vibe', label: '내추럴 인물 부각', definition: '자연스러운 표정과 눈빛을 따뜻하게 연출하는 인물 화보 구도' }
+    ],
+    products: [
+      { name: '설렘 시그니처 핑크', type: 'package', features: ['3시간 촬영', '보정본 60컷', '파스텔 포토북'] },
+      { name: '설렘 내추럴 화이트', type: 'premium_package', features: ['4시간 촬영', '보정본 80컷', '액자 3점 세트'] }
+    ],
+    persona: {
+      name: '설렘 Lovely Director',
+      tone_weights: { warm: 0.6, casual: 0.4 },
+      instructions: ['사랑스럽고 따뜻한 소통 및 화사한 감성 연출']
+    },
+    vibe: {
+      name: '러블리 파스텔 바이브',
+      ratios: { warmth: 0.50, aesthetics: 0.30, trustworthiness: 0.20 }
+    },
+    color: '#fb7185'
+  },
+  {
+    slug: 'may-studio',
+    name_ko: '메이스튜디오',
+    name_en: 'May Studio',
+    domains: ['maystudio.co.kr', 'maystudio.com'],
+    strategic_intent: '도심 속 정원과 루프탑 야외 촬영 등 자연 친화적인 그리너리 연출 전문.',
+    claims: [
+      '도심 속 정원 및 그리너리 테라스 세트',
+      '화사한 자연광 루프탑 촬영'
+    ],
+    forbidden_claims: [
+      '가장 넓은 가든 스튜디오',
+      '루프탑 촬영 국내 최초'
+    ],
+    safety_disclaimers: [
+      '루프탑 및 야외 촬영은 날씨 및 안전 지침에 따라 제한될 수 있습니다.'
+    ],
+    concepts: [
+      { id: 'greenery-garden', label: '그리너리 테라스', definition: '도심 속 실외 정원과 식물이 조화된 자연 친화 테라스 씬' },
+      { id: 'rooftop-outdoor', label: '루프탑 자연광', definition: '하늘과 도심 전경을 배경으로 자연광 하에서 수행하는 루프탑 촬영' }
+    ],
+    products: [
+      { name: '메이 가든 시그니처', type: 'package', features: ['3시간 촬영', '보정본 60컷', '가든 앨범 1권'] },
+      { name: '메이 루프탑 스타라이트', type: 'premium_package', features: ['4시간 촬영', '보정본 80컷', '스타라이트 야간 포함'] }
+    ],
+    persona: {
+      name: '메이 Garden Director',
+      tone_weights: { warm: 0.5, clean: 0.5 },
+      instructions: ['그리너리 감성의 화사한 자연미 부각']
+    },
+    vibe: {
+      name: '내추럴 그리너리 바이브',
+      ratios: { warmth: 0.40, aesthetics: 0.40, trustworthiness: 0.20 }
+    },
+    color: '#10b981'
+  },
+  {
+    slug: 'forevermine-studio',
+    name_ko: '포에버마인스튜디오',
+    name_en: 'Forever Mine Studio',
+    domains: ['forevermine.co.kr', 'foreverminestudio.com'],
+    strategic_intent: '심플함 속에 담긴 깊이 있는 흑백 사진과 세련된 인물 중심의 웨딩 앨범.',
+    claims: [
+      '인물 중심의 세련된 모던 흑백 사진 전문',
+      '유행을 타지 않는 심플한 구도'
+    ],
+    forbidden_claims: [
+      '가장 오래가는 앨범',
+      '국내 유일의 흑백 전문'
+    ],
+    safety_disclaimers: [
+      '흑백과 컬러 사진의 비율은 사전 조율이 필요합니다.'
+    ],
+    concepts: [
+      { id: 'monochrome-portrait', label: '모던 흑백 사진', definition: '빛과 음영의 극명한 대비로 클래식한 감정을 표현하는 흑백 촬영' },
+      { id: 'timeless-simple', label: '심플 구도', definition: '배경 요소를 극도로 절제하여 시간이 지나도 촌스럽지 않은 심플한 인물 연출' }
+    ],
+    products: [
+      { name: '포에버 흑백 시그니처', type: 'package', features: ['3시간 촬영', '보정본 60컷', '시그니처 블랙앤화이트 앨범'] },
+      { name: '포에버 모던 컬러 팩', type: 'premium_package', features: ['4시간 촬영', '보정본 80컷', '모던 컬러 하드커버'] }
+    ],
+    persona: {
+      name: '포에버마인 Art Director',
+      tone_weights: { clean: 0.6, confident: 0.4 },
+      instructions: ['클래식하고 기품 있는 흑백 인물 중심 기법 소개']
+    },
+    vibe: {
+      name: '클래식 모노크롬 바이브',
+      ratios: { aesthetics: 0.50, clarity: 0.30, trustworthiness: 0.20 }
+    },
+    color: '#4b5563'
+  },
+  {
+    slug: 'dalbit-scooter',
+    name_ko: '달빛스쿠터',
+    name_en: 'Dalbit Scooter',
+    domains: ['dalbitscooter.co.kr', 'dalbit-scooter.com'],
+    strategic_intent: '빈티지하고 힙한 뉴트로 스타일과 다채로운 색감의 유니크한 웨딩 비주얼.',
+    claims: [
+      '감각적인 뉴트로 빈티지 무드',
+      '유니크한 색감과 연출'
+    ],
+    forbidden_claims: [
+      '가장 힙한 웨딩 스튜디오',
+      '젊은 층 선호도 1위'
+    ],
+    safety_disclaimers: [
+      '뉴트로 색감 톤은 모니터 사양에 따라 다르게 보일 수 있습니다.'
+    ],
+    concepts: [
+      { id: 'newtro-vintage', label: '뉴트로 빈티지 무드', definition: '과거 복고풍 디자인 요소와 감각적 레이아웃이 융합된 힙한 비주얼' },
+      { id: 'unique-coloring', label: '유니크 색감', definition: '선명하고 세련된 시그니처 시네마 필터 컬러 후보정' }
+    ],
+    products: [
+      { name: '달빛 스쿠터 힙 세션', type: 'package', features: ['3시간 촬영', '보정본 60컷', '스쿠터 빈티지 앨범'] },
+      { name: '달빛 로맨티크 앨범', type: 'premium_package', features: ['4시간 촬영', '보정본 80컷', '대형 아크릴 액자'] }
+    ],
+    persona: {
+      name: '달빛 비주얼 디렉터',
+      tone_weights: { casual: 0.6, artistic: 0.4 },
+      instructions: ['자유롭고 감각적인 트렌디 뉴트로 라이프 스타일 강조']
+    },
+    vibe: {
+      name: '유니크 뉴트로 바이브',
+      ratios: { aesthetics: 0.50, warmth: 0.30, clarity: 0.20 }
+    },
+    color: '#fbbf24'
+  },
+  {
+    slug: 'terrace-studio',
+    name_ko: '테라스스튜디오',
+    name_en: 'Terrace Studio',
+    domains: ['terracestudio.co.kr', 'terracestudio.com'],
+    strategic_intent: '야외 테라스에서 진행되는 자연스러운 자연광 촬영과 데이트 스냅 감성의 야외 웨딩.',
+    claims: [
+      '탁 트인 야외 테라스 세트장',
+      '자연스러운 커플 감성 스냅'
+    ],
+    forbidden_claims: [
+      '가장 넓은 테라스',
+      '날씨 변수 100% 극복'
+    ],
+    safety_disclaimers: [
+      '테라스 야외 촬영은 우천 시 실내 대체 세트장에서 진행됩니다.'
+    ],
+    concepts: [
+      { id: 'terrace-snap', label: '야외 테라스 촬영', definition: '개방형 테라스 가든을 배경으로 햇살 아래 자연스러운 연출' },
+      { id: 'casual-love-story', label: '커플 데이트 스냅', definition: '형식적이지 않은 파파라치 혹은 커플 일상 스냅 감성의 웨딩' }
+    ],
+    products: [
+      { name: '테라스 테라스 팩', type: 'package', features: ['3시간 촬영', '보정본 60컷', '테라스 전용 앨범'] },
+      { name: '테라스 데이트 스냅 패키지', type: 'premium_package', features: ['4시간 촬영', '보정본 80컷', '스냅 포토북'] }
+    ],
+    persona: {
+      name: '테라스 Snap Curator',
+      tone_weights: { warm: 0.6, friendly: 0.4 },
+      instructions: ['자연광 스냅과 자유롭고 가벼운 소통 방식 강조']
+    },
+    vibe: {
+      name: '캐주얼 테라스 바이브',
+      ratios: { warmth: 0.50, trustworthiness: 0.30, aesthetics: 0.20 }
+    },
+    color: '#f97316'
+  },
+  {
+    slug: 'spazio-studio',
+    name_ko: '스파지오스튜디오',
+    name_en: 'Spazio Studio',
+    domains: ['spaziostudio.co.kr', 'spazio-studio.com'],
+    strategic_intent: '단독 주택 스튜디오의 장점을 살린 아늑하고 이국적인 정원 및 실내 연출.',
+    claims: [
+      '아늑한 이국적 단독 정원 세트',
+      '하루 소수 팀 단독 촬영 보장'
+    ],
+    forbidden_claims: [
+      '국내 최고급 정원',
+      '가장 이국적인 스튜디오'
+    ],
+    safety_disclaimers: [
+      '단독 정원 촬영은 사전 동의된 스케줄에 한해 보장됩니다.'
+    ],
+    concepts: [
+      { id: 'exotic-garden-studio', label: '이국적 단독 정원', definition: '담장과 푸른 정원 속에서 자연스러운 해외 빌라 느낌의 무드 구현' },
+      { id: 'private-single-house', label: '소수 팀 단독 촬영', definition: '혼잡하지 않게 조용한 환경을 보장하며 인물에 집중하는 시스템' }
+    ],
+    products: [
+      { name: '스파지오 프라이빗 가든', type: 'package', features: ['3시간 촬영', '보정본 60컷', '아늑한 가든 포토북'] },
+      { name: '스파지오 단독주택 패키지', type: 'premium_package', features: ['4시간 촬영', '보정본 80컷', '최고급 양장 앨범'] }
+    ],
+    persona: {
+      name: '스파지오 Space Designer',
+      tone_weights: { warm: 0.5, formal: 0.5 },
+      instructions: ['프라이빗하고 조용한 환경의 퀄리티 중심 연출']
+    },
+    vibe: {
+      name: '아늑한 이국적 바이브',
+      ratios: { aesthetics: 0.45, warmth: 0.35, trustworthiness: 0.20 }
+    },
+    color: '#84cc16'
+  },
+  {
+    slug: 'julies-garden',
+    name_ko: '줄리의정원',
+    name_en: 'Julies Garden',
+    domains: ['juliesgarden.co.kr', 'juliesgarden.com'],
+    strategic_intent: '싱그럽고 자연스러운 야외 정원 느낌의 인물 중심 웨딩 포토그래피.',
+    claims: [
+      '싱그러운 야외 가든과 인물 조화',
+      '자연스럽고 편안한 디렉팅'
+    ],
+    forbidden_claims: [
+      '가장 싱그러운 화보',
+      '재촬영 100% 무료'
+    ],
+    safety_disclaimers: [
+      '생화 장식 추가 시 별도 비용이 청구될 수 있습니다.'
+    ],
+    concepts: [
+      { id: 'fresh-green-garden', label: '싱그러운 야외 가든', definition: '사계절 초록 숲과 꽃들이 조화를 이루는 그리너리 야외 세트장' },
+      { id: 'comfortable-directing', label: '편안한 디렉팅', definition: '자연스러운 포즈와 미소를 이끌어내기 위한 1:1 리얼 소통 디렉팅' }
+    ],
+    products: [
+      { name: '줄리 시그니처 그리너리', type: 'package', features: ['3시간 촬영', '보정본 60컷', '그린 리프 앨범'] },
+      { name: '줄리 가든 앤 플라워', type: 'premium_package', features: ['4시간 촬영', '생화 데코 포함', '보정본 80컷'] }
+    ],
+    persona: {
+      name: '줄리 Directing Artist',
+      tone_weights: { warm: 0.6, casual: 0.4 },
+      instructions: ['싱그러운 야외 가든과 부드러운 분위기 연출 유도']
+    },
+    vibe: {
+      name: '싱그러운 정원 바이브',
+      ratios: { warmth: 0.50, aesthetics: 0.35, trustworthiness: 0.15 }
+    },
+    color: '#10b981'
+  },
+  {
+    slug: 'be-for-one-studio',
+    name_ko: '비포원스튜디오',
+    name_en: 'Be For One Studio',
+    domains: ['beforone.co.kr', 'be-for-one.com'],
+    strategic_intent: '오직 두 사람만을 위한 공간과 완벽한 인물 구도로 클래식하고 세련된 웨딩 사진.',
+    claims: [
+      '유행을 타지 않는 클래식 인물 구도',
+      '인물 중심의 세련된 연출'
+    ],
+    forbidden_claims: [
+      '가장 완벽한 인물 구도',
+      '최저가 보장'
+    ],
+    safety_disclaimers: [
+      '촬영 진행 세부 가이드는 사전 예약 확정 후 개별 전달됩니다.'
+    ],
+    concepts: [
+      { id: 'classic-portrait-structure', label: '클래식 인물 구도', definition: '대칭과 정렬을 통한 고풍스럽고 세련된 사진 앵글' },
+      { id: 'two-only-space', label: '두 사람만을 위한 공간', definition: '완전한 몰입을 위해 독립 설계된 전용 프라이빗 룸 촬영 세션' }
+    ],
+    products: [
+      { name: '비포원 클래식 원', type: 'package', features: ['3시간 촬영', '보정본 60컷', '클래식 포토북'] },
+      { name: '비포원 마스터 컬렉션', type: 'premium_package', features: ['4시간 촬영', '보정본 90컷', '프리미엄 가죽 앨범'] }
+    ],
+    persona: {
+      name: '비포원 Master Director',
+      tone_weights: { formal: 0.6, confident: 0.4 },
+      instructions: ['클래식하고 기품 넘치는 정밀 구도 중심 설명']
+    },
+    vibe: {
+      name: '클래식 모던 세션 바이브',
+      ratios: { clarity: 0.45, aesthetics: 0.35, trustworthiness: 0.20 }
+    },
+    color: '#6366f1'
   }
 ];
 

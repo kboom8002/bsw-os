@@ -15,6 +15,7 @@ const createMockQueryBuilder = (data: any = null, count: number = 0) => {
   let capturedPayload: any = null;
   const qb: any = {
     eq: vi.fn().mockImplementation(() => qb),
+    limit: vi.fn().mockImplementation(() => qb),
     select: vi.fn().mockImplementation(() => qb),
     upsert: vi.fn().mockImplementation((payload) => {
       capturedPayload = payload;
@@ -78,7 +79,8 @@ describe('BSW-OS Domain Seed & Demo Flows Test Suite (AG-B9)', () => {
           return createMockQueryBuilder([
             { id: 'dom-1', slug: 'k-beauty-skincare' },
             { id: 'dom-2', slug: 'convenience-retail' },
-            { id: 'dom-3', slug: 'wedding-services' }
+            { id: 'dom-3', slug: 'wedding-services' },
+            { id: 'dom-4', slug: 'skincare-dro' }
           ]);
         }
         return createMockQueryBuilder();

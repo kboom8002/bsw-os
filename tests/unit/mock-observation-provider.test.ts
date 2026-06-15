@@ -19,7 +19,7 @@ describe('TDD-07: Mock Observation Provider Invariants', () => {
     const provider = getObservationProvider('mock_fixture');
     const result = await provider.queryEngine('편의점 도시락 추천?', 'mock_fixture');
     
-    expect(result.rawResponseText).toContain('Quick25');
+    expect(result.rawResponseText).toContain('CU fresh');
   });
 
   it('should yield different deterministic response for wedding query', async () => {

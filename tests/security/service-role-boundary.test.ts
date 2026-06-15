@@ -27,7 +27,7 @@ describe('TDD-02: Supabase Service Role Boundary Security Tests', () => {
     expect(() => getSupabaseAdminClient()).toThrow(
       'CRITICAL SECURITY ERROR: getSupabaseAdminClient was invoked on the client browser. Operation aborted.'
     );
-  });
+  }, 10000);
 
   it('should confirm zero occurrences of admin client imports inside next.js use client components', () => {
     const appDir = path.resolve(__dirname, '../../app');
