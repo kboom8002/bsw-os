@@ -52,11 +52,10 @@ export function calculatePerLayerMetrics(
   // 2. L7 Brand Defense Rate (BDR)
   const l7Questions = details.filter(d => {
     if (d.layer !== 'L7_brand') return false;
-    const origQ = originalQuestions.find(oq => oq.question_text === d.question_text);
+    const origQ = originalQuestions.find(oq => oq.question_text === d.question_text) as any;
     if (!origQ) return false;
-    // Check if the target_keyword points to this brand
-    // For Mixed Sampling, target_keyword is either replaced with brand.name or is already the brand name
-    return origQ.target_keyword.includes(brand.name) || origQ.target_keyword.includes(brand.name_en) || origQ.target_keyword === '{brand}';
+    // Check if the explicitly injected target_brand matches, or fallback
+    return origQ.target_brand === brand.name || origQ.target_keyword.includes(brand.name) || origQ.target_keyword.includes(brand.name_en) || origQ.target_keyword === '{brand}';
   });
 
   let l7Defended = 0;
@@ -84,9 +83,10 @@ export function calculatePerLayerMetrics(
   // 3. L2 Competitive Win Rate (CWR)
   const l2Questions = details.filter(d => {
     if (d.layer !== 'L2_competitive') return false;
-    const origQ = originalQuestions.find(oq => oq.question_text === d.question_text);
+    const origQ = originalQuestions.find(oq => oq.question_text === d.question_text) as any;
     if (!origQ) return false;
-    return origQ.must_include.some(term => term.includes(brand.name) || term.includes('{brand}')) ||
+    // target_brand (The one being compared)
+    return origQ.target_brand === brand.name || origQ.must_include.some((term: string) => term.includes(brand.name) || term.includes('{brand}')) ||
            origQ.target_keyword.includes(brand.name) || origQ.target_keyword.includes('{brand}');
   });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BENCHMARK_DOMAINS } from '../../../../lib/benchmark/domain-config';
 import { INDUSTRY_PANELS_DATA } from '../../../../db/seed/industry-panels/questions-data';
+import { fairProbeSetBuilder } from '../../../../lib/benchmark/fair-probe-templates';
 
 /**
  * GET /api/benchmark/config?domain=skincare
@@ -29,7 +30,8 @@ export async function GET(request: NextRequest) {
   const sampleCount = domainConfig.sampleQuestionsForLight;
   const brands = domainConfig.brands;
   
-  const sampledQuestions = mixedGoldilocksSampling(allQuestions, sampleCount, brands);
+  const isPlaceBrand = domain === 'seoul_district';
+  const sampledQuestions = fairProbeSetBuilder(allQuestions, Math.floor(sampleCount / 2), brands, 2, isPlaceBrand);
 
   return NextResponse.json({
     domain: {
@@ -54,76 +56,3 @@ export async function GET(request: NextRequest) {
   });
 }
 
-/**
- * 3-Layer Mixed Goldilocks Sampling
- * - L1/L3/L5/L6 (Generic): 50%
- * - L2_competitive: 25% (브랜드별로 랜덤 경쟁사와 1:1 매칭)
- * - L7_brand: 25% (모든 브랜드에게 1:1 부여)
- */
-function mixedGoldilocksSampling(
-  questions: any[],
-  count: number,
-  brands: { name: string; keywords: string[] }[]
-): any[] {
-  const genericLayers = new Set(['L1_universal', 'L3_ingredient', 'L5_ymyl', 'L6_trend']);
-  
-  const genericQuestions = questions.filter(q => genericLayers.has(q.layer) || !q.layer);
-  const l2Questions = questions.filter(q => q.layer === 'L2_competitive');
-  const l7Questions = questions.filter(q => q.layer === 'L7_brand');
-
-  const selected: any[] = [];
-  const selectedTexts = new Set<string>();
-
-  const add = (q: any): boolean => {
-    if (!selectedTexts.has(q.question_text)) {
-      selected.push(q);
-      selectedTexts.add(q.question_text);
-      return true;
-    }
-    return false;
-  };
-
-  // 1. L7_brand (25%) - 모든 브랜드에 공평하게 할당
-  if (l7Questions.length > 0) {
-    for (const brand of brands) {
-      // 렌덤 L7 질문 선택 (웨딩스튜디오 등 브랜드 하드코딩이 이미 된 경우 대비)
-      const cand = l7Questions.filter(q => q.question_text.includes('{brand}') || q.target_keyword?.includes('{brand}') || q.question_text.includes(brand.name));
-      const bq = cand.length > 0 ? cand[Math.floor(Math.random() * cand.length)] : l7Questions[Math.floor(Math.random() * l7Questions.length)];
-      
-      const cloned = JSON.parse(JSON.stringify(bq));
-      cloned.question_text = cloned.question_text.replace(/{brand}/g, brand.name);
-      cloned.target_keyword = (cloned.target_keyword || '').replace(/{brand}/g, brand.name);
-      if (cloned.must_include) cloned.must_include = cloned.must_include.map((t: string) => t.replace(/{brand}/g, brand.name));
-      if (cloned.should_include) cloned.should_include = cloned.should_include.map((t: string) => t.replace(/{brand}/g, brand.name));
-      add(cloned);
-    }
-  }
-
-  // 2. L2_competitive (25%) - 브랜드별 vs 무작위 타 브랜드 페어링
-  if (l2Questions.length > 0) {
-    for (const brand of brands) {
-      const cand = l2Questions.filter(q => q.question_text.includes('{brand}') || q.target_keyword?.includes('{brand}') || q.question_text.includes(brand.name));
-      const bq = cand.length > 0 ? cand[Math.floor(Math.random() * cand.length)] : l2Questions[Math.floor(Math.random() * l2Questions.length)];
-      
-      // 랜덤 경쟁사 추출
-      const competitors = brands.filter(b => b.name !== brand.name);
-      const randomCompetitor = competitors.length > 0 ? competitors[Math.floor(Math.random() * competitors.length)].name : '타 브랜드';
-
-      const cloned = JSON.parse(JSON.stringify(bq));
-      cloned.question_text = cloned.question_text.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor);
-      cloned.target_keyword = (cloned.target_keyword || '').replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor);
-      if (cloned.must_include) cloned.must_include = cloned.must_include.map((t: string) => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor));
-      if (cloned.should_include) cloned.should_include = cloned.should_include.map((t: string) => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor));
-      add(cloned);
-    }
-  }
-
-  // 3. 제네릭 질문 (나머지 분량 50%+)
-  const shuffledGeneric = [...genericQuestions].sort(() => Math.random() - 0.5);
-  for (const q of shuffledGeneric) {
-    if (selected.length >= count) break;
-    add(q);
-  }
-
-  return selected.sort(() => Math.random() - 0.5);
-}

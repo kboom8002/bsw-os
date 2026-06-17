@@ -211,6 +211,7 @@ function LeaderboardTable({
 function DomainIcon({ slug }: { slug: string }) {
   if (slug === 'skincare') return <Droplets className="h-4 w-4" />;
   if (slug === 'wedding_studio') return <Camera className="h-4 w-4" />;
+  if (slug === 'seoul_district') return <Sparkles className="h-4 w-4" />;
   return <BarChart3 className="h-4 w-4" />;
 }
 
@@ -535,6 +536,12 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
               <RefreshCw className={`h-3 w-3 ${isRunning ? "animate-spin" : ""}`} />
               {isRunning ? "실측 진행 중..." : "즉시 실측 실행"}
             </button>
+            <a
+              href={`/ko/drjart/deep-dive?domain=${activeTab}`}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-indigo-500 text-indigo-300 hover:bg-indigo-500/20 transition-all"
+            >
+              Client Deep Dive 시작 →
+            </a>
             <a
               href="/ko/sbs-index"
               className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-700 text-slate-300 hover:border-indigo-500 hover:text-indigo-300 transition-all"

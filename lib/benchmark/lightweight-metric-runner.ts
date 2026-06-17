@@ -16,6 +16,7 @@ import { SearchProviderFactory } from '../ai/search-provider-factory';
 import type { BrandConfig, DomainConfig } from './domain-config';
 import type { SeedProbeQuestion } from '../../db/seed/industry-panels/questions-data';
 import { calculatePerLayerMetrics } from './per-layer-metrics';
+import { fairProbeSetBuilder } from './fair-probe-templates';
 
 export interface LightweightBrandResult {
   brand_slug: string;
@@ -333,62 +334,10 @@ export class LightweightMetricRunner {
     const brands = domainConfig.brands;
     const genericLayers = new Set(['L1_universal', 'L3_ingredient', 'L5_ymyl', 'L6_trend']);
     
+    // Extract generic questions only (we don't need l2/l7 from questions-data.ts anymore)
     const genericQuestions = questions.filter(q => genericLayers.has(q.layer || 'unknown') || !q.layer);
-    const l2Questions = questions.filter(q => q.layer === 'L2_competitive');
-    const l7Questions = questions.filter(q => q.layer === 'L7_brand');
-
-    const selected: SeedProbeQuestion[] = [];
-    const selectedTexts = new Set<string>();
-
-    const add = (q: SeedProbeQuestion): boolean => {
-      if (!selectedTexts.has(q.question_text)) {
-        selected.push(q);
-        selectedTexts.add(q.question_text);
-        return true;
-      }
-      return false;
-    };
-
-    // 1. L7_brand
-    if (l7Questions.length > 0) {
-      for (const brand of brands) {
-        const cand = l7Questions.filter(q => q.question_text.includes('{brand}') || q.target_keyword?.includes('{brand}') || q.question_text.includes(brand.name));
-        const bq = cand.length > 0 ? cand[Math.floor(Math.random() * cand.length)] : l7Questions[Math.floor(Math.random() * l7Questions.length)];
-        
-        const cloned = JSON.parse(JSON.stringify(bq)) as SeedProbeQuestion;
-        cloned.question_text = cloned.question_text.replace(/{brand}/g, brand.name);
-        cloned.target_keyword = (cloned.target_keyword || '').replace(/{brand}/g, brand.name);
-        if (cloned.must_include) cloned.must_include = cloned.must_include.map((t: string) => t.replace(/{brand}/g, brand.name));
-        if (cloned.should_include) cloned.should_include = cloned.should_include.map((t: string) => t.replace(/{brand}/g, brand.name));
-        add(cloned);
-      }
-    }
-
-    // 2. L2_competitive
-    if (l2Questions.length > 0) {
-      for (const brand of brands) {
-        const cand = l2Questions.filter(q => q.question_text.includes('{brand}') || q.target_keyword?.includes('{brand}') || q.question_text.includes(brand.name));
-        const bq = cand.length > 0 ? cand[Math.floor(Math.random() * cand.length)] : l2Questions[Math.floor(Math.random() * l2Questions.length)];
-        
-        const competitors = brands.filter(b => b.name !== brand.name);
-        const randomCompetitor = competitors.length > 0 ? competitors[Math.floor(Math.random() * competitors.length)].name : '타 브랜드';
-
-        const cloned = JSON.parse(JSON.stringify(bq)) as SeedProbeQuestion;
-        cloned.question_text = cloned.question_text.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor);
-        cloned.target_keyword = (cloned.target_keyword || '').replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor);
-        if (cloned.must_include) cloned.must_include = cloned.must_include.map((t: string) => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor));
-        if (cloned.should_include) cloned.should_include = cloned.should_include.map((t: string) => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor));
-        add(cloned);
-      }
-    }
-
-    // 3. Generic
-    const shuffledGeneric = [...genericQuestions].sort(() => Math.random() - 0.5);
-    for (const q of shuffledGeneric) {
-      if (selected.length >= count) break;
-      add(q);
-    }
-
-    return selected.sort(() => Math.random() - 0.5);
+    
+    // Use fairProbeSetBuilder to dynamically inject K=2 repetitions of L2/L7
+    return fairProbeSetBuilder(genericQuestions, Math.floor(count / 2), brands, 2);
   }
 }
