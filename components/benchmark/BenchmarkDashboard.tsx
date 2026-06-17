@@ -230,20 +230,57 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
     return domainSlugs[0];
   };
 
+  
   const [activeTab, setActiveTab] = useState(domainSlugs[0]);
   const [selectedBrand, setSelectedBrand] = useState<BenchmarkLeaderboardEntry | null>(null);
+  
+  // -- Background Runner States --
   const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = React.useRef(false);
+  const isCancelledRef = React.useRef(false);
   const [progressMsg, setProgressMsg] = useState('');
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(0);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [hasSavedSession, setHasSavedSession] = useState(false);
+  
   const [opportunities, setOpportunities] = useState<BrandOpportunityReport | null>(null);
   const [questionDetails, setQuestionDetails] = useState<QuestionDetail[]>([]);
   const [rawQueryResults, setRawQueryResults] = useState<{questionIdx:number;text:string;citations:{url:string;domain:string;title:string}[]}[]>([]);
   const [runBrands, setRunBrands] = useState<{slug:string;name:string}[]>([]);
 
-  // 마운트 시 URL hash에서 탭 복원
   React.useEffect(() => {
     setActiveTab(getInitialTab());
+    const saved = localStorage.getItem('bsw_benchmark_progress');
+    if (saved) {
+      setHasSavedSession(true);
+    }
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
   }, []);
+
+  const handlePause = () => {
+    isPausedRef.current = true;
+    setIsPaused(true);
+  };
+  const handleResume = () => {
+    isPausedRef.current = false;
+    setIsPaused(false);
+    if (!isRunning) {
+      handleRunMeasurement(true);
+    }
+  };
+  const handleCancel = () => {
+    isCancelledRef.current = true;
+    setIsRunning(false);
+    setIsPaused(false);
+    localStorage.removeItem('bsw_benchmark_progress');
+    setHasSavedSession(false);
+  };
+
 
   // 탭 전환 시 URL hash 업데이트
   const handleTabChange = (slug: string) => {
@@ -253,31 +290,59 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
     }
   };
 
-  const handleRunMeasurement = async () => {
+  
+  const handleRunMeasurement = async (isResume = false) => {
+    isCancelledRef.current = false;
+    isPausedRef.current = false;
     setIsRunning(true);
-    setElapsedSec(0);
-    setProgressMsg('측정 설정 로딩 중...');
+    setIsPaused(false);
+    
+    let config: any;
+    let geminiKey = '';
+    let completedCalls = 0;
+    type QueryResult = { questionIdx: number; text: string; citations: { url: string; domain: string; title: string }[] };
+    let queryResults: QueryResult[] = [];
+    let savedElapsed = 0;
+
+    if (isResume) {
+      const saved = localStorage.getItem('bsw_benchmark_progress');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.domainSlug === activeTab) {
+            config = parsed.config;
+            completedCalls = parsed.completedCalls;
+            queryResults = parsed.queryResults;
+            savedElapsed = parsed.elapsedSec || 0;
+            setElapsedSec(savedElapsed);
+          }
+        } catch(e) {}
+      }
+    } else {
+      setElapsedSec(0);
+      localStorage.removeItem('bsw_benchmark_progress');
+      setHasSavedSession(false);
+    }
 
     const timer = setInterval(() => {
-      setElapsedSec(prev => prev + 1);
+      if (!isPausedRef.current && !isCancelledRef.current) {
+        setElapsedSec(prev => {
+          savedElapsed = prev + 1;
+          return savedElapsed;
+        });
+      }
     }, 1000);
 
     try {
-      // Step 1: 설정 + API 키 가져오기
-      setProgressMsg('도메인 설정 및 API 키 로딩 중...');
-
-      let config: any;
-      let geminiKey = '';
-
-      try {
-        const configRes = await fetch(`/api/benchmark/config?domain=${activeTab}`);
-        if (!configRes.ok) {
-          const txt = await configRes.text();
-          throw new Error(`설정 로드 실패 (${configRes.status}): ${txt.substring(0, 100)}`);
+      if (!config) {
+        setProgressMsg('도메인 설정 및 API 키 로딩 중...');
+        try {
+          const configRes = await fetch(`/api/benchmark/config?domain=${activeTab}`);
+          if (!configRes.ok) throw new Error(`설정 로드 실패`);
+          config = await configRes.json();
+        } catch (e: any) {
+          throw new Error(`Config API 에러: ${e.message}`);
         }
-        config = await configRes.json();
-      } catch (e: any) {
-        throw new Error(`Config API 에러: ${e.message}`);
       }
 
       try {
@@ -286,29 +351,35 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
           const keys = await keysRes.json();
           geminiKey = keys.gemini || '';
         }
-      } catch {
-        // keys 엔드포인트 실패는 무시 — 아래에서 키 부재를 처리
-      }
+      } catch {}
 
       if (!geminiKey) {
-        throw new Error('GEMINI_API_KEY가 Vercel Production 환경변수에 설정되지 않았거나, /api/benchmark/keys 응답이 비어있습니다. Vercel 대시보드에서 환경변수를 확인하세요.');
+        throw new Error('GEMINI_API_KEY가 Vercel Production 환경변수에 설정되지 않았습니다.');
       }
 
       const { brands, questions } = config;
-      const totalCalls = questions.length; // Gemini만 사용 (1 engine)
-      let completedCalls = 0;
+      const totalCalls = questions.length;
+      setTotalSteps(totalCalls);
+      setCurrentStep(completedCalls);
 
-      // Step 2: 브라우저에서 직접 Gemini API 호출 (Vercel 타임아웃 우회)
-      type QueryResult = { questionIdx: number; text: string; citations: { url: string; domain: string; title: string }[] };
-      const queryResults: QueryResult[] = [];
+      for (let qi = completedCalls; qi < questions.length; qi++) {
+        if (isCancelledRef.current) {
+           clearInterval(timer);
+           return;
+        }
+        
+        while (isPausedRef.current) {
+           await new Promise(r => setTimeout(r, 1000));
+           if (isCancelledRef.current) {
+             clearInterval(timer);
+             return;
+           }
+        }
 
-      for (let qi = 0; qi < questions.length; qi++) {
         const q = questions[qi];
-        completedCalls++;
-        setProgressMsg(`[${completedCalls}/${totalCalls}] Gemini에 직접 질문 전송 중: "${q.question_text.substring(0, 25)}..."`);
+        setProgressMsg(`[${qi + 1}/${totalCalls}] Gemini 응답 대기 중: "${q.question_text.substring(0, 25)}..."`);
 
         try {
-          // Gemini REST API 직접 호출 (브라우저 → Google API, Vercel 무관)
           const geminiRes = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
             {
@@ -330,7 +401,7 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
             const chunks: any[] = meta.groundingChunks || [];
             const citations = chunks
               .filter((c: any) => c.web?.uri)
-              .map((c: any, idx: number) => {
+              .map((c: any) => {
                 try {
                   const url = c.web.uri;
                   let domain = new URL(url).hostname;
@@ -343,27 +414,42 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
               .filter(Boolean) as { url: string; domain: string; title: string }[];
 
             queryResults.push({ questionIdx: qi, text: rawText, citations });
+            completedCalls = qi + 1;
+            setCurrentStep(completedCalls);
+            
+            // Save state
+            localStorage.setItem('bsw_benchmark_progress', JSON.stringify({
+              domainSlug: activeTab,
+              config,
+              completedCalls,
+              queryResults,
+              elapsedSec: savedElapsed
+            }));
+            setHasSavedSession(true);
+
           } else {
-            const errText = await geminiRes.text();
-            let errMsg = `Gemini API error (${geminiRes.status}): ${errText.substring(0, 300)}`;
-            try {
-              const errJson = JSON.parse(errText);
-              if (errJson.error?.message) {
-                errMsg = `Gemini API Error: ${errJson.error.message}`;
-              }
-            } catch {}
-            throw new Error(errMsg);
+             // Retry logic or fail
+             throw new Error(`Gemini API Error`);
           }
         } catch (err: any) {
           console.error(`Gemini call failed:`, err.message);
-          throw err;
+          // Auto-pause on network error instead of completely failing
+          isPausedRef.current = true;
+          setIsPaused(true);
+          alert('네트워크 또는 API 에러로 일시정지되었습니다. 재개 버튼을 눌러 다시 시도하세요.');
+          break; // Exit the loop but keep running state
         }
       }
 
+      if (isPausedRef.current || isCancelledRef.current) {
+        clearInterval(timer);
+        return;
+      }
+
       // Step 3: AAS/OCR/BSF/BAIR 집계
-      setProgressMsg('브랜드별 AAS/OCR/BSF/BAIR 산출 중...');
+      setProgressMsg('브랜드별 지표 산출 및 결과 저장 중...');
       const measuredAt = new Date().toISOString();
-      // ── 기회 분석(Opportunity Intelligence) 및 고급 지표 계산용 데이터 생성 ──
+      
       const questionDetails: QuestionDetail[] = questions.map((q: any, idx: number) => {
         const qr = queryResults.find((r: any) => r.questionIdx === idx);
         const engineRes = qr ? {
@@ -387,7 +473,6 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         for (const qr of queryResults) {
           const q = questions[qr.questionIdx];
           const text = qr.text.toLowerCase();
-
           const anyBrandHit = brands.some((b: any) => b.keywords.some((kw: string) => text.includes(kw.toLowerCase())));
           if (anyBrandHit) brandedResponseCount++;
 
@@ -425,20 +510,16 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         return { brand_slug: brand.slug, brand_name: brand.name, aas, ocr, bsf, bair, bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp, mention_count: mentionCount, citation_count: citationCount, sample_size: questions.length, measured_at: measuredAt };
       });
 
-      // 타겟 브랜드로 분석 (기본 1위 브랜드 또는 첫번째 브랜드)
-      const targetBrand = brands[0]; // TODO: 사용자가 선택할 수 있도록 개선
+      const targetBrand = brands[0];
       if (targetBrand) {
         const report = OpportunityAnalyzer.analyze(targetBrand.name, targetBrand.slug, questionDetails, undefined);
         setOpportunities(report);
       }
 
-      // Persist raw query results and question details in state for Evidence UI
       setQuestionDetails(questionDetails);
       setRawQueryResults(queryResults);
       setRunBrands(brands.map((b: any) => ({ slug: b.slug, name: b.name })));
 
-      // Step 4: 결과 저장
-      setProgressMsg('Supabase에 결과 저장 중...');
       const saveRes = await fetch('/api/benchmark/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -446,12 +527,19 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
       });
 
       if (!saveRes.ok) {
-        const txt = await saveRes.text();
-        throw new Error(`결과 저장 실패 (${saveRes.status}): ${txt}`);
+        throw new Error(`결과 저장 실패`);
       }
 
       clearInterval(timer);
       setProgressMsg('✅ 측정 완료! 데이터를 불러오는 중...');
+      
+      localStorage.removeItem('bsw_benchmark_progress');
+      setHasSavedSession(false);
+      
+      if ('Notification' in window && Notification.permission === 'granted') {
+         new Notification('측정 완료!', { body: `${BENCHMARK_DOMAINS[activeTab]?.name} 벤치마크 측정이 완료되었습니다.`, icon: '/favicon.ico' });
+      }
+
       router.refresh();
       await new Promise(r => setTimeout(r, 1500));
     } catch (err: any) {
@@ -462,7 +550,6 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
       setIsRunning(false);
     }
   };
-
   const activeSummary = summaries[activeTab];
   const activeDomainConfig = BENCHMARK_DOMAINS[activeTab];
 
@@ -480,33 +567,61 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* ── Measurement Progress Overlay ── */}
+
+      {/* ── Floating Measurement Progress Widget ── */}
       {isRunning && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-slate-900 border border-indigo-500/30 rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl shadow-indigo-950/40">
-            <div className="relative mx-auto w-16 h-16 mb-6">
-              <div className="absolute inset-0 rounded-full border-4 border-slate-700" />
-              <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
-              <div className="absolute inset-2 rounded-full border-4 border-t-transparent border-r-violet-500 border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
-            </div>
-            <h3 className="text-lg font-bold text-slate-100 mb-2">
-              {activeDomainConfig?.name} 실측 진행 중
-            </h3>
-            <p className="text-sm text-indigo-400 font-semibold mb-4">
-              {progressMsg}
-            </p>
-            <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-              <Clock className="h-3.5 w-3.5" />
-              <span>경과 시간: {elapsedSec}초</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-4">
-              ChatGPT Search + Gemini Grounding에 질문을 보내고<br/>
-              응답을 분석하는 중입니다. 약 10~60초 소요됩니다.
-            </p>
-          </div>
+        <div className={`fixed bottom-6 right-6 z-[100] transition-all duration-300 ${isMinimized ? 'w-16 h-16 rounded-full' : 'w-80 rounded-2xl'} bg-slate-900 border border-indigo-500/50 shadow-2xl shadow-indigo-950/50 overflow-hidden flex flex-col`}>
+          {isMinimized ? (
+            <button 
+              onClick={() => setIsMinimized(false)}
+              className="w-full h-full flex items-center justify-center bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 transition-colors"
+            >
+              <RefreshCw className="h-6 w-6 animate-spin" />
+            </button>
+          ) : (
+            <>
+              <div className="flex items-center justify-between p-3 border-b border-slate-800 bg-slate-800/50">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-indigo-400 animate-spin" />
+                  <span className="text-sm font-bold text-slate-200">측정 진행 중...</span>
+                </div>
+                <button onClick={() => setIsMinimized(true)} className="text-slate-400 hover:text-white p-1">
+                  <Minus className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="p-4 flex-1">
+                <div className="flex justify-between text-xs text-slate-400 mb-2">
+                  <span>진행률 ({currentStep}/{totalSteps})</span>
+                  <span>{totalSteps > 0 ? Math.round((currentStep / totalSteps) * 100) : 0}%</span>
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-2 mb-4">
+                  <div 
+                    className="bg-indigo-500 h-2 rounded-full transition-all duration-500" 
+                    style={{ width: `${totalSteps > 0 ? (currentStep / totalSteps) * 100 : 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-300 line-clamp-2 h-8 mb-4 break-all">
+                  {progressMsg}
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  {isPaused ? (
+                    <button onClick={handleResume} className="flex-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 py-1.5 rounded text-xs font-bold transition-colors">
+                      재개
+                    </button>
+                  ) : (
+                    <button onClick={handlePause} className="flex-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 py-1.5 rounded text-xs font-bold transition-colors">
+                      일시정지
+                    </button>
+                  )}
+                  <button onClick={handleCancel} className="flex-1 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 py-1.5 rounded text-xs font-bold transition-colors">
+                    취소
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
-
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -524,17 +639,27 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
             </div>
           </div>
           <div className="flex items-center gap-3">
+
+            {!isRunning && hasSavedSession && (
+              <button
+                onClick={handleResume}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30"
+              >
+                <RefreshCw className="h-3 w-3" />
+                이어서 측정하기
+              </button>
+            )}
             <button
-              onClick={handleRunMeasurement}
-              disabled={isRunning}
+              onClick={() => handleRunMeasurement(false)}
+              disabled={isRunning && !isPaused}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                isRunning
+                isRunning && !isPaused
                   ? "bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed"
-                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40"
+                  : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 hover:border-indigo-500/40"
               }`}
             >
-              <RefreshCw className={`h-3 w-3 ${isRunning ? "animate-spin" : ""}`} />
-              {isRunning ? "실측 진행 중..." : "즉시 실측 실행"}
+              <Sparkles className={`h-3 w-3 ${isRunning && !isPaused ? "animate-pulse" : ""}`} />
+              {isRunning && !isPaused ? "실측 진행 중..." : (hasSavedSession ? "새로 시작" : "즉시 실측 실행")}
             </button>
             <a
               href={`/ko/drjart/deep-dive?domain=${activeTab}`}
