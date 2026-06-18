@@ -17,6 +17,8 @@ import type { BrandConfig, DomainConfig } from './domain-config';
 import type { SeedProbeQuestion } from '../../db/seed/industry-panels/questions-data';
 import { calculatePerLayerMetrics } from './per-layer-metrics';
 import { fairProbeSetBuilder } from './fair-probe-templates';
+import { calcWeightedAAS } from './mention-classifier';
+
 
 export interface LightweightBrandResult {
   brand_slug: string;
@@ -65,7 +67,7 @@ export interface LightweightDomainResult {
  * - 영어/ASCII 키워드: 단어 경계(word boundary) 매칭으로 false positive 방지
  *   예) 'dro' → hydro, drops, syndrome 등에서 오탐 방지
  */
-function calcAAS(responseText: string, keywords: string[]): boolean {
+export function calcAAS_old(responseText: string, keywords: string[]): boolean {
   return keywords.some(kw => {
     // 한국어 포함 키워드는 substring 매칭
     if (/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(kw)) {
@@ -81,7 +83,7 @@ function calcAAS(responseText: string, keywords: string[]): boolean {
 /**
  * Citations에서 브랜드 도메인 OCR 산출 (pure domain matching)
  */
-function calcOCR(
+export function calcOCR(
   citations: Array<{ domain: string; url: string }>,
   brandDomains: string[]
 ): boolean {
@@ -96,7 +98,7 @@ function calcOCR(
 /**
  * must_include 매칭 기반 BSF 산출 (AI Judge 없음)
  */
-function calcBSF(responseText: string, mustInclude: string[], shouldInclude: string[]): number {
+export function calcBSF(responseText: string, mustInclude: string[], shouldInclude: string[]): number {
   const text = responseText.toLowerCase();
 
   let mustCount = 0;
@@ -190,7 +192,7 @@ export class LightweightMetricRunner {
       for (const engine of this.engines) {
         const res = engineResults[engine];
         if (!res) continue;
-        const anyBrand = domainConfig.brands.some(b => calcAAS(res.text, b.keywords));
+        const anyBrand = domainConfig.brands.some(b => calcWeightedAAS(res.text, b.keywords).hit);
         if (anyBrand) brandedResponseCount++;
       }
     }
@@ -213,7 +215,7 @@ export class LightweightMetricRunner {
           const res = engineResults[engine];
           if (!res) continue;
 
-          const aasHit = calcAAS(res.text, brand.keywords);
+          const aasHit = calcWeightedAAS(res.text, brand.keywords).hit;
           const ocrHit = calcOCR(res.citations, brand.domains);
           const bsf = calcBSF(res.text, q.must_include, q.should_include);
 
@@ -259,7 +261,7 @@ export class LightweightMetricRunner {
         for (const engine of this.engines) {
           const res = engineResults[engine];
           if (!res) continue;
-          const mentioned = domainConfig.brands.filter(b => calcAAS(res.text, b.keywords)).map(b => b.name);
+          const mentioned = domainConfig.brands.filter(b => calcWeightedAAS(res.text, b.keywords).hit).map(b => b.name);
           det.per_engine[engine] = { raw_response_text: res.text, brands_mentioned: mentioned, citation_domains: [], bsf_score: 0 };
         }
         tempDetails.push(det);
@@ -298,7 +300,7 @@ export class LightweightMetricRunner {
         const res = engineResults[engine];
         if (!res) continue;
 
-        const mentioned = domainConfig.brands.filter(b => calcAAS(res.text, b.keywords)).map(b => b.name);
+        const mentioned = domainConfig.brands.filter(b => calcWeightedAAS(res.text, b.keywords).hit).map(b => b.name);
         const domains = res.citations.map(c => c.domain);
         const bsf = calcBSF(res.text, q.must_include, q.should_include);
 
@@ -338,6 +340,10 @@ export class LightweightMetricRunner {
     const genericQuestions = questions.filter(q => genericLayers.has(q.layer || 'unknown') || !q.layer);
     
     // Use fairProbeSetBuilder to dynamically inject K=2 repetitions of L2/L7
-    return fairProbeSetBuilder(genericQuestions, Math.floor(count / 2), brands, 2);
+    
+    const isPlaceBrand = domainConfig.slug.startsWith('seoul_district');
+    const lang = domainConfig.slug.endsWith('_en') ? 'en' : 'ko';
+    return fairProbeSetBuilder(genericQuestions, Math.floor(count / 2), brands, 2, isPlaceBrand, lang as any);
+
   }
 }

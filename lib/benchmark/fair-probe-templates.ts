@@ -157,12 +157,13 @@ export function fairProbeSetBuilder(
   genericCount: number,
   brands: { name: string; keywords: string[], comparative_pairs?: string[], slug?: string }[],
   k: number = 2,
-  isPlaceBrand: boolean = false
+  isPlaceBrand: boolean = false,
+  lang: 'ko' | 'en' = 'ko'
 ): any[] {
   const selected: any[] = [];
   
-  const defenseTemplates = isPlaceBrand ? PLACE_BRAND_DEFENSE_TEMPLATES.concat(PLACE_PRACTICAL_TEMPLATES) : BRAND_DEFENSE_TEMPLATES;
-  const competitiveTemplates = isPlaceBrand ? PLACE_COMPETITIVE_TEMPLATES : COMPETITIVE_TEMPLATES;
+  const defenseTemplates = isPlaceBrand ? PLACE_BRAND_DEFENSE_TEMPLATES.concat(PLACE_PRACTICAL_TEMPLATES).filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN')) : BRAND_DEFENSE_TEMPLATES;
+  const competitiveTemplates = isPlaceBrand ? PLACE_COMPETITIVE_TEMPLATES.filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN')) : COMPETITIVE_TEMPLATES;
 
   // 1. L7_brand & L4_practical
   for (const brand of brands) {

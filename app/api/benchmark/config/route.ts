@@ -30,8 +30,9 @@ export async function GET(request: NextRequest) {
   const sampleCount = domainConfig.sampleQuestionsForLight;
   const brands = domainConfig.brands;
   
-  const isPlaceBrand = domain === 'seoul_district';
-  const sampledQuestions = fairProbeSetBuilder(allQuestions, Math.floor(sampleCount / 2), brands, 2, isPlaceBrand);
+  const isPlaceBrand = domain.startsWith('seoul_district');
+  const lang = domain.endsWith('_en') ? 'en' : 'ko';
+  const sampledQuestions = fairProbeSetBuilder(allQuestions, Math.floor(sampleCount / 2), brands, 2, isPlaceBrand, lang as any);
 
   return NextResponse.json({
     domain: {

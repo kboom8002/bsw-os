@@ -21,7 +21,7 @@ export interface SeedProbeQuestion {
 
 export type IndustryType =
   | 'beauty'
-  | 'skincare' | 'place_brand'
+  | 'skincare' | 'place_brand_ko' | 'place_brand_en'
   | 'wedding'
   | 'wedding_studio'
   | 'clinic'
@@ -56,9 +56,9 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
   questions: SeedProbeQuestion[];
 }> = {
 
-  place_brand: {
-    panel_name: '플레이스 브랜드',
-    slug: 'place_brand',
+  place_brand_ko: {
+    panel_name: '플레이스 브랜드 (국문)',
+    slug: 'place_brand_ko',
     sbs_index_target: '서울시 자치구 평균',
     questions: [
       // D_LANDMARK (명소) - Korean
@@ -68,11 +68,6 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       { question_text: '서울에서 벽화마을이나 독특한 거리 풍경이 있는 곳은?', intent_context: 'D_LANDMARK', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['벽화마을', '거리'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '서울 관광 명소 중 외국인에게 인기 있는 곳 TOP 5를 알려줘', intent_context: 'D_LANDMARK', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'list', weight: 1.0, query_variants: [], must_include: [], should_include: ['외국인', '인기'], must_not_do: [], layer: 'L1_universal' },
       // D_LANDMARK (명소) - English
-      { question_text: 'Recommend the most beautiful night view spots in Seoul', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['night view'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Which neighborhoods in Seoul have the best photo spots?', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['photo spots'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where can I see iconic landmarks and great architecture in Seoul?', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['landmarks', 'architecture'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Are there any mural villages or unique streets in Seoul?', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['mural', 'streets'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'What are the top 5 tourist attractions in Seoul for foreigners?', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'list', weight: 1.0, query_variants: [], must_include: [], should_include: ['top 5', 'foreigners'], must_not_do: [], layer: 'L1_universal' },
 
       // D_FOOD (맛집) - Korean
       { question_text: '서울에서 전통시장 먹거리 탐방하기 좋은 곳 추천해줘', intent_context: 'D_FOOD', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['전통시장', '먹거리'], must_not_do: [], layer: 'L1_universal' },
@@ -81,11 +76,6 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       { question_text: '서울에서 정통 한식이나 파인다이닝을 경험하기 좋은 곳은?', intent_context: 'D_FOOD', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['한식', '파인다이닝'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '서울에서 트렌디한 카페 거리가 있는 동네를 알려줘', intent_context: 'D_FOOD', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['카페 거리'], must_not_do: [], layer: 'L1_universal' },
       // D_FOOD (맛집) - English
-      { question_text: 'Where are the best places for a traditional market food tour in Seoul?', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['traditional market', 'food tour'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Which neighborhoods in Seoul have the best local restaurants?', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['local restaurants'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where is the best street food in Seoul?', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['street food'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where can I experience authentic Korean fine dining in Seoul?', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['fine dining', 'authentic'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Tell me about neighborhoods in Seoul with trendy cafe streets', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['trendy', 'cafe streets'], must_not_do: [], layer: 'L1_universal' },
 
       // D_CULTURE (문화) - Korean
       { question_text: '서울에서 독립 서점이나 예술 공간이 있는 동네는?', intent_context: 'D_CULTURE', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['독립 서점', '예술'], must_not_do: [], layer: 'L1_universal' },
@@ -94,11 +84,6 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       { question_text: '서울에서 공연 예술(연극, 뮤지컬)을 즐기기 좋은 곳은?', intent_context: 'D_CULTURE', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['연극', '뮤지컬'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '서울에서 창작자나 예술가들이 많이 모이는 동네 추천해줘', intent_context: 'D_CULTURE', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['예술가', '동네'], must_not_do: [], layer: 'L1_universal' },
       // D_CULTURE (문화) - English
-      { question_text: 'Which neighborhoods in Seoul have independent bookstores or art spaces?', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['bookstores', 'art spaces'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'What areas in Seoul have a lot of art museums and galleries?', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['museums', 'galleries'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where can I watch indie music or live performances in Seoul?', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['indie music', 'live performances'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where are the best places to enjoy performing arts like theater or musicals in Seoul?', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['theater', 'musicals'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Recommend neighborhoods in Seoul where creators and artists gather', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['artists', 'neighborhoods'], must_not_do: [], layer: 'L1_universal' },
 
       // D_HERITAGE (역사) - Korean
       { question_text: '서울에서 조선시대 역사를 가장 잘 체험할 수 있는 곳은?', intent_context: 'D_HERITAGE', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['조선시대', '역사'], must_not_do: [], layer: 'L1_universal' },
@@ -107,11 +92,6 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       { question_text: '서울의 근대 역사나 개화기 유적지를 볼 수 있는 곳 추천해줘', intent_context: 'D_HERITAGE', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['근대 역사', '유적지'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '서울에서 한복 체험이나 다도 등 전통문화를 경험하기 좋은 곳은?', intent_context: 'D_HERITAGE', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['전통문화', '한복'], must_not_do: [], layer: 'L1_universal' },
       // D_HERITAGE (역사) - English
-      { question_text: 'Where is the best place to experience Joseon Dynasty history in Seoul?', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['Joseon Dynasty', 'history'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Which neighborhoods in Seoul have beautiful Hanok or traditional architecture?', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['Hanok', 'architecture'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Which area should I visit for a royal palace tour in Seoul?', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['palace', 'tour'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Recommend places in Seoul to see modern history or early 20th-century sites', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['modern history', 'sites'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where are the best places in Seoul for traditional experiences like wearing Hanok or tea ceremonies?', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['traditional experiences', 'Hanok'], must_not_do: [], layer: 'L1_universal' },
 
       // D_NATURE (자연) - Korean
       { question_text: '서울 도심에서 가벼운 등산이나 숲길 산책하기 좋은 곳 추천해줘', intent_context: 'D_NATURE', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['등산', '산책'], must_not_do: [], layer: 'L1_universal' },
@@ -120,11 +100,6 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       { question_text: '서울에서 봄꽃 구경이나 가을 단풍이 가장 예쁜 명소는?', intent_context: 'D_NATURE', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['단풍', '명소'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '서울에서 자연과 함께 조용히 힐링할 수 있는 장소 추천해줘', intent_context: 'D_NATURE', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['힐링', '자연'], must_not_do: [], layer: 'L1_universal' },
       // D_NATURE (자연) - English
-      { question_text: 'Recommend good places in Seoul for a light hike or forest walk', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['hike', 'forest'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where are the best sections along the Han River for walking or cycling?', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['Han River', 'cycling'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Tell me about large parks in Seoul that are great for a picnic', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['parks', 'picnic'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where are the most beautiful spots in Seoul for spring flowers or autumn leaves?', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['flowers', 'autumn'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Recommend quiet places in Seoul to relax and heal in nature', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['relax', 'nature'], must_not_do: [], layer: 'L1_universal' },
 
       // D_SHOPPING (쇼핑/나이트라이프) - Korean
       { question_text: '서울에서 옷이나 패션 소품 쇼핑하기 가장 좋은 거리는?', intent_context: 'D_SHOPPING', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['쇼핑', '거리'], must_not_do: [], layer: 'L1_universal' },
@@ -133,11 +108,6 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       { question_text: '서울에서 럭셔리 명품 쇼핑을 즐기기 좋은 지역은 어디야?', intent_context: 'D_SHOPPING', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['명품', '쇼핑'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '서울에서 클럽, 라운지 등 나이트라이프(밤문화)를 즐기기 좋은 곳은?', intent_context: 'D_SHOPPING', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['나이트라이프', '클럽'], must_not_do: [], layer: 'L1_universal' },
       // D_SHOPPING (쇼핑/나이트라이프) - English
-      { question_text: 'Where are the best streets in Seoul for clothing and fashion shopping?', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['shopping', 'fashion'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Recommend night markets or lively evening markets in Seoul', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['night markets'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Which neighborhoods in Seoul have lots of vintage shops or unique boutique stores?', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['vintage', 'boutique'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where is the best area in Seoul for luxury brand shopping?', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['luxury', 'shopping'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where are the best places in Seoul for nightlife, such as clubs and lounges?', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['nightlife', 'clubs'], must_not_do: [], layer: 'L1_universal' },
 
       // D_LOCAL (로컬/라이프스타일) - Korean
       { question_text: '서울에서 관광객이 적고 현지인처럼 여유롭게 여행할 수 있는 동네는?', intent_context: 'D_LOCAL', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['현지인', '여유'], must_not_do: [], layer: 'L1_universal' },
@@ -146,11 +116,6 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       { question_text: '서울에서 아이들과 함께 주말 나들이 가기 좋은 가족 친화적 동네는?', intent_context: 'D_LOCAL', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['아이들', '가족'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '서울에서 골목길 감성이 예뻐서 산책하기 좋은 숨은 동네 알려줘', intent_context: 'D_LOCAL', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['골목길', '감성'], must_not_do: [], layer: 'L1_universal' },
       // D_LOCAL (로컬/라이프스타일) - English
-      { question_text: 'Where are some quiet neighborhoods in Seoul where I can travel like a local without many tourists?', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['local', 'quiet'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Recommend the most trendy and hip neighborhoods among young Koreans in Seoul right now', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['trendy', 'hip'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Where can I feel the young and energetic vibe of university districts in Seoul?', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['university', 'vibe'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Which are the most family-friendly neighborhoods in Seoul for a weekend outing with kids?', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['family-friendly', 'kids'], must_not_do: [], layer: 'L1_universal' },
-      { question_text: 'Tell me about hidden neighborhoods in Seoul with aesthetic alleyways that are great for walking', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['hidden', 'alleyways'], must_not_do: [], layer: 'L1_universal' },
 
       // D_EVENT (축제/이벤트) - Korean
       { question_text: '이번 주말에 서울에서 열리는 가볼 만한 축제나 행사가 있는 지역은 어디야?', intent_context: 'D_EVENT', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['주말', '축제'], must_not_do: [], layer: 'L1_universal' },
@@ -158,6 +123,71 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       { question_text: '서울에서 무료로 즐길 수 있는 문화 이벤트나 거리 공연이 자주 열리는 곳은?', intent_context: 'D_EVENT', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['이벤트', '거리 공연'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '서울에서 푸드 트럭 축제나 야외 미식 행사가 열리는 동네 알려줘', intent_context: 'D_EVENT', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['푸드 트럭', '행사'], must_not_do: [], layer: 'L1_universal' },
       { question_text: '외국인 관광객이 서울의 축제 분위기를 가장 잘 느낄 수 있는 곳 추천해줘', intent_context: 'D_EVENT', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['외국인', '축제'], must_not_do: [], layer: 'L1_universal' },
+      // D_EVENT (축제/이벤트) - English
+    ]
+  },
+  place_brand_en: {
+    panel_name: '플레이스 브랜드 (영문)',
+    slug: 'place_brand_en',
+    sbs_index_target: '서울시 자치구 평균',
+    questions: [
+      // D_LANDMARK (명소) - Korean
+      // D_LANDMARK (명소) - English
+      { question_text: 'Recommend the most beautiful night view spots in Seoul', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['night view'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Which neighborhoods in Seoul have the best photo spots?', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['photo spots'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where can I see iconic landmarks and great architecture in Seoul?', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['landmarks', 'architecture'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Are there any mural villages or unique streets in Seoul?', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['mural', 'streets'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'What are the top 5 tourist attractions in Seoul for foreigners?', intent_context: 'D_LANDMARK_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'list', weight: 1.0, query_variants: [], must_include: [], should_include: ['top 5', 'foreigners'], must_not_do: [], layer: 'L1_universal' },
+
+      // D_FOOD (맛집) - Korean
+      // D_FOOD (맛집) - English
+      { question_text: 'Where are the best places for a traditional market food tour in Seoul?', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['traditional market', 'food tour'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Which neighborhoods in Seoul have the best local restaurants?', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['local restaurants'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where is the best street food in Seoul?', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['street food'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where can I experience authentic Korean fine dining in Seoul?', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['fine dining', 'authentic'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Tell me about neighborhoods in Seoul with trendy cafe streets', intent_context: 'D_FOOD_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['trendy', 'cafe streets'], must_not_do: [], layer: 'L1_universal' },
+
+      // D_CULTURE (문화) - Korean
+      // D_CULTURE (문화) - English
+      { question_text: 'Which neighborhoods in Seoul have independent bookstores or art spaces?', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['bookstores', 'art spaces'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'What areas in Seoul have a lot of art museums and galleries?', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['museums', 'galleries'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where can I watch indie music or live performances in Seoul?', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['indie music', 'live performances'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where are the best places to enjoy performing arts like theater or musicals in Seoul?', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['theater', 'musicals'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Recommend neighborhoods in Seoul where creators and artists gather', intent_context: 'D_CULTURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['artists', 'neighborhoods'], must_not_do: [], layer: 'L1_universal' },
+
+      // D_HERITAGE (역사) - Korean
+      // D_HERITAGE (역사) - English
+      { question_text: 'Where is the best place to experience Joseon Dynasty history in Seoul?', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['Joseon Dynasty', 'history'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Which neighborhoods in Seoul have beautiful Hanok or traditional architecture?', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['Hanok', 'architecture'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Which area should I visit for a royal palace tour in Seoul?', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['palace', 'tour'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Recommend places in Seoul to see modern history or early 20th-century sites', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['modern history', 'sites'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where are the best places in Seoul for traditional experiences like wearing Hanok or tea ceremonies?', intent_context: 'D_HERITAGE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['traditional experiences', 'Hanok'], must_not_do: [], layer: 'L1_universal' },
+
+      // D_NATURE (자연) - Korean
+      // D_NATURE (자연) - English
+      { question_text: 'Recommend good places in Seoul for a light hike or forest walk', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['hike', 'forest'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where are the best sections along the Han River for walking or cycling?', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['Han River', 'cycling'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Tell me about large parks in Seoul that are great for a picnic', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['parks', 'picnic'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where are the most beautiful spots in Seoul for spring flowers or autumn leaves?', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['flowers', 'autumn'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Recommend quiet places in Seoul to relax and heal in nature', intent_context: 'D_NATURE_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['relax', 'nature'], must_not_do: [], layer: 'L1_universal' },
+
+      // D_SHOPPING (쇼핑/나이트라이프) - Korean
+      // D_SHOPPING (쇼핑/나이트라이프) - English
+      { question_text: 'Where are the best streets in Seoul for clothing and fashion shopping?', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['shopping', 'fashion'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Recommend night markets or lively evening markets in Seoul', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['night markets'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Which neighborhoods in Seoul have lots of vintage shops or unique boutique stores?', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['vintage', 'boutique'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where is the best area in Seoul for luxury brand shopping?', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['luxury', 'shopping'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where are the best places in Seoul for nightlife, such as clubs and lounges?', intent_context: 'D_SHOPPING_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['nightlife', 'clubs'], must_not_do: [], layer: 'L1_universal' },
+
+      // D_LOCAL (로컬/라이프스타일) - Korean
+      // D_LOCAL (로컬/라이프스타일) - English
+      { question_text: 'Where are some quiet neighborhoods in Seoul where I can travel like a local without many tourists?', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['local', 'quiet'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Recommend the most trendy and hip neighborhoods among young Koreans in Seoul right now', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['trendy', 'hip'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Where can I feel the young and energetic vibe of university districts in Seoul?', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['university', 'vibe'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Which are the most family-friendly neighborhoods in Seoul for a weekend outing with kids?', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['family-friendly', 'kids'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Tell me about hidden neighborhoods in Seoul with aesthetic alleyways that are great for walking', intent_context: 'D_LOCAL_EN', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['hidden', 'alleyways'], must_not_do: [], layer: 'L1_universal' },
+
+      // D_EVENT (축제/이벤트) - Korean
       // D_EVENT (축제/이벤트) - English
       { question_text: 'Which areas in Seoul have festivals or events worth visiting this weekend?', intent_context: 'D_EVENT_EN', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['festivals', 'weekend'], must_not_do: [], layer: 'L1_universal' },
       { question_text: 'Recommend the most famous seasonal local festivals in Seoul', intent_context: 'D_EVENT_EN', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['seasonal', 'festivals'], must_not_do: [], layer: 'L1_universal' },
@@ -5851,7 +5881,7 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
 
 // Post-processing to standardize all industries to exactly 20 questions
 // Exception: 'skincare' (155Q), 'place_brand' (80Q) and 'wedding_studio' (80Q) are pre-seeded with full goldilocks sets
-const FULL_GOLDILOCKS_PANELS: IndustryType[] = ['skincare', 'place_brand', 'wedding_studio'];
+const FULL_GOLDILOCKS_PANELS: IndustryType[] = ['skincare', 'place_brand_ko', 'place_brand_en', 'wedding_studio'];
 
 Object.keys(INDUSTRY_PANELS_DATA).forEach((indKey) => {
   // Skip goldilocks panels — they already have full, carefully curated question sets

@@ -95,14 +95,48 @@ export function calculatePerLayerMetrics(
     let won = false;
     if (engine === 'composite') {
       for (const eng of Object.keys(q.per_engine)) {
-        if (q.per_engine[eng].brands_mentioned.includes(brand.name)) {
-          won = true;
-          break;
+        const brands = q.per_engine[eng].brands_mentioned;
+        const text = q.per_engine[eng].raw_response_text || '';
+        if (brands.includes(brand.name)) {
+           // Find first mention index of the brand
+           const brandIdx = text.toLowerCase().indexOf(brand.name.toLowerCase());
+           // Find first mention index of any competitor mentioned
+           let isFirst = true;
+           for (const b of brands) {
+             if (b !== brand.name) {
+               const bIdx = text.toLowerCase().indexOf(b.toLowerCase());
+               if (bIdx !== -1 && brandIdx !== -1 && bIdx < brandIdx) {
+                 isFirst = false;
+                 break;
+               }
+             }
+           }
+           if (isFirst) {
+             won = true;
+             break;
+           }
         }
       }
     } else {
-      if (q.per_engine[engine] && q.per_engine[engine].brands_mentioned.includes(brand.name)) {
-        won = true;
+      if (q.per_engine[engine]) {
+        const brands = q.per_engine[engine].brands_mentioned;
+        const text = q.per_engine[engine].raw_response_text || '';
+        if (brands.includes(brand.name)) {
+           const brandIdx = text.toLowerCase().indexOf(brand.name.toLowerCase());
+           let isFirst = true;
+           for (const b of brands) {
+             if (b !== brand.name) {
+               const bIdx = text.toLowerCase().indexOf(b.toLowerCase());
+               if (bIdx !== -1 && brandIdx !== -1 && bIdx < brandIdx) {
+                 isFirst = false;
+                 break;
+               }
+             }
+           }
+           if (isFirst) {
+             won = true;
+           }
+        }
       }
     }
     if (won) l2Won++;

@@ -1,4 +1,6 @@
 "use client";
+import { calcOCR, calcBSF } from '../../lib/benchmark/lightweight-metric-runner';
+import { calcWeightedAAS } from '../../lib/benchmark/mention-classifier';
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -211,7 +213,7 @@ function LeaderboardTable({
 function DomainIcon({ slug }: { slug: string }) {
   if (slug === 'skincare') return <Droplets className="h-4 w-4" />;
   if (slug === 'wedding_studio') return <Camera className="h-4 w-4" />;
-  if (slug === 'seoul_district') return <Sparkles className="h-4 w-4" />;
+  if (slug.startsWith('seoul_district')) return <Sparkles className="h-4 w-4" />;
   return <BarChart3 className="h-4 w-4" />;
 }
 
@@ -454,9 +456,9 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         const qr = queryResults.find((r: any) => r.questionIdx === idx);
         const engineRes = qr ? {
           raw_response_text: qr.text,
-          brands_mentioned: brands.filter((b: any) => b.keywords.some((kw: string) => qr.text.toLowerCase().includes(kw.toLowerCase()))).map((b: any) => b.name),
+          brands_mentioned: brands.filter((b: any) => calcWeightedAAS(qr.text, b.keywords).hit).map((b: any) => b.name),
           citation_domains: qr.citations.map((c: any) => c.domain),
-          bsf_score: parseFloat((((q.must_include || []).filter((t: string) => qr.text.toLowerCase().includes(t.toLowerCase())).length / Math.max(1, (q.must_include || []).length) * 70) + ((q.should_include || []).filter((t: string) => qr.text.toLowerCase().includes(t.toLowerCase())).length / Math.max(1, (q.should_include || []).length) * 30)).toFixed(2))
+          bsf_score: calcBSF(qr.text, q.must_include || [], q.should_include || [])
         } : { raw_response_text: '', brands_mentioned: [], citation_domains: [], bsf_score: 0 };
         return {
           question_text: q.question_text,
@@ -472,23 +474,13 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
 
         for (const qr of queryResults) {
           const q = questions[qr.questionIdx];
-          const text = qr.text.toLowerCase();
-          const anyBrandHit = brands.some((b: any) => b.keywords.some((kw: string) => text.includes(kw.toLowerCase())));
+          const text = qr.text;
+          const anyBrandHit = brands.some((b: any) => calcWeightedAAS(text, b.keywords).hit);
           if (anyBrandHit) brandedResponseCount++;
 
-          const aasHit = brand.keywords.some((kw: string) => text.includes(kw.toLowerCase()));
-          const ocrHit = qr.citations.some((c: any) => {
-            const citDomain = c.domain.toLowerCase().replace(/^www\./, '');
-            return brand.domains.some((bd: string) => citDomain.includes(bd.replace(/^www\./, '')));
-          });
-
-          const mustTerms = (q.must_include || []).filter((t: string) => !t.includes('{brand}'));
-          const shouldTerms = (q.should_include || []).filter((t: string) => !t.includes('{brand}'));
-          const mustCount = mustTerms.filter((t: string) => text.includes(t.toLowerCase())).length;
-          const shouldCount = shouldTerms.filter((t: string) => text.includes(t.toLowerCase())).length;
-          const mustRatio = mustTerms.length > 0 ? mustCount / mustTerms.length : 1.0;
-          const shouldRatio = shouldTerms.length > 0 ? shouldCount / shouldTerms.length : 1.0;
-          const bsf = parseFloat(((mustRatio * 70) + (shouldRatio * 30)).toFixed(2));
+          const aasHit = calcWeightedAAS(text, brand.keywords).hit;
+          const ocrHit = calcOCR(qr.citations, brand.domains);
+          const bsf = calcBSF(text, q.must_include || [], q.should_include || []);
 
           compositeResults.push({ aas: aasHit, ocr: ocrHit, bsf });
         }
