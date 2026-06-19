@@ -31,8 +31,10 @@ export async function GET(request: NextRequest) {
   const brands = domainConfig.brands;
   
   const isPlaceBrand = domain.startsWith('seoul_district');
+  const isKpop = domain.startsWith('kpop');
   const lang = domain.endsWith('_en') ? 'en' : 'ko';
-  const sampledQuestions = fairProbeSetBuilder(allQuestions, Math.floor(sampleCount / 2), brands, 2, isPlaceBrand, lang as any);
+  const kCount = domainConfig.repetitionCount ?? 2;
+  const sampledQuestions = fairProbeSetBuilder(allQuestions, Math.floor(sampleCount / 2), brands, kCount, isPlaceBrand, lang as any, isKpop);
 
   return NextResponse.json({
     domain: {

@@ -8,6 +8,7 @@ export interface AIProviderOptions {
 export interface AIProvider {
   generateText(prompt: string, options?: AIProviderOptions): Promise<string>;
   generateStructuredOutput<T>(prompt: string, schema: any, options?: AIProviderOptions): Promise<T>;
+  generateEmbeddings?(texts: string[]): Promise<number[][]>;
 }
 
 // 1. Gemini Pro Direct Provider
@@ -61,6 +62,19 @@ class GeminiProvider implements AIProvider {
     } catch (err: any) {
       console.error(`Gemini generateStructuredOutput error: ${err.message}`);
       throw new Error(`Gemini Structured Output Failure: ${err.message}`);
+    }
+  }
+
+  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+    try {
+      // API call to Gemini embedding
+      const res = await Promise.all(texts.map(t => 
+        this.ai.models.embedContent({ model: 'text-embedding-004', contents: t })
+      ));
+      return res.map(r => r.embeddings?.[0]?.values || new Array(768).fill(0));
+    } catch (err: any) {
+      console.warn(`Gemini embedding error: ${err.message}`);
+      return texts.map(() => new Array(768).fill(0));
     }
   }
 }
@@ -143,6 +157,15 @@ class MockProvider implements AIProvider {
         'AI Extracted Claim: Active factual statement identified inside crawled source.'
       ]
     } as any;
+  }
+
+  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+    // Generate deterministic mock embeddings
+    return texts.map(t => {
+      const vec = new Array(768).fill(0.1);
+      vec[0] = t.length % 100 / 100;
+      return vec;
+    });
   }
 }
 

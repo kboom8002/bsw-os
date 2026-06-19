@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslation } from "@/lib/i18n/context";
 import { 
   createCanonicalQuestion, 
   mergeCanonicalQuestions 
@@ -17,8 +18,10 @@ import {
   AlertTriangle,
   ArrowRight,
   ShieldCheck,
-  Search
+  Search,
+  Activity
 } from "lucide-react";
+import { QuestionLifecyclePipeline } from "@/components/question-lifecycle-pipeline";
 
 interface CanonicalQuestion {
   id: string;
@@ -31,6 +34,8 @@ interface CanonicalQuestion {
 export default function CanonicalQuestionsPage() {
   const params = useParams();
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
+  const locale = (params?.locale as string) || "ko";
+  const { t } = useTranslation();
   const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
 
   const [questions, setQuestions] = useState<CanonicalQuestion[]>([
@@ -39,6 +44,8 @@ export default function CanonicalQuestionsPage() {
     { id: "cq-3", normalized_question: "Are luxury skincare ingredients clinically tested?", slug: "are-luxury-skincare-ingredients-clinically-tested", signature: "ce02c815de58b11a", question_capital_node_id: "cap-1" },
     { id: "cq-4", normalized_question: "Is vitamin B3 safe for irritated facial tissue?", slug: "is-vitamin-b3-safe-for-irritated-facial-tissue", signature: "7b0a6493e829dc74", question_capital_node_id: "cap-2" } // Duplicate signature to simulate deduplication action
   ]);
+
+  const [selectedCqId, setSelectedCqId] = useState<string | null>(null);
 
   const [isCreating, setIsCreating] = useState(false);
   const [normalizedQuestion, setNormalizedQuestion] = useState("");
@@ -144,14 +151,14 @@ export default function CanonicalQuestionsPage() {
       <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div className="flex items-center gap-4">
           <Link 
-            href={`/${workspaceSlug}/semantic-core`}
+            href={`/${locale}/${workspaceSlug}/semantic-core`}
             className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <div className="text-xs text-cyan-400 font-mono">Semantic Core Studio</div>
-            <h1 className="text-2xl font-extrabold text-white">Canonical Questions Registry</h1>
+            <div className="text-xs text-cyan-400 font-mono">{t('semantic_core.studio_title')}</div>
+            <h1 className="text-2xl font-extrabold text-white">{t('semantic_core.cq_title')}</h1>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -163,7 +170,7 @@ export default function CanonicalQuestionsPage() {
             }}
             className="px-4 py-2 text-xs font-bold rounded-xl border border-purple-500/20 text-purple-400 hover:bg-purple-950/20 bg-purple-950/10 flex items-center gap-1.5 transition-all"
           >
-            <GitMerge className="w-4 h-4" /> Merge Deduplication
+            <GitMerge className="w-4 h-4" /> {t('semantic_core.btn_merge_dedup')}
           </button>
           <button
             onClick={() => {
@@ -173,7 +180,7 @@ export default function CanonicalQuestionsPage() {
             }}
             className="px-4 py-2 text-xs font-bold rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-1.5 transition-all shadow-lg shadow-cyan-500/10"
           >
-            <Plus className="w-4 h-4" /> Add CQ Signature
+            <Plus className="w-4 h-4" /> {t('semantic_core.btn_add_cq')}
           </button>
         </div>
       </div>
@@ -195,7 +202,7 @@ export default function CanonicalQuestionsPage() {
           <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 space-y-4">
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <HelpCircle className="w-5 h-5 text-blue-400" />
-              Stable Canonical Questions
+              {t('semantic_core.stable_cqs')}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -209,9 +216,23 @@ export default function CanonicalQuestionsPage() {
                     <h4 className="font-bold text-white text-xs leading-normal pr-16">{cq.normalized_question}</h4>
                     <p className="text-[10px] text-slate-500 font-mono mt-1.5">slug: {cq.slug}</p>
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                    <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
-                    <span>Deduplicated stable identity</span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                        <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
+                        <span>Deduplicated stable identity</span>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedCqId(selectedCqId === cq.id ? null : cq.id)}
+                        className="text-[10px] flex items-center gap-1 text-cyan-400 hover:text-cyan-300"
+                      >
+                        <Activity className="w-3.5 h-3.5" />
+                        Lifecycle
+                      </button>
+                    </div>
+                    {selectedCqId === cq.id && (
+                      <QuestionLifecyclePipeline questionId={cq.id} workspaceSlug={workspaceSlug} locale={locale} />
+                    )}
                   </div>
                 </div>
               ))}
@@ -342,10 +363,10 @@ export default function CanonicalQuestionsPage() {
             <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 space-y-4">
               <h3 className="font-bold text-sm text-slate-300 flex items-center gap-1.5">
                 <Search className="w-4 h-4 text-cyan-400" />
-                Query Deduplication
+                {t('semantic_core.dedup_title')}
               </h3>
               <p className="text-slate-400 text-xs leading-relaxed">
-                By grouping organic query signals under a unique **Canonical Question Signature**, BSW-OS avoids duplicating content assets and maps intent contexts in a single, stable location.
+                {t('semantic_core.dedup_desc')}
               </p>
             </div>
           )}

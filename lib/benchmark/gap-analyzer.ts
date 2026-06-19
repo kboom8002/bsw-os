@@ -1,4 +1,4 @@
-import { SurfaceEntity, SurfaceGapAnalysis } from '../schema';
+import { SurfaceEntity, SurfaceGapAnalysis, EntityReflectionDetail } from '../schema';
 import { UnifiedQuestionMapping } from '../surface/qis-cross-mapper';
 import { getSupabaseAdminClient } from '../supabase';
 
@@ -10,17 +10,20 @@ export class GapAnalyzer {
     workspaceId: string,
     websiteUrl: string,
     entities: SurfaceEntity[],
-    reflectedEntityIds: string[],
+    reflectionDetails: EntityReflectionDetail[],
     mappings: UnifiedQuestionMapping[]
   ): Promise<SurfaceGapAnalysis[]> {
     const analysisResults: SurfaceGapAnalysis[] = [];
     const analyzedAt = new Date().toISOString();
     
-    const reflectedSet = new Set(reflectedEntityIds);
+    const detailMap = new Map<string, EntityReflectionDetail>();
+    reflectionDetails.forEach(d => detailMap.set(d.entity_id, d));
 
     // 1. Process Website Entities (GREEN and YELLOW quadrants)
     entities.forEach((entity, idx) => {
-      const isReflected = reflectedSet.has(entity.id || '');
+      const detail = detailMap.get(entity.id || '');
+      const quality = detail?.quality || 'absent';
+      const isReflected = quality !== 'absent';
       const quadrant = isReflected ? 'green' : 'yellow';
 
       // Find matching QIS layer if mapped
@@ -29,7 +32,7 @@ export class GapAnalyzer {
       ));
 
       let prescription_type: SurfaceGapAnalysis['prescription_type'] = null;
-      let prescription_detail = null;
+      let prescription_detail: string | null = null;
       let estimated_aepi_impact = 0;
       let priority_score = 0;
 
@@ -53,10 +56,25 @@ export class GapAnalyzer {
           (entity.eeat_strength < 50 ? 30 : 10) + 
           (estimated_aepi_impact * 4.0)
         );
+
+        if (detail?.competitor_mentioned) {
+          prescription_detail += ` [URGENT] AI is prioritizing competitor "${detail.competitor_mentioned}" for this topic!`;
+          priority_score += 25;
+          estimated_aepi_impact += 5;
+        }
+
       } else {
         // Green: site content exists and IS reflected. Keep/maintain.
-        prescription_detail = 'No immediate action required. Monitor search presence stability.';
-        priority_score = 10; // low priority
+        if (quality === 'partial') {
+          prescription_detail = `Partially reflected (${Math.round(detail!.keyword_overlap * 100)}% keywords). Consider adding exact matches.`;
+          priority_score = 20;
+        } else if (quality === 'distorted') {
+          prescription_detail = `Distorted reflection! The engine hallucinated or mixed up facts. Explicitly correct with FAQ schema.`;
+          priority_score = 40;
+        } else {
+          prescription_detail = 'Exact reflection confirmed. No immediate action required.';
+          priority_score = 10;
+        }
       }
 
       analysisResults.push({
@@ -108,7 +126,6 @@ export class GapAnalyzer {
     });
 
     // 3. Generate Opportunistic Insights (WHITE quadrant - Blue Ocean opportunities)
-    // Create 1-2 strategic white space suggestions based on missing L6/L7 combinations
     const whiteOpps = mappings.filter(m => m.coverage_status === 'site_only' && m.industry_qis_layer === 'L6_trend');
     if (whiteOpps.length > 0) {
       whiteOpps.slice(0, 2).forEach((opp, idx) => {
@@ -131,7 +148,6 @@ export class GapAnalyzer {
       });
     }
 
-    // Write to database if possible
     try {
       const supabase = getSupabaseAdminClient();
       const { error } = await supabase

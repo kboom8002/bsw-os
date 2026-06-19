@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslation } from "@/lib/i18n/context";
 import { 
   createClaimNode, 
   createLineageRecord, 
@@ -56,6 +57,8 @@ interface BoundaryRule {
 
 export default function ClaimLineagePage() {
   const params = useParams();
+  const { t } = useTranslation();
+  const locale = (params?.locale as string) || "ko";
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
 
@@ -236,14 +239,14 @@ export default function ClaimLineagePage() {
       <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div className="flex items-center gap-4">
           <Link 
-            href={`/${workspaceSlug}/semantic-core`}
+            href={`/${locale}/${workspaceSlug}/semantic-core`}
             className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <div className="text-xs text-cyan-400 font-mono">Semantic Core Studio</div>
-            <h1 className="text-2xl font-extrabold text-white">Claim Lineage Vault</h1>
+            <div className="text-xs text-cyan-400 font-mono">{t('semantic_core.studio_title')}</div>
+            <h1 className="text-2xl font-extrabold text-white">{t('semantic_core.claims_page_title')}</h1>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -256,7 +259,7 @@ export default function ClaimLineagePage() {
             }}
             className="px-4 py-2 text-xs font-bold rounded-xl border border-purple-500/20 text-purple-400 hover:bg-purple-950/20 bg-purple-950/10 flex items-center gap-1.5 transition-all"
           >
-            <Clock className="w-4 h-4" /> Map Trace Lineage
+            <Clock className="w-4 h-4" /> {t('semantic_core.claims_map_trace')}
           </button>
           <button
             onClick={() => {
@@ -266,7 +269,7 @@ export default function ClaimLineagePage() {
             }}
             className="px-4 py-2 text-xs font-bold rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-1.5 transition-all shadow-lg shadow-cyan-500/10"
           >
-            <Plus className="w-4 h-4" /> Declare Claim
+            <Plus className="w-4 h-4" /> {t('semantic_core.claims_declare')}
           </button>
         </div>
       </div>
@@ -303,7 +306,7 @@ export default function ClaimLineagePage() {
           <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 space-y-4">
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <Lock className="w-5 h-5 text-cyan-400" />
-              Factual Claim Integrity Vault
+              {t('semantic_core.claims_vault')}
             </h3>
 
             <div className="space-y-4">
@@ -324,7 +327,7 @@ export default function ClaimLineagePage() {
                     {/* Evidence Info */}
                     <div className="p-3 rounded-lg border border-white/5 bg-slate-950/40 text-xs">
                       <span className="block font-mono text-[9px] text-slate-500 uppercase mb-1 flex items-center gap-1">
-                        <FileText className="w-3 h-3 text-cyan-400" /> Linked Clinical Evidence
+                        <FileText className="w-3 h-3 text-cyan-400" /> {t('semantic_core.claims_linked_evidence')}
                       </span>
                       {claim.evidence_title ? (
                         <div className="space-y-1">
@@ -343,7 +346,7 @@ export default function ClaimLineagePage() {
                     {/* Safety boundary Info */}
                     <div className="p-3 rounded-lg border border-white/5 bg-slate-950/40 text-xs">
                       <span className="block font-mono text-[9px] text-slate-500 uppercase mb-1 flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3 text-purple-400" /> Mandatory Disclosures / Boundaries
+                        <ShieldCheck className="w-3 h-3 text-purple-400" /> {t('semantic_core.claims_disclosures')}
                       </span>
                       {claim.boundary_rule_name ? (
                         <div className="space-y-1">
@@ -377,7 +380,7 @@ export default function ClaimLineagePage() {
                       onClick={() => triggerVerification(claim.id)}
                       className="px-4 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 shadow-md transition-all flex items-center justify-center gap-1.5 self-end md:self-auto"
                     >
-                      <Lock className="w-3.5 h-3.5" /> Verify Claim Lineage
+                      <Lock className="w-3.5 h-3.5" /> {t('semantic_core.claims_verify')}
                     </button>
                   </div>
                 </div>
@@ -391,10 +394,10 @@ export default function ClaimLineagePage() {
           {/* Manual Claim Declaration */}
           {isCreatingClaim && (
             <form onSubmit={handleCreateClaim} className="p-6 rounded-2xl border border-white/10 bg-slate-950/40 space-y-4">
-              <h3 className="font-bold text-sm text-slate-200">Declare Factual Claim</h3>
+              <h3 className="font-bold text-sm text-slate-200">{t('semantic_core.claims_declare_factual')}</h3>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Claim Summary Statement</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.claims_summary_statement')}</label>
                 <textarea
                   value={claimSummary}
                   onChange={(e) => setClaimSummary(e.target.value)}
@@ -405,7 +408,7 @@ export default function ClaimLineagePage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Parent Brand Operational Truth</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.claims_parent_truth')}</label>
                 <select
                   value={selectedOperId}
                   onChange={(e) => setSelectedOperId(e.target.value)}
@@ -424,7 +427,7 @@ export default function ClaimLineagePage() {
                   type="submit"
                   className="flex-1 px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all text-xs text-center"
                 >
-                  Save Claim
+                  {t('semantic_core.claims_save')}
                 </button>
                 <button
                   type="button"
@@ -434,7 +437,7 @@ export default function ClaimLineagePage() {
                   }}
                   className="px-4 py-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-xs"
                 >
-                  Cancel
+                  {t('semantic_core.btn_cancel')}
                 </button>
               </div>
             </form>
@@ -445,11 +448,11 @@ export default function ClaimLineagePage() {
             <form onSubmit={handleCreateLineage} className="p-6 rounded-2xl border border-purple-500/20 bg-slate-950/40 space-y-4">
               <h3 className="font-bold text-sm text-slate-200 flex items-center gap-1">
                 <Clock className="w-4 h-4 text-purple-400" />
-                Map Trace Lineage
+                {t('semantic_core.claims_map_trace')}
               </h3>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Select Claim Node</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.claims_select_claim')}</label>
                 <select
                   value={selectedClaimId}
                   onChange={(e) => setSelectedClaimId(e.target.value)}
@@ -464,7 +467,7 @@ export default function ClaimLineagePage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Attach Verified Evidence PDF (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.claims_attach_evidence')}</label>
                 <select
                   value={selectedEvId}
                   onChange={(e) => setSelectedEvId(e.target.value)}
@@ -478,7 +481,7 @@ export default function ClaimLineagePage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Attach Active Safety Boundary Rule (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.claims_attach_boundary')}</label>
                 <select
                   value={selectedRuleId}
                   onChange={(e) => setSelectedRuleId(e.target.value)}
@@ -496,7 +499,7 @@ export default function ClaimLineagePage() {
                   type="submit"
                   className="flex-1 px-4 py-2 rounded-lg bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold transition-all text-xs text-center"
                 >
-                  Map Trace Links
+                  {t('semantic_core.claims_map_trace_links')}
                 </button>
                 <button
                   type="button"
@@ -506,7 +509,7 @@ export default function ClaimLineagePage() {
                   }}
                   className="px-4 py-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-xs"
                 >
-                  Cancel
+                  {t('semantic_core.btn_cancel')}
                 </button>
               </div>
             </form>
@@ -516,10 +519,10 @@ export default function ClaimLineagePage() {
             <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 space-y-4">
               <h3 className="font-bold text-sm text-slate-300 flex items-center gap-1.5">
                 <HelpCircle className="w-4 h-4 text-cyan-400" />
-                Lineage Safety Gates
+                {t('semantic_core.claims_safety_gates')}
               </h3>
               <p className="text-slate-400 text-xs leading-relaxed">
-                Publishing critical factual claims without verified clinical evidence and active boundary disclosure rules is strictly blocked by the system core gate. Satisfying these trace links generates a cryptographic seal verification signature.
+                {t('semantic_core.claims_safety_gates_desc')}
               </p>
             </div>
           )}

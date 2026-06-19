@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslation } from "@/lib/i18n/context";
 import { createTcoConcept } from "@/app/actions/semantic";
 import { 
   ArrowLeft, 
@@ -26,6 +27,8 @@ interface ConceptItem {
 
 export default function ConceptsPage() {
   const params = useParams();
+  const { t } = useTranslation();
+  const locale = (params?.locale as string) || "ko";
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
 
@@ -111,14 +114,14 @@ export default function ConceptsPage() {
       <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div className="flex items-center gap-4">
           <Link 
-            href={`/${workspaceSlug}/semantic-core`}
+            href={`/${locale}/${workspaceSlug}/semantic-core`}
             className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <div className="text-xs text-cyan-400 font-mono">Semantic Core Studio</div>
-            <h1 className="text-2xl font-extrabold text-white">TCO Concepts Dictionary</h1>
+            <div className="text-xs text-cyan-400 font-mono">{t('semantic_core.studio_title')}</div>
+            <h1 className="text-2xl font-extrabold text-white">{t('semantic_core.concepts_page_title')}</h1>
           </div>
         </div>
         <button
@@ -128,7 +131,7 @@ export default function ConceptsPage() {
           }}
           className="px-4 py-2 text-xs font-bold rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-1.5 transition-all shadow-lg shadow-cyan-500/10"
         >
-          <Plus className="w-4 h-4" /> Define Concept
+          <Plus className="w-4 h-4" /> {t('semantic_core.concepts_define')}
         </button>
       </div>
 
@@ -149,7 +152,7 @@ export default function ConceptsPage() {
           <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 space-y-4">
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-cyan-400" />
-              Active Concept Dictionary Definitions
+              {t('semantic_core.concepts_active_dictionary')}
             </h3>
 
             <div className="space-y-4">
@@ -182,10 +185,10 @@ export default function ConceptsPage() {
         <div>
           {isCreating ? (
             <form onSubmit={handleCreate} className="p-6 rounded-2xl border border-white/10 bg-slate-950/40 space-y-4">
-              <h3 className="font-bold text-sm text-slate-200">Add Concept Definition</h3>
+              <h3 className="font-bold text-sm text-slate-200">{t('semantic_core.concepts_add_definition')}</h3>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Concept Name</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.concepts_concept_name')}</label>
                 <input
                   type="text"
                   value={conceptName}
@@ -197,7 +200,7 @@ export default function ConceptsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Concept Slug (Auto-generated)</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.concepts_slug')}</label>
                 <input
                   type="text"
                   value={slug}
@@ -207,7 +210,7 @@ export default function ConceptsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Formal Operational Definition</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.concepts_formal_definition')}</label>
                 <textarea
                   value={definition}
                   onChange={(e) => setDefinition(e.target.value)}
@@ -227,7 +230,7 @@ export default function ConceptsPage() {
                 />
                 <label htmlFor="is_strategic" className="text-xs text-slate-300 font-bold select-none cursor-pointer flex items-center gap-1.5">
                   <Star className="w-3.5 h-3.5 text-yellow-400" />
-                  Flag as Strategic Asset
+                  {t('semantic_core.concepts_flag_strategic')}
                 </label>
               </div>
 
@@ -236,7 +239,7 @@ export default function ConceptsPage() {
                   type="submit"
                   className="flex-1 px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all text-xs text-center"
                 >
-                  Save Concept
+                  {t('semantic_core.concepts_save')}
                 </button>
                 <button
                   type="button"
@@ -246,7 +249,7 @@ export default function ConceptsPage() {
                   }}
                   className="px-4 py-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-xs"
                 >
-                  Cancel
+                  {t('semantic_core.btn_cancel')}
                 </button>
               </div>
             </form>
@@ -254,10 +257,10 @@ export default function ConceptsPage() {
             <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 space-y-4">
               <h3 className="font-bold text-sm text-slate-300 flex items-center gap-1.5">
                 <HelpCircle className="w-4 h-4 text-cyan-400" />
-                Operational Dictionaries
+                {t('semantic_core.concepts_operational_dictionaries')}
               </h3>
               <p className="text-slate-400 text-xs leading-relaxed">
-                Rather than treating concept terms as simple content tags, BSW-OS models **TCO Concepts** as first-class schemas. This ensures AI generators do not invent terms and strictly conform to brand definitions.
+                {t('semantic_core.concepts_operational_dictionaries_desc')}
               </p>
             </div>
           )}

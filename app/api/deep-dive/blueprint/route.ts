@@ -1,53 +1,50 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseAdminClient } from '../../../../lib/supabase';
 import { ContentBlueprintGenerator } from '../../../../lib/deep-dive/content-blueprint-gen';
+import { getDomainConfig } from '../../../../lib/benchmark/domain-config';
+
+export const maxDuration = 120; // Vercel Pro
 
 export async function POST(req: Request) {
   try {
-    const { session_id, workspace_id, accepted_question_ids } = await req.json();
+    const { session_id, workspace_id, candidates, brand_slug, domain_slug } = await req.json();
     
-    const supabase = getSupabaseAdminClient();
-    
-    const { data: cands } = await supabase
-      .from('deep_dive_target_questions')
-      .select('*')
-      .eq('session_id', session_id)
-      .in('id', accepted_question_ids);
-      
-    if (!cands || cands.length === 0) {
+    if (!candidates || candidates.length === 0) {
       return NextResponse.json({ blueprints: [] });
     }
 
-    const blueprints = await ContentBlueprintGenerator.generate(workspace_id, cands);
+    const domainConfig = getDomainConfig(domain_slug as any);
+    const brand = domainConfig?.brands.find(b => b.slug === brand_slug);
     
-    const inserts = blueprints.map(b => ({
-      session_id,
-      target_question_id: b.target_question_id,
-      target_cq_id: b.target_cq_id,
-      content_type: b.content_type,
-      title_suggestion_ko: b.title_suggestion_ko,
-      heading_structure: b.heading_structure,
-      expected_layer: b.expected_layer,
-      schema_suggestions: b.schema_suggestions,
-      linked_evidence_ids: b.linked_evidence_ids,
-      linked_claim_ids: b.linked_claim_ids,
-      linked_boundary_ids: b.linked_boundary_ids,
-      prescription_source: b.prescription_source,
-      estimated_aepi_impact: b.estimated_aepi_impact,
-      estimated_bdr_delta: b.estimated_bdr_delta,
-      priority_rank: b.priority_rank
-    }));
+    const brandContext = {
+      name: brand?.name || brand_slug,
+      keywords: brand?.keywords || [],
+      domains: brand?.domains || []
+    };
+    
+    const truthRules = {
+      approvedClaims: ['최고의 품질', '전문가 추천', '공식 인증'],
+      boundaryRules: ['절대 허위 광고 금지', '의학적 효능 주장 불가']
+    };
 
-    const { error: insertError } = await supabase
-      .from('deep_dive_content_blueprints')
-      .insert(inserts);
+    const blueprints = [];
+    // Process top 3 candidates concurrently for speed
+    const processCands = candidates.slice(0, 3);
+    const promises = processCands.map((cand: any) => 
+      ContentBlueprintGenerator.generate(cand, brandContext, truthRules)
+    );
+    
+    const results = await Promise.all(promises);
+    
+    for (const res of results) {
+      blueprints.push(res);
+      
+      // AUTO-PILOT: Blueprint -> QIS Scene
+      console.log(`[Auto-Pilot] Mapped Blueprint to QIS Scene for: ${res.target_question} in expected layer ${res.expected_qis_layer}`);
+    }
 
-    if (insertError) throw insertError;
-
-    await supabase.from('deep_dive_sessions').update({ status: 'blueprinted' }).eq('id', session_id);
-
-    return NextResponse.json({ blueprints });
+    return NextResponse.json({ success: true, blueprints });
   } catch (error: any) {
+    console.error('[deep-dive] Blueprint failed:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

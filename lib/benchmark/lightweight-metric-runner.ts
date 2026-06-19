@@ -1,3 +1,4 @@
+import { getSupabaseAdminClient } from '../supabase';
 /**
  * lib/benchmark/lightweight-metric-runner.ts
  *
@@ -184,150 +185,150 @@ export class LightweightMetricRunner {
       }));
     }
 
-    // ── AIPR 방식 AAS 분모 계산 ──────────────────────────────────────────
-    // 분모 = 패널 내 브랜드 중 1개라도 언급된 응답 수
-    // (정보형 질문 등 브랜드가 전혀 등장하지 않는 응답은 분모에서 제외)
-    let brandedResponseCount = 0;
-    for (const [_qt, engineResults] of queryResults.entries()) {
-      for (const engine of this.engines) {
-        const res = engineResults[engine];
-        if (!res) continue;
-        const anyBrand = domainConfig.brands.some(b => calcWeightedAAS(res.text, b.keywords).hit);
-        if (anyBrand) brandedResponseCount++;
-      }
-    }
-    console.log(`\n  [AIPR] branded responses: ${brandedResponseCount} / ${queryResults.size * this.engines.length} total`);
-
-    // 브랜드별 집계
-    for (const brand of domainConfig.brands) {
-      // 브랜드 도메인 설정 (OCR 계산용)
-      SearchProviderFactory.setBrandDomains(brand.domains);
-
-      const compositeResults: Array<{
-        aas: boolean; ocr: boolean; bsf: number;
-      }> = [];
-
-      for (const [_qText, engineResults] of queryResults.entries()) {
-        const q = sampledQuestions.find(sq => sq.question_text === _qText);
-        if (!q) continue;
-
-        for (const engine of this.engines) {
-          const res = engineResults[engine];
-          if (!res) continue;
-
-          const aasHit = calcWeightedAAS(res.text, brand.keywords).hit;
-          const ocrHit = calcOCR(res.citations, brand.domains);
-          const bsf = calcBSF(res.text, q.must_include, q.should_include);
-
-          compositeResults.push({ aas: aasHit, ocr: ocrHit, bsf });
-        }
-      }
-
-      if (compositeResults.length === 0) {
-        brandResults.push({
-          brand_slug: brand.slug,
-          brand_name: brand.name,
-          engine_name: 'composite',
-          aas: 0, ocr: 0, bsf: 0, bair: 0,
-          bdr: 0, cwr: 0, iri: 0, opp: 0,
-          mention_count: 0, citation_count: 0,
-          sample_size: sampledQuestions.length,
-          measured_at: measuredAt,
-        });
-        continue;
-      }
-
-      const mentionCount = compositeResults.filter(r => r.aas).length;
-      const citationCount = compositeResults.filter(r => r.ocr).length;
-
-      // AAS: AIPR 방식 — 브랜드 언급 응답 수를 분모로 사용 (Share of Voice)
-      // 전체 응답 대신 "브랜드가 1개라도 등장한 응답"만 분모로 삼아
-      // 정보형 질문의 브랜드 미언급이 수치를 희석하는 문제를 제거
-      const aiprDenominator = brandedResponseCount > 0 ? brandedResponseCount : compositeResults.length;
-      const aas = parseFloat(((mentionCount / aiprDenominator) * 100).toFixed(1));
-      const ocr = parseFloat(((citationCount / compositeResults.length) * 100).toFixed(1));
-      const bsf = parseFloat((compositeResults.reduce((s, r) => s + r.bsf, 0) / compositeResults.length).toFixed(1));
-      const bair = parseFloat((aas * (bsf / 100)).toFixed(1));
-
-      // Calculate Advanced Metrics
-      // First, we need to extract the question details for this brand's evaluation
-      // Actually, we can generate questionDetails map right here, but questionDetails is generated at the end.
-      // Let's just create a temporary array for this calculation.
-      const tempDetails: QuestionDetail[] = [];
-      for (const [_qText, engineResults] of queryResults.entries()) {
-        const q = sampledQuestions.find(sq => sq.question_text === _qText);
-        if (!q) continue;
-        const det: QuestionDetail = { question_text: q.question_text, question_type: q.question_type, layer: q.layer || 'unknown', per_engine: {} };
-        for (const engine of this.engines) {
-          const res = engineResults[engine];
-          if (!res) continue;
-          const mentioned = domainConfig.brands.filter(b => calcWeightedAAS(res.text, b.keywords).hit).map(b => b.name);
-          det.per_engine[engine] = { raw_response_text: res.text, brands_mentioned: mentioned, citation_domains: [], bsf_score: 0 };
-        }
-        tempDetails.push(det);
-      }
-      const advanced = calculatePerLayerMetrics(brand, tempDetails, sampledQuestions, 'composite');
-
-      brandResults.push({
-        brand_slug: brand.slug,
-        brand_name: brand.name,
-        engine_name: 'composite',
-        aas, ocr, bsf, bair,
-        bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp,
-        mention_count: mentionCount,
-        citation_count: citationCount,
-        sample_size: sampledQuestions.length,
-        measured_at: measuredAt,
-      });
-
-      console.log(`    [${brand.name}] AAS: ${aas}% | BDR: ${advanced.bdr}% | CWR: ${advanced.cwr}% | IRI: ${advanced.iri}%`);
-    }
-
-    // ── Question Details 수집 (Opportunity Intelligence용) ──
-    const questionDetails: QuestionDetail[] = [];
-    for (const [_qText, engineResults] of queryResults.entries()) {
-      const q = sampledQuestions.find(sq => sq.question_text === _qText);
-      if (!q) continue;
-
-      const detail: QuestionDetail = {
-        question_text: q.question_text,
-        question_type: q.question_type,
-        layer: q.layer || 'unknown',
-        per_engine: {}
-      };
-
-      for (const engine of this.engines) {
-        const res = engineResults[engine];
-        if (!res) continue;
-
-        const mentioned = domainConfig.brands.filter(b => calcWeightedAAS(res.text, b.keywords).hit).map(b => b.name);
-        const domains = res.citations.map(c => c.domain);
-        const bsf = calcBSF(res.text, q.must_include, q.should_include);
-
-        detail.per_engine[engine] = {
-          raw_response_text: res.text,
-          brands_mentioned: mentioned,
-          citation_domains: domains,
-          bsf_score: bsf
-        };
-      }
-      questionDetails.push(detail);
-    }
-
-    return {
-      domain_slug: domainConfig.slug,
-      domain_name: domainConfig.name,
-      measurement_type: measurementType,
-      engines: this.engines,
-      brand_results: brandResults,
-      measured_at: measuredAt,
-      question_details: questionDetails
-    };
+    return this.finalizeResults(domainConfig, sampledQuestions, queryResults, measurementType);
   }
 
   /**
    * 3-Layer Mixed Goldilocks Sampling
    */
+
+  async startBackground(
+    workspaceId: string,
+    domainSlug: string,
+    domainConfig: DomainConfig,
+    questions: SeedProbeQuestion[],
+    measurementType: 'daily_light' | 'weekly_full' = 'daily_light',
+    targetBrandSlug?: string
+  ): Promise<string> {
+    const supabase = getSupabaseAdminClient();
+    const sampleCount = measurementType === 'daily_light'
+      ? domainConfig.sampleQuestionsForLight
+      : domainConfig.sampleQuestionsForFull;
+    const sampledQuestions = this._sampleQuestions(questions, sampleCount, domainConfig);
+    
+    const { data, error } = await supabase.from('benchmark_sessions').insert({
+      workspace_id: workspaceId,
+      domain_slug: domainSlug,
+      status: 'running',
+      total_queries: sampledQuestions.length,
+      completed_queries: 0,
+      saved_state: {
+        sampledQuestions,
+        queryResults: {},
+        batchStart: 0,
+        measurementType,
+        targetBrandSlug
+      }
+    }).select('session_id').single();
+    
+    if (error || !data) throw new Error('Failed to create benchmark session: ' + error?.message);
+    
+    // start background processing asynchronously
+    this.processBackground(data.session_id, workspaceId, domainConfig, questions).catch(console.error);
+    return data.session_id;
+  }
+
+  async resume(
+    sessionId: string,
+    savedState: any,
+    domainConfig: DomainConfig,
+    questions: SeedProbeQuestion[],
+    workspaceId: string
+  ): Promise<void> {
+    this.processBackground(sessionId, workspaceId, domainConfig, questions).catch(console.error);
+  }
+
+  private async processBackground(
+    sessionId: string,
+    workspaceId: string,
+    domainConfig: DomainConfig,
+    questions: SeedProbeQuestion[]
+  ) {
+    const supabase = getSupabaseAdminClient();
+    const { data: session } = await supabase.from('benchmark_sessions').select('*').eq('session_id', sessionId).single();
+    if (!session || session.status !== 'running') return;
+    
+    let { sampledQuestions, queryResults: savedResults, batchStart, measurementType, targetBrandSlug } = session.saved_state;
+    const queryResults: Map<string, Record<string, { text: string; citations: any[] }>> = new Map(Object.entries(savedResults || {}));
+    const BATCH_SIZE = 5;
+
+    for (let i = batchStart; i < sampledQuestions.length; i += BATCH_SIZE) {
+      // Check status before continuing
+      const { data: currentSession } = await supabase.from('benchmark_sessions').select('status').eq('session_id', sessionId).single();
+      if (currentSession?.status !== 'running') return;
+
+      const batch = sampledQuestions.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (q: any) => {
+        const queryText = q.question_text.replace(/{brand}/g, '').trim();
+        try {
+          const multiRes = await SearchProviderFactory.runMultiEngine(queryText, this.engines);
+          const perEngineResult: Record<string, { text: string; citations: any[] }> = {};
+          for (const engine of this.engines) {
+            const engineRes = multiRes.results[engine];
+            if (engineRes) {
+              perEngineResult[engine] = {
+                text: engineRes.raw_response_text,
+                citations: engineRes.citations || [],
+              };
+            }
+          }
+          queryResults.set(q.question_text, perEngineResult);
+        } catch (err: any) {
+          queryResults.set(q.question_text, {});
+        }
+      }));
+      
+      // Save state
+      await supabase.from('benchmark_sessions').update({
+        completed_queries: Math.min(i + BATCH_SIZE, sampledQuestions.length),
+        saved_state: {
+          sampledQuestions,
+          queryResults: Object.fromEntries(queryResults),
+          batchStart: i + BATCH_SIZE,
+          measurementType,
+          targetBrandSlug
+        }
+      }).eq('session_id', sessionId);
+    }
+    
+    // Process results
+    const result = await this.finalizeResults(domainConfig, sampledQuestions, queryResults, measurementType);
+    
+    // Save to industry_benchmark_snapshots
+    const records = result.brand_results.map((br: any) => ({
+      workspace_id: workspaceId,
+      domain_slug: domainConfig.slug,
+      brand_slug: br.brand_slug,
+      brand_name: br.brand_name,
+      engine_name: br.engine_name,
+      aas: br.aas,
+      ocr: br.ocr,
+      bsf: br.bsf,
+      ars: null,
+      bair: br.bair,
+      mention_count: br.mention_count,
+      citation_count: br.citation_count,
+      sample_size: br.sample_size,
+      measurement_type: measurementType,
+      measured_at: br.measured_at,
+    }));
+    await supabase.from('industry_benchmark_snapshots').insert(records);
+    
+    await supabase.from('benchmark_sessions').update({ status: 'completed' }).eq('session_id', sessionId);
+  }
+
+
+  private async finalizeResults(
+    domainConfig: DomainConfig,
+    sampledQuestions: SeedProbeQuestion[],
+    queryResults: Map<string, Record<string, { text: string; citations: any[] }>>,
+    measurementType: 'daily_light' | 'weekly_full'
+  ): Promise<LightweightDomainResult> {
+    const measuredAt = new Date().toISOString();
+    const brandResults: LightweightBrandResult[] = [];
+    return this.finalizeResults(domainConfig, sampledQuestions, queryResults, measurementType);
+  }
+
   private _sampleQuestions(
     questions: SeedProbeQuestion[],
     count: number,
@@ -342,8 +343,10 @@ export class LightweightMetricRunner {
     // Use fairProbeSetBuilder to dynamically inject K=2 repetitions of L2/L7
     
     const isPlaceBrand = domainConfig.slug.startsWith('seoul_district');
+    const isKpop = domainConfig.slug.startsWith('kpop');
     const lang = domainConfig.slug.endsWith('_en') ? 'en' : 'ko';
-    return fairProbeSetBuilder(genericQuestions, Math.floor(count / 2), brands, 2, isPlaceBrand, lang as any);
+    const kCount = domainConfig.repetitionCount ?? 2;
+    return fairProbeSetBuilder(genericQuestions, Math.floor(count / 2), brands, kCount, isPlaceBrand, lang as any, isKpop);
 
   }
 }

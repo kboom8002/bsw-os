@@ -1,11 +1,13 @@
 import { SearchProviderFactory } from '../ai/search-provider-factory';
-import { SurfaceEntity, EntityReflectionSnapshot } from '../schema';
+import { SurfaceEntity, EntityReflectionSnapshot, ReflectionQuality, EntityReflectionDetail } from '../schema';
 import { SeedProbeQuestion } from '../../db/seed/industry-panels/questions-data';
 import { getSupabaseAdminClient } from '../supabase';
+import { fuzzyKoreanMatch, normalizeKorean } from './korean-normalizer';
 
 export interface EntityReflectionResult {
   snapshot: EntityReflectionSnapshot;
-  reflectedEntityIds: string[];
+  reflectionDetails: EntityReflectionDetail[];
+  rawResponses: string[];
 }
 
 export class EntityReflectionRunner {
@@ -15,106 +17,121 @@ export class EntityReflectionRunner {
     this.engines = engines;
   }
 
-  /**
-   * Check if a specific SurfaceEntity is reflected in the engine's response text and citations
-   */
-  private checkEntityReflected(
-    entity: SurfaceEntity,
-    responseText: string,
-    citations: Array<{ domain: string; url: string }>,
-    brandDomains: string[]
-  ): boolean {
-    const text = responseText.toLowerCase();
-    const entityName = entity.entity_name.toLowerCase();
-
-    // 1. Exact entity name containment is a strong positive
-    if (text.includes(entityName)) {
-      return true;
-    }
-
-    // 2. Keyword containment based on entity_content
+  private calcKeywordOverlap(entityContent: any, text: string): number {
     const keywords: string[] = [];
-    
-    // Add words from entity_name
-    entityName.split(/\s+/).forEach(w => {
-      if (w.length > 2) keywords.push(w);
-    });
-
-    // Extract values from entity_content
-    if (entity.entity_content && typeof entity.entity_content === 'object') {
-      const flattenObj = (obj: any) => {
-        for (const k in obj) {
-          const val = obj[k];
-          if (typeof val === 'string' && val.length > 2) {
-            keywords.push(val.toLowerCase());
-          } else if (Array.isArray(val)) {
-            val.forEach(v => {
-              if (typeof v === 'string' && v.length > 2) {
-                keywords.push(v.toLowerCase());
-              }
-            });
-          } else if (typeof val === 'object' && val !== null) {
-            flattenObj(val);
-          }
+    const flattenObj = (obj: any) => {
+      for (const k in obj) {
+        const val = obj[k];
+        if (typeof val === 'string' && val.length > 2) {
+          keywords.push(normalizeKorean(val.toLowerCase()));
+        } else if (Array.isArray(val)) {
+          val.forEach(v => {
+            if (typeof v === 'string' && v.length > 2) keywords.push(normalizeKorean(v.toLowerCase()));
+          });
+        } else if (typeof val === 'object' && val !== null) {
+          flattenObj(val);
         }
-      };
-      flattenObj(entity.entity_content);
-    }
-
-    // Check if at least 60% of the keywords are present in the response
-    const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 10); // cap to top 10 keywords
-    if (uniqueKeywords.length > 0) {
-      let matchedCount = 0;
-      uniqueKeywords.forEach(kw => {
-        if (text.includes(kw)) matchedCount++;
-      });
-      const matchRate = matchedCount / uniqueKeywords.length;
-      
-      // If keyword match rate is high, treat as reflected
-      if (matchRate >= 0.6) {
-        return true;
       }
+    };
+    
+    if (entityContent && typeof entityContent === 'object') {
+      flattenObj(entityContent);
     }
 
-    // 3. Domain citations match (if it cites our domain, it's highly relevant to our entities)
-    const citesDomain = citations.some(c => {
-      const domain = c.domain.toLowerCase().replace(/^www\./, '');
-      const url = c.url.toLowerCase();
-      return brandDomains.some(bd => {
-        const cleanBd = bd.toLowerCase().replace(/^www\./, '');
-        return domain.includes(cleanBd) || url.includes(cleanBd);
-      });
+    const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 10);
+    if (uniqueKeywords.length === 0) return 0;
+
+    let matchedCount = 0;
+    uniqueKeywords.forEach(kw => {
+      if (text.includes(kw)) matchedCount++;
     });
-
-    // If it cites our domain and has at least one matching keyword, it's reflected
-    if (citesDomain && uniqueKeywords.some(kw => text.includes(kw))) {
-      return true;
-    }
-
-    return false;
+    return matchedCount / uniqueKeywords.length;
   }
 
   /**
-   * Run the reflection engine and calculate the ERR for each dimension
+   * classifyReflection
+   * 4-Tier quality: exact, partial, distorted, absent
    */
+  private classifyReflection(
+    entity: SurfaceEntity,
+    responseText: string,
+    brandDomains: string[]
+  ): ReflectionQuality {
+    const normResponse = normalizeKorean(responseText.toLowerCase());
+    const keywordOverlap = this.calcKeywordOverlap(entity.entity_content, normResponse);
+
+    // exact: Name is matched + Keyword overlap >= 80%
+    // If name matches but keywords are weaker, fallback to partial
+    if (fuzzyKoreanMatch(entity.entity_name, responseText)) {
+      if (keywordOverlap >= 0.8) return 'exact';
+      if (keywordOverlap >= 0.4) return 'partial';
+      return 'partial'; 
+    }
+
+    // partial: Name not matched but keywords >= 60%
+    if (keywordOverlap >= 0.6) return 'partial';
+
+    // distorted: keyword overlap 20%~60%
+    if (keywordOverlap >= 0.2) return 'distorted';
+
+    // Domain citation check
+    const citesDomain = brandDomains.some(bd => {
+      const cleanBd = bd.toLowerCase().replace(/^www\./, '');
+      return normResponse.includes(cleanBd);
+    });
+    if (citesDomain && keywordOverlap > 0) return 'partial';
+
+    return 'absent';
+  }
+
+  /**
+   * classifyReflectionWithCompetitor
+   */
+  private classifyReflectionWithCompetitor(
+    entity: SurfaceEntity,
+    responseText: string,
+    brandDomains: string[],
+    competitors: string[]
+  ): EntityReflectionDetail {
+    const quality = this.classifyReflection(entity, responseText, brandDomains);
+    const normResponse = normalizeKorean(responseText.toLowerCase());
+
+    let competitor_mentioned: string | undefined;
+    if (quality === 'absent' || quality === 'distorted') {
+      for (const comp of competitors) {
+        if (fuzzyKoreanMatch(comp, responseText)) {
+          competitor_mentioned = comp;
+          break;
+        }
+      }
+    }
+
+    return {
+      entity_id: entity.id!,
+      entity_name: entity.entity_name,
+      surface_type: entity.surface_type,
+      quality,
+      keyword_overlap: this.calcKeywordOverlap(entity.entity_content, normResponse),
+      competitor_mentioned
+    };
+  }
+
   async run(
     workspaceId: string,
     websiteUrl: string,
     entities: SurfaceEntity[],
     probes: SeedProbeQuestion[],
     brandDomains: string[],
-    engineName = 'composite'
+    engineName = 'composite',
+    competitors: string[] = []
   ): Promise<EntityReflectionResult> {
     const measuredAt = new Date().toISOString();
-    const reflectedEntityIds = new Set<string>();
-
     console.log(`[ERR Runner] Measuring ${entities.length} entities against ${probes.length} probes for ${websiteUrl}`);
 
-    // 1. Execute all probes via search provider
     const engineList = engineName === 'composite' ? this.engines : [engineName];
     const responses: Array<{ text: string; citations: any[] }> = [];
 
-    for (const probe of probes.slice(0, 15)) { // Limit to 15 probes for pilot performance
+    for (const probe of probes.slice(0, 15)) {
       const queryText = probe.question_text.replace(/{brand}/g, '');
       try {
         const multiRes = await SearchProviderFactory.runMultiEngine(queryText, engineList);
@@ -132,42 +149,61 @@ export class EntityReflectionRunner {
       }
     }
 
-    // 2. Perform entity reflection matching on all responses
+    // Evaluate entities
+    const reflectionDetails: EntityReflectionDetail[] = [];
     entities.forEach(entity => {
+      let bestDetail: EntityReflectionDetail = {
+        entity_id: entity.id!,
+        entity_name: entity.entity_name,
+        surface_type: entity.surface_type,
+        quality: 'absent',
+        keyword_overlap: 0
+      };
+
+      const qualityRank = { exact: 4, partial: 3, distorted: 2, absent: 1 };
+
       for (const resp of responses) {
-        const isReflected = this.checkEntityReflected(entity, resp.text, resp.citations, brandDomains);
-        if (isReflected) {
-          reflectedEntityIds.add(entity.id!);
-          break; // entity is marked reflected if it matches at least one response
+        // Combined text + citations logic can be integrated in responseText.
+        // We simplified citations check to just brandDomains in classifyReflection
+        const detail = this.classifyReflectionWithCompetitor(entity, resp.text, brandDomains, competitors);
+        
+        if (qualityRank[detail.quality] > qualityRank[bestDetail.quality]) {
+          bestDetail = detail;
         }
+        if (bestDetail.quality === 'exact') break;
       }
+      reflectionDetails.push(bestDetail);
     });
 
-    // 3. Aggregate 7-dimension ERR (Entity Reflection Rate)
-    const errCounts: Record<string, { total: number; reflected: number }> = {
-      factoid: { total: 0, reflected: 0 },
-      procedural: { total: 0, reflected: 0 },
-      comparative: { total: 0, reflected: 0 },
-      authority: { total: 0, reflected: 0 },
-      schema_org: { total: 0, reflected: 0 },
-      topical_cluster: { total: 0, reflected: 0 },
-      local_geo: { total: 0, reflected: 0 }
+    // Aggregate 7-dimension ERR based on weighted quality
+    const errCounts: Record<string, { total: number; weightedReflected: number }> = {
+      factoid: { total: 0, weightedReflected: 0 },
+      procedural: { total: 0, weightedReflected: 0 },
+      comparative: { total: 0, weightedReflected: 0 },
+      authority: { total: 0, weightedReflected: 0 },
+      schema_org: { total: 0, weightedReflected: 0 },
+      topical_cluster: { total: 0, weightedReflected: 0 },
+      local_geo: { total: 0, weightedReflected: 0 }
     };
 
-    entities.forEach(ent => {
-      const type = ent.surface_type;
+    const QUALITY_WEIGHTS: Record<ReflectionQuality, number> = {
+      exact: 1.0, partial: 0.6, distorted: 0.2, absent: 0.0,
+    };
+
+    let reflectedCount = 0;
+    reflectionDetails.forEach(detail => {
+      const type = detail.surface_type;
       if (errCounts[type]) {
         errCounts[type].total++;
-        if (reflectedEntityIds.has(ent.id!)) {
-          errCounts[type].reflected++;
-        }
+        errCounts[type].weightedReflected += QUALITY_WEIGHTS[detail.quality];
+        if (detail.quality !== 'absent') reflectedCount++;
       }
     });
 
     const getErrRate = (type: string): number => {
       const data = errCounts[type];
       if (!data || data.total === 0) return 0;
-      return parseFloat(((data.reflected / data.total) * 100).toFixed(1));
+      return parseFloat(((data.weightedReflected / data.total) * 100).toFixed(1));
     };
 
     const err_factoid = getErrRate('factoid');
@@ -178,10 +214,9 @@ export class EntityReflectionRunner {
     const err_topical = getErrRate('topical_cluster');
     const err_geo = getErrRate('local_geo');
 
-    // 4. Tech & EEAT Audit Heuristics (based on crawler & LLM extractor results)
     const totalEntities = entities.length;
     const schemaEntitiesCount = entities.filter(e => e.surface_type === 'schema_org').length;
-    const highEeatEntitiesCount = entities.filter(e => e.eeat_strength > 75).length;
+    const highEeatEntitiesCount = entities.filter(e => (e.eeat_strength || 0) > 75).length;
 
     const tech_mod_score = totalEntities > 0 
       ? Math.round((schemaEntitiesCount / totalEntities) * 100) 
@@ -202,17 +237,16 @@ export class EntityReflectionRunner {
       err_schema,
       err_topical,
       err_geo,
-      aepi_score: 0, // calculated in aepi-calculator.ts
+      aepi_score: 0, // calculated externally
       tech_mod_score,
       eeat_mod_score,
       tech_audit: { schema_entities: schemaEntitiesCount, total_entities: totalEntities },
       eeat_audit: { high_eeat_entities: highEeatEntitiesCount, total_entities: totalEntities },
       total_entities_checked: totalEntities,
-      total_entities_reflected: reflectedEntityIds.size,
+      total_entities_reflected: reflectedCount,
       measured_at: measuredAt
     };
 
-    // Save to database if connected
     try {
       const supabase = getSupabaseAdminClient();
       const { data, error } = await supabase
@@ -227,12 +261,12 @@ export class EntityReflectionRunner {
         snapshot.id = data.id;
       }
     } catch (_) {
-      // Ignore Supabase fallback if tables not yet migrated
     }
 
     return {
       snapshot,
-      reflectedEntityIds: Array.from(reflectedEntityIds)
+      reflectionDetails,
+      rawResponses: responses.map(r => r.text)
     };
   }
 }

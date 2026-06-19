@@ -10,12 +10,15 @@ import { EntityReflectionRunner } from "../../lib/benchmark/entity-reflection-ru
 import { AepiCalculator } from "../../lib/benchmark/aepi-calculator";
 import { PersonaReverseEngineer } from "../../lib/surface/persona-reverse-engineer";
 import { GapAnalyzer } from "../../lib/benchmark/gap-analyzer";
+import { TemporalTracker, TemporalTrend } from "../../lib/benchmark/temporal-tracker";
 import { QuickSiteAnalyzer, QuickAuditResult } from "../../lib/surface/quick-site-analyzer";
 import {
   SurfaceEntity, ReversedAnswerCard,
   EntityReflectionSnapshot, ObservedParametricPersona,
   PersonaSpec, SurfaceGapAnalysis
 } from "../../lib/schema";
+import { ParametricPersonaSnapshot } from "../../lib/persona/parametric-persona-snapshot";
+import { getSupabaseAdminClient } from "../../lib/supabase";
 
 export interface AuditResult {
   websiteUrl: string;
@@ -24,9 +27,13 @@ export interface AuditResult {
   cards: ReversedAnswerCard[];
   snapshot: EntityReflectionSnapshot | null;
   observedPersona: ObservedParametricPersona | null;
+  parametricSnapshot: ParametricPersonaSnapshot | null;
   personaSpec: PersonaSpec | null;
   gaps: SurfaceGapAnalysis[];
+  trends: TemporalTrend[];
   auditMode: 'estimated' | 'measured' | 'partial';
+  sessionId?: string;
+  industry?: string;
 }
 
 /**
@@ -73,43 +80,122 @@ function detectIndustry(websiteUrl: string, entities: SurfaceEntity[]): string {
 /**
  * Quick Audit: HTML 크롤링만으로 즉시 추정 (AI API 호출 없음, ~5초)
  */
+
+async function updateProgress(sessionId: string, currentStep: number, totalSteps: number, message: string) {
+  try {
+    const db = getSupabaseAdminClient();
+    await db.from('audit_sessions').update({
+      progress: {
+        current_step: currentStep,
+        total_steps: totalSteps,
+        message: message,
+        updated_at: new Date().toISOString()
+      }
+    }).eq('id', sessionId);
+    console.log(`[Audit Session ${sessionId}] Step ${currentStep}/${totalSteps}: ${message}`);
+  } catch (e) {
+    console.error(`Failed to update progress for session ${sessionId}:`, e);
+  }
+}
+
 export async function runQuickSiteAudit(
   workspaceId: string,
   websiteUrl: string,
-  brandName: string
+  brandName: string,
+  industry?: string
 ): Promise<AuditResult> {
   const analyzer = new QuickSiteAnalyzer();
   const result = await analyzer.analyze(workspaceId, websiteUrl, brandName);
 
-  return {
+  const finalResult = {
     websiteUrl: result.websiteUrl,
     brandName: result.brandName,
     entities: result.entities,
     cards: result.cards,
     snapshot: result.snapshot,
     observedPersona: null,
+    parametricSnapshot: null,
     personaSpec: null,
     gaps: result.gaps,
-    auditMode: result.auditMode
+    trends: [],
+    auditMode: result.auditMode,
+    industry
   };
+
+  try {
+    const db = getSupabaseAdminClient();
+    const { data } = await db.from('audit_sessions').insert({
+      workspace_id: workspaceId,
+      brand_name: result.brandName,
+      website_url: result.websiteUrl,
+      industry: industry || 'default',
+      tier: 'free',
+      status: 'completed',
+      result_data: finalResult
+    }).select('id').single();
+    if (data) (finalResult as any).sessionId = data.id;
+  } catch (e) {
+    console.error("Failed to save quick audit session:", e);
+  }
+
+  return finalResult as AuditResult;
 }
 
 /**
  * Full Audit: 10단계 파이프라인, 내결함성 적용.
  * 각 단계 실패 시 Quick Audit 추정값으로 폴백 (0 반환 방지)
  */
-export async function runFullSiteAudit(
+
+export async function startAuditSession(
   workspaceId: string,
   websiteUrl: string,
   brandName: string,
-  competitors: string[] = []
+  competitors: string[] = [],
+  tier: 'free' | 'tier1' | 'tier1.5' | 'tier2' | 'tier3' = 'tier3',
+  industryInput?: string
+): Promise<string> {
+  const db = getSupabaseAdminClient();
+  const { data, error } = await db.from('audit_sessions').insert({
+    workspace_id: workspaceId,
+    brand_name: brandName,
+    website_url: websiteUrl,
+    industry: industryInput || 'default',
+    tier: tier,
+    status: 'running',
+    progress: { current_step: 0, total_steps: 11, message: '진단 대기 중...' }
+  }).select('id').single();
+
+  if (error || !data) {
+    throw new Error('Failed to create audit session: ' + error?.message);
+  }
+
+  const sessionId = data.id;
+
+  // Run in background (fire and forget)
+  runFullSiteAuditBackground(sessionId, workspaceId, websiteUrl, brandName, competitors, tier, industryInput)
+    .catch(err => {
+      console.error(`Background audit ${sessionId} failed:`, err);
+      db.from('audit_sessions').update({ status: 'failed', progress: { message: '진단 실패: ' + err.message } }).eq('id', sessionId);
+    });
+
+  return sessionId;
+}
+
+async function runFullSiteAuditBackground(sessionId: string, 
+  workspaceId: string,
+  websiteUrl: string,
+  brandName: string,
+  competitors: string[] = [],
+  tier: 'free' | 'tier1' | 'tier1.5' | 'tier2' | 'tier3' = 'tier3',
+  industryInput?: string
 ): Promise<AuditResult> {
-  console.log(`[Audit Action] Beginning full site audit for ${brandName} (${websiteUrl})`);
+  console.log(`[Audit Action] Beginning full site audit for ${brandName} (${websiteUrl}), tier: ${tier}`);
 
   // Quick audit as baseline (always available as fallback)
   let quickResult: QuickAuditResult | null = null;
   try {
-    const analyzer = new QuickSiteAnalyzer();
+    await updateProgress(sessionId, 0, 11, '빠른 진단 기준으로 초기 추정 중...');
+  const analyzer = new QuickSiteAnalyzer();
     quickResult = await analyzer.analyze(workspaceId, websiteUrl, brandName);
   } catch (e: any) {
     console.warn(`[Audit Action] Quick audit baseline failed: ${e.message}`);
@@ -124,12 +210,13 @@ export async function runFullSiteAudit(
     let crawledPages: any[] = [];
     try {
       const crawler = new WebsiteCrawler();
+      await updateProgress(sessionId, 1, 11, '웹사이트 구조 크롤링 중...');
       crawledPages = await crawler.crawl(websiteUrl, 10);
       console.log(`[Audit] Step 1 OK: crawled ${crawledPages.length} pages`);
     } catch (e: any) {
       console.warn(`[Audit] Step 1 FAIL (crawl): ${e.message}. Using quick audit entities.`);
       if (quickResult) {
-        return { ...quickResultToAudit(quickResult), auditMode: 'estimated' };
+        return { ...quickResultToAudit(quickResult, industryInput), auditMode: 'estimated' };
       }
       throw e;
     }
@@ -138,12 +225,10 @@ export async function runFullSiteAudit(
     let allEntities: SurfaceEntity[] = [];
     try {
       const extractor = new LlmEntityExtractor();
-      for (const page of crawledPages.slice(0, 5)) { // limit to 5 pages for speed
-        const pageEnts = await extractor.extract(workspaceId, page, websiteUrl);
-        allEntities.push(...pageEnts);
-      }
+      await updateProgress(sessionId, 2, 11, '지식 자산(Entity) 추출 중...');
+      allEntities = await extractor.extractBatch(workspaceId, crawledPages.slice(0, 5), websiteUrl);
       hasLlmEntities = allEntities.length > 0;
-      console.log(`[Audit] Step 2 OK: extracted ${allEntities.length} entities`);
+      console.log(`[Audit] Step 2 OK: extracted ${allEntities.length} entities in batch`);
     } catch (e: any) {
       console.warn(`[Audit] Step 2 FAIL (LLM extract): ${e.message}. Using quick audit entities.`);
       allEntities = quickResult?.entities || [];
@@ -158,6 +243,7 @@ export async function runFullSiteAudit(
     let kg: any = { entities: allEntities, nodes: [], edges: [], concepts: [] };
     try {
       const kgBuilder = new KnowledgeGraphBuilder();
+      await updateProgress(sessionId, 3, 11, '지식 그래프 구축 중...');
       kg = await kgBuilder.build(workspaceId, websiteUrl, allEntities);
       console.log(`[Audit] Step 3 OK: KG with ${kg.entities.length} entities`);
     } catch (e: any) {
@@ -169,6 +255,7 @@ export async function runFullSiteAudit(
     let cards: ReversedAnswerCard[] = quickResult?.cards || [];
     try {
       const reverser = new AnswerCardReverser();
+      await updateProgress(sessionId, 4, 11, 'AI 앤서카드 역설계 중...');
       const reversedResult = await reverser.reverse(workspaceId, websiteUrl, kg);
       cards = reversedResult.cards;
       console.log(`[Audit] Step 4 OK: ${cards.length} answer cards`);
@@ -180,6 +267,7 @@ export async function runFullSiteAudit(
     let customProbes: any[] = [];
     try {
       const probeGen = new ProbeGenerator();
+      await updateProgress(sessionId, 5, 11, '동적 프로빙 시나리오 생성 중...');
       customProbes = await probeGen.generateProbes(cards, brandName, competitors);
       console.log(`[Audit] Step 5 OK: ${customProbes.length} probes`);
     } catch (e: any) {
@@ -188,10 +276,11 @@ export async function runFullSiteAudit(
 
     // ── Step 6: QIS Cross Map (업종 자동 감지) ──
     let mappings: any[] = [];
-    const detectedIndustry = detectIndustry(websiteUrl, kg.entities);
+    const detectedIndustry = industryInput || detectIndustry(websiteUrl, kg.entities);
     try {
       if (detectedIndustry !== 'default') {
         const crossMapper = new QisCrossMapper();
+        await updateProgress(sessionId, 6, 11, 'QIS 기반 업종 교차 매핑 중...');
         mappings = await crossMapper.crossMap(detectedIndustry, customProbes);
         console.log(`[Audit] Step 6 OK: ${mappings.length} mappings (industry: ${detectedIndustry})`);
       } else {
@@ -203,19 +292,22 @@ export async function runFullSiteAudit(
 
     // ── Step 7: Entity Reflection (AI API calls — most likely to fail) ──
     let snapshot: EntityReflectionSnapshot | null = quickResult?.snapshot || null;
-    let reflectedEntityIds: string[] = [];
+    let reflectionDetails: any[] = [];
+    let rawResponses: string[] = [];
     if (customProbes.length > 0) {
       try {
         const refRunner = new EntityReflectionRunner();
+        await updateProgress(sessionId, 7, 11, 'AI 엔진 대상 Entity Reflection 실측 중...');
         const reflectionResult = await refRunner.run(
           workspaceId, websiteUrl, kg.entities,
           customProbes.slice(0, 5), // limit to 5 probes for speed
           [new URL(websiteUrl).host]
         );
         snapshot = reflectionResult.snapshot;
-        reflectedEntityIds = reflectionResult.reflectedEntityIds;
+        reflectionDetails = reflectionResult.reflectionDetails;
+        rawResponses = reflectionResult.rawResponses;
         hasReflection = true;
-        console.log(`[Audit] Step 7 OK: ${reflectedEntityIds.length}/${kg.entities.length} reflected`);
+        console.log(`[Audit] Step 7 OK: Reflection metrics captured`);
       } catch (e: any) {
         console.warn(`[Audit] Step 7 FAIL (reflection): ${e.message}. Using quick estimates.`);
         // Keep quickResult.snapshot as fallback (NOT zeros)
@@ -225,6 +317,7 @@ export async function runFullSiteAudit(
     // ── Step 8: AEPI Score ──
     if (snapshot && hasReflection) {
       try {
+        await updateProgress(sessionId, 8, 11, '종합 AEPI 가시성 지수 산출 중...');
         const aepi = AepiCalculator.calculate(snapshot, detectedIndustry);
         snapshot.aepi_score = aepi;
         console.log(`[Audit] Step 8 OK: AEPI = ${aepi}`);
@@ -233,24 +326,56 @@ export async function runFullSiteAudit(
       }
     }
 
-    // ── Step 9: Persona (optional, graceful skip) ──
+    // ── Step 9: Persona (v2.0 or fallback) ──
     let observedPersona: ObservedParametricPersona | null = null;
+    let parametricSnapshot: ParametricPersonaSnapshot | null = null;
     let personaSpec: PersonaSpec | null = null;
-    // Skip persona reverse engineering for now — it's non-essential
+    try {
+      const personaEngineer = new PersonaReverseEngineer();
+      if (tier === 'tier1' && rawResponses.length > 0) {
+        await updateProgress(sessionId, 9, 11, '브랜드 페르소나 분석 중...');
+        observedPersona = await personaEngineer.analyze(
+          workspaceId, websiteUrl, brandName, rawResponses
+        );
+        console.log(`[Audit] Step 9 OK: v1 Persona extracted`);
+      } else if (tier !== 'tier1') {
+        await updateProgress(sessionId, 9, 11, '파라메트릭 페르소나 N회 반복 측정 중...');
+        parametricSnapshot = await personaEngineer.runFullPersonaAudit(
+          workspaceId, websiteUrl, brandName, detectedIndustry, tier as 'free' | 'tier1.5' | 'tier2' | 'tier3'
+        );
+        console.log(`[Audit] Step 9 OK: v2/v3 Parametric Persona Snapshot generated`);
+      }
+    } catch (e: any) {
+      console.warn(`[Audit] Step 9 FAIL (Persona): ${e.message}`);
+    }
 
     // ── Step 10: Gap Analysis ──
     let gaps: SurfaceGapAnalysis[] = quickResult?.gaps || [];
     try {
       if (mappings.length > 0) {
         const gapAnalyzer = new GapAnalyzer();
+        await updateProgress(sessionId, 10, 11, '최적화 Gap 분석 및 처방전 발급 중...');
         gaps = await gapAnalyzer.analyze(
           workspaceId, websiteUrl, kg.entities,
-          reflectedEntityIds, mappings
+          reflectionDetails, mappings
         );
         console.log(`[Audit] Step 10 OK: ${gaps.length} gaps`);
       }
     } catch (e: any) {
       console.warn(`[Audit] Step 10 FAIL (gaps): ${e.message}. Using quick gaps.`);
+    }
+
+    // ── Step 11: Temporal Trends ──
+    let trends: TemporalTrend[] = [];
+    try {
+      if (snapshot) {
+        const tracker = new TemporalTracker();
+        await updateProgress(sessionId, 11, 11, '시계열 트렌드 기록 중...');
+        trends = await tracker.getTrends(websiteUrl, snapshot);
+        console.log(`[Audit] Step 11 OK: ${trends.length} temporal trends fetched`);
+      }
+    } catch (e: any) {
+      console.warn(`[Audit] Step 11 FAIL (trends): ${e.message}`);
     }
 
     // Determine audit mode
@@ -260,34 +385,50 @@ export async function runFullSiteAudit(
         ? 'partial'
         : 'estimated';
 
-    return {
+    const finalResult = {
       websiteUrl,
       brandName,
       entities: kg.entities,
       cards,
       snapshot,
       observedPersona,
+      parametricSnapshot,
       personaSpec,
       gaps,
-      auditMode
+      trends,
+      auditMode,
+      industry: detectedIndustry
     };
+
+    try {
+      const db = getSupabaseAdminClient();
+      await db.from('audit_sessions').update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        result_data: finalResult
+      }).eq('id', sessionId);
+    } catch (e) {
+      console.error("Failed to save full audit session:", e);
+    }
+
+    return finalResult as AuditResult;
   } catch (e: any) {
     console.error(`[Audit Action] Full audit failed: ${e.message}. Returning quick audit.`);
     if (quickResult) {
-      return quickResultToAudit(quickResult);
+      return quickResultToAudit(quickResult, industryInput);
     }
     // Ultimate fallback
     return {
       websiteUrl, brandName,
       entities: [], cards: [],
-      snapshot: null, observedPersona: null, personaSpec: null,
-      gaps: [], auditMode: 'estimated'
+      snapshot: null, observedPersona: null, parametricSnapshot: null, personaSpec: null,
+      gaps: [], trends: [], auditMode: 'estimated'
     };
   }
 }
 
 /** Convert QuickAuditResult to AuditResult */
-function quickResultToAudit(q: QuickAuditResult): AuditResult {
+function quickResultToAudit(q: QuickAuditResult, industry?: string): AuditResult {
   return {
     websiteUrl: q.websiteUrl,
     brandName: q.brandName,
@@ -295,8 +436,10 @@ function quickResultToAudit(q: QuickAuditResult): AuditResult {
     cards: q.cards,
     snapshot: q.snapshot,
     observedPersona: null,
+    parametricSnapshot: null,
     personaSpec: null,
     gaps: q.gaps,
+    trends: [],
     auditMode: q.auditMode
   };
 }

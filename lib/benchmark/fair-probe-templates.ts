@@ -152,18 +152,64 @@ export const PLACE_COMPETITIVE_TEMPLATES: FairProbeTemplate[] = [
 ];
 
 
+
+export const KPOP_BRAND_DEFENSE_TEMPLATES: FairProbeTemplate[] = [
+  // KO — 팬이 실제로 AI에 묻는 그룹 탐색 질문
+  { template_text: '{brand} 멤버 이름과 포지션(메인보컬, 래퍼, 댄서 등) 알려줘', intent_context: 'member_profile', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', '멤버'], should_include_templates: ['포지션', '이름'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: '{brand}의 대표곡과 히트곡 목록을 알려줘. 어떤 장르를 주로 하나?', intent_context: 'discography', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', '대표곡'], should_include_templates: ['히트곡', '장르'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: '{brand} 팬덤 이름이 뭐야? 팬 문화의 특징은?', intent_context: 'fandom', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', '팬덤'], should_include_templates: ['팬 문화', '이름'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: '{brand}의 최근 컴백곡과 활동, 수상 이력에 대해 알려줘', intent_context: 'recent_activities', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', '컴백'], should_include_templates: ['활동', '수상'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: '{brand} 콘서트나 팬미팅 일정이 있어? 언제 어디서 하는지 알려줘', intent_context: 'concert_schedule', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', '콘서트'], should_include_templates: ['일정', '팬미팅'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: '다른 K-pop 그룹과 비교했을 때 {brand}만의 독특한 차별점은?', intent_context: 'differentiation', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '차별점'], should_include_templates: ['독특한'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: '{brand} 공식 SNS 계정(인스타, 틱톡, 유튜브) 알려줘', intent_context: 'social_media', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', 'SNS'], should_include_templates: ['인스타', '유튜브'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: '{brand}의 팬들 사이에서 평판은 어때? 이 그룹의 강점과 매력은?', intent_context: 'reputation', risk_level: 'medium', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', '팬', '평판'], should_include_templates: ['강점', '매력'], must_not_do: [], layer: 'L7_brand' },
+
+  // EN — Fan questions about the group
+  { template_text: 'Tell me about {brand} members and their positions (main vocal, rapper, dancer, etc.)', intent_context: 'member_profile_en', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', 'members'], should_include_templates: ['positions'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: 'What are the representative and hit songs of {brand}? What genre do they focus on?', intent_context: 'discography_en', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', 'songs'], should_include_templates: ['hit', 'genre'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: 'What is {brand}\'s fandom name? What is their fan culture like?', intent_context: 'fandom_en', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', 'fandom'], should_include_templates: ['fan culture', 'name'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: 'Tell me about the recent comebacks, activities, and awards of {brand}', intent_context: 'recent_activities_en', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', 'comebacks'], should_include_templates: ['activities', 'awards'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: 'Does {brand} have any upcoming concerts or fan meetings? Where and when?', intent_context: 'concert_schedule_en', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', 'concerts'], should_include_templates: ['fan meetings', 'schedule'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: 'Compared to other K-pop groups, what is unique about {brand}?', intent_context: 'differentiation_en', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', 'unique'], should_include_templates: ['compared'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: 'What are {brand}\'s official social media accounts (Instagram, TikTok, YouTube)?', intent_context: 'social_media_en', risk_level: 'low', decision_stage: 'decision', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', 'social media'], should_include_templates: ['Instagram', 'YouTube'], must_not_do: [], layer: 'L7_brand' },
+  { template_text: 'What is the reputation of {brand} among fans? What are their strengths and charm?', intent_context: 'reputation_en', risk_level: 'medium', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, must_include_templates: ['{brand}', 'reputation', 'fans'], should_include_templates: ['strengths', 'charm'], must_not_do: [], layer: 'L7_brand' },
+];
+
+export const KPOP_COMPETITIVE_TEMPLATES: FairProbeTemplate[] = [
+  // KO — 팬이 실제로 묻는 그룹 비교 질문
+  { template_text: '{brand}와 {competitor}를 비교해줘. 음악 스타일과 매력 포인트의 차이는?', intent_context: 'comparison', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '{competitor}', '차이'], should_include_templates: ['스타일', '비교'], must_not_do: [], layer: 'L2_competitive' },
+  { template_text: 'K-pop 입문자에게 {brand}와 {competitor} 중 먼저 추천할 그룹은?', intent_context: 'recommendation', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '{competitor}', '추천'], should_include_templates: ['입문자'], must_not_do: [], layer: 'L2_competitive' },
+  { template_text: '무대 퍼포먼스 면에서 {brand}와 {competitor} 중 더 뛰어난 그룹은?', intent_context: 'performance_comparison', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '{competitor}', '퍼포먼스'], should_include_templates: ['무대'], must_not_do: [], layer: 'L2_competitive' },
+  { template_text: '{brand}와 {competitor} 중 보컬 실력이 더 좋은 그룹은? 메인보컬 비교해줘', intent_context: 'vocal_comparison', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '{competitor}', '보컬'], should_include_templates: ['메인보컬', '실력'], must_not_do: [], layer: 'L2_competitive' },
+  
+  // EN — Fan group comparison queries
+  { template_text: 'Compare {brand} and {competitor}. What are the differences in their music styles?', intent_context: 'comparison_en', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '{competitor}', 'differences'], should_include_templates: ['music styles'], must_not_do: [], layer: 'L2_competitive' },
+  { template_text: 'Which group would you recommend first to a K-pop beginner: {brand} or {competitor}?', intent_context: 'recommendation_en', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '{competitor}', 'recommend'], should_include_templates: ['beginner'], must_not_do: [], layer: 'L2_competitive' },
+  { template_text: 'In terms of stage performance, which group is better between {brand} and {competitor}?', intent_context: 'performance_comparison_en', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '{competitor}', 'performance'], should_include_templates: ['stage'], must_not_do: [], layer: 'L2_competitive' },
+  { template_text: 'Between {brand} and {competitor}, which group has better vocals? Compare their main vocalists', intent_context: 'vocal_comparison_en', risk_level: 'medium', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, must_include_templates: ['{brand}', '{competitor}', 'vocals'], should_include_templates: ['main vocalists'], must_not_do: [], layer: 'L2_competitive' },
+];
+
 export function fairProbeSetBuilder(
   genericQuestions: any[],
   genericCount: number,
   brands: { name: string; keywords: string[], comparative_pairs?: string[], slug?: string }[],
   k: number = 2,
   isPlaceBrand: boolean = false,
-  lang: 'ko' | 'en' = 'ko'
+  lang: 'ko' | 'en' = 'ko',
+  isKpop: boolean = false
 ): any[] {
   const selected: any[] = [];
   
-  const defenseTemplates = isPlaceBrand ? PLACE_BRAND_DEFENSE_TEMPLATES.concat(PLACE_PRACTICAL_TEMPLATES).filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN')) : BRAND_DEFENSE_TEMPLATES;
-  const competitiveTemplates = isPlaceBrand ? PLACE_COMPETITIVE_TEMPLATES.filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN')) : COMPETITIVE_TEMPLATES;
+  const defenseTemplates = isKpop 
+    ? KPOP_BRAND_DEFENSE_TEMPLATES.filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN'))
+    : isPlaceBrand 
+      ? PLACE_BRAND_DEFENSE_TEMPLATES.concat(PLACE_PRACTICAL_TEMPLATES).filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN')) 
+      : BRAND_DEFENSE_TEMPLATES;
+  const competitiveTemplates = isKpop
+    ? KPOP_COMPETITIVE_TEMPLATES.filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN'))
+    : isPlaceBrand 
+      ? PLACE_COMPETITIVE_TEMPLATES.filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN')) 
+      : COMPETITIVE_TEMPLATES;
 
   // 1. L7_brand & L4_practical
   for (const brand of brands) {

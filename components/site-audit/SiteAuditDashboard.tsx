@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   ShieldAlert, RefreshCw, BarChart3,
   FileCode2, UserCheck, CheckCircle2, Globe, Clock,
-  Pencil, X, Search
+  Pencil, X, Search, Printer
 } from "lucide-react";
 import {
   SurfaceEntity, ReversedAnswerCard,
@@ -20,6 +20,14 @@ import PrescriptionList from "./PrescriptionList";
 import SurfaceMapPanel from "./SurfaceMapPanel";
 import AnswerCardList from "./AnswerCardList";
 import PersonaDeltaPanel from "./PersonaDeltaPanel";
+import ParametricPersonaPanel from "./ParametricPersonaPanel";
+import PersonaFidelityPanel from "./PersonaFidelityPanel";
+import TemporalTrendChart from "./TemporalTrendChart";
+import { TemporalTrend } from "../../lib/benchmark/temporal-tracker";
+import { ParametricPersonaSnapshot } from "../../lib/persona/parametric-persona-snapshot";
+import LockedPanel from "./LockedPanel";
+import EmailCaptureForm from "./EmailCaptureForm";
+import { Lock } from "lucide-react";
 
 interface SiteAuditDashboardProps {
   brandName: string;
@@ -28,9 +36,12 @@ interface SiteAuditDashboardProps {
   cards: ReversedAnswerCard[];
   snapshot: EntityReflectionSnapshot | null;
   observedPersona: ObservedParametricPersona | null;
+  parametricSnapshot?: ParametricPersonaSnapshot | null;
   personaSpec: PersonaSpec | null;
   gaps: SurfaceGapAnalysis[];
+  trends?: TemporalTrend[];
   auditMode?: 'estimated' | 'measured' | 'partial';
+  tier?: 'free' | 'tier1' | 'tier1.5' | 'tier2' | 'tier3';
   onTriggerReRun?: () => Promise<any>;
 }
 
@@ -41,9 +52,12 @@ export default function SiteAuditDashboard({
   cards,
   snapshot,
   observedPersona,
+  parametricSnapshot,
   personaSpec,
   gaps,
+  trends = [],
   auditMode: initialAuditMode = 'estimated',
+  tier = 'free',
   onTriggerReRun
 }: SiteAuditDashboardProps) {
   const router = useRouter();
@@ -74,7 +88,9 @@ export default function SiteAuditDashboard({
   const [localCards, setLocalCards] = useState<ReversedAnswerCard[]>(cards);
   const [localSnapshot, setLocalSnapshot] = useState<EntityReflectionSnapshot | null>(snapshot);
   const [localObservedPersona, setLocalObservedPersona] = useState<ObservedParametricPersona | null>(observedPersona);
+  const [localParametricSnapshot, setLocalParametricSnapshot] = useState<ParametricPersonaSnapshot | null>(parametricSnapshot || null);
   const [localGaps, setLocalGaps] = useState<SurfaceGapAnalysis[]>(gaps);
+  const [localTrends, setLocalTrends] = useState<TemporalTrend[]>(trends);
 
   const handleReRun = async () => {
     if (!onTriggerReRun) return;
@@ -85,8 +101,10 @@ export default function SiteAuditDashboard({
         if (res.entities) setLocalEntities(res.entities);
         if (res.cards) setLocalCards(res.cards);
         if (res.snapshot) setLocalSnapshot(res.snapshot);
-        if (res.observedPersona) setLocalObservedPersona(res.observedPersona);
+        if (res.observedPersona !== undefined) setLocalObservedPersona(res.observedPersona);
+        if (res.parametricSnapshot !== undefined) setLocalParametricSnapshot(res.parametricSnapshot);
         if (res.gaps) setLocalGaps(res.gaps);
+        if (res.trends) setLocalTrends(res.trends);
         if (res.auditMode) setCurrentAuditMode(res.auditMode);
       }
     } catch (err) {
@@ -150,6 +168,15 @@ export default function SiteAuditDashboard({
                 <Globe className="h-4 w-4 text-slate-500 group-hover:text-indigo-400" />
                 <span className="text-indigo-400 font-bold">{websiteUrl}</span>
                 <Pencil className="h-3 w-3 text-slate-600 group-hover:text-indigo-400" />
+              </button>
+            )}
+                        {tier !== 'free' && (
+              <button
+                onClick={() => window.print()}
+                className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all cursor-pointer print-hidden"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                PDF 다운로드
               </button>
             )}
             {onTriggerReRun && !urlEditMode && (
@@ -229,7 +256,7 @@ export default function SiteAuditDashboard({
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            <ShieldAlert className="h-3.5 w-3.5" />
+            {tier === 'free' ? <Lock className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
             최적화 처방전 목록 ({localGaps.filter(g => g.quadrant !== 'green' && g.prescription_type).length})
           </button>
 
@@ -241,7 +268,7 @@ export default function SiteAuditDashboard({
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            <FileCode2 className="h-3.5 w-3.5" />
+            {tier === 'free' ? <Lock className="h-3.5 w-3.5" /> : <FileCode2 className="h-3.5 w-3.5" />}
             추출 지식 자산 분석
           </button>
 
@@ -253,9 +280,23 @@ export default function SiteAuditDashboard({
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            <UserCheck className="h-3.5 w-3.5" />
+            {tier === 'free' ? <Lock className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
             AI 브랜드 페르소나 매칭
           </button>
+
+          {(localParametricSnapshot?.tier === 'tier3' || tier === 'free') && (
+            <button
+              onClick={() => setActiveTab("simulation")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-lg transition-all ${
+                activeTab === "simulation"
+                  ? "bg-indigo-600 text-white shadow-lg"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {tier === 'free' ? <Lock className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
+              페르소나 8D 시뮬레이션
+            </button>
+          )}
         </div>
 
         {/* Tab contents */}
@@ -280,27 +321,98 @@ export default function SiteAuditDashboard({
                   <GapQuadrantMatrix gaps={localGaps} />
                 </div>
               </div>
+              
+              {/* Temporal Trends (S-09) */}
+              <div className="mt-8">
+                <TemporalTrendChart trends={localTrends} />
+              </div>
             </>
           )}
 
-          {activeTab === "prescriptions" && (
+          {activeTab === "prescriptions" && tier === 'free' ? (
+            <LockedPanel 
+              title="최적화 처방전 분석" 
+              description="발견된 최적화 기회에 대한 구체적인 원인과 콘텐츠 해결책(처방전)을 확인하세요."
+              requiredTierName="Lite"
+              priceDelta="₩89,000"
+              currentUrl={websiteUrl}
+              currentBrand={brandName}
+              targetTierId="tier1"
+            >
+              <div className="opacity-50 pointer-events-none"><PrescriptionList gaps={localGaps} /></div>
+            </LockedPanel>
+          ) : activeTab === "prescriptions" && (
             <PrescriptionList gaps={localGaps} />
           )}
 
-          {activeTab === "entities" && (
+          {activeTab === "entities" && tier === 'free' ? (
+            <LockedPanel 
+              title="추출 지식 자산 전체 분석" 
+              description="크롤링된 모든 웹사이트 데이터가 AI 지식 그래프로 어떻게 구성되었는지 상세히 확인합니다."
+              requiredTierName="Lite"
+              priceDelta="₩89,000"
+              currentUrl={websiteUrl}
+              currentBrand={brandName}
+              targetTierId="tier1"
+            >
+              <div className="opacity-50 pointer-events-none space-y-8">
+                <SurfaceMapPanel entities={localEntities} />
+                <AnswerCardList cards={localCards} />
+              </div>
+            </LockedPanel>
+          ) : activeTab === "entities" && (
             <div className="space-y-8">
               <SurfaceMapPanel entities={localEntities} />
               <AnswerCardList cards={localCards} />
             </div>
           )}
 
-          {activeTab === "persona" && (
-            <PersonaDeltaPanel
-              observedPersona={localObservedPersona}
-              personaSpec={personaSpec}
-            />
+          {activeTab === "persona" && tier === 'free' ? (
+            <LockedPanel 
+              title="AI 브랜드 페르소나 역설계" 
+              description="AI가 브랜드를 어떤 인격으로 인식하는지 B2B/B2C 이중 모델로 144회 반복 측정하여 정밀 해부합니다."
+              requiredTierName="Pro"
+              priceDelta="₩249,000"
+              currentUrl={websiteUrl}
+              currentBrand={brandName}
+              targetTierId="tier1.5"
+            >
+              <div className="opacity-50 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl"></div>
+            </LockedPanel>
+          ) : activeTab === "persona" && (
+            localParametricSnapshot ? (
+              <ParametricPersonaPanel snapshot={localParametricSnapshot} />
+            ) : (
+              <PersonaDeltaPanel
+                observedPersona={localObservedPersona}
+                personaSpec={personaSpec}
+              />
+            )
+          )}
+
+          {activeTab === "simulation" && tier === 'free' ? (
+            <LockedPanel 
+              title="페르소나 8D 시뮬레이션 & Floor Risk" 
+              description="적대적 공격 시나리오(Floor Risk)를 포함하여 AI가 브랜드 페르소나를 파괴하지 않고 방어하는지 8차원으로 시뮬레이션합니다."
+              requiredTierName="Enterprise"
+              priceDelta="₩590,000"
+              currentUrl={websiteUrl}
+              currentBrand={brandName}
+              targetTierId="tier3"
+            >
+              <div className="opacity-50 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl"></div>
+            </LockedPanel>
+          ) : activeTab === "simulation" && localParametricSnapshot && (
+            <PersonaFidelityPanel snapshot={localParametricSnapshot} />
           )}
         </div>
+      
+        {/* Email Capture (Only for Free tier) */}
+        {tier === 'free' && (
+          <div className="mt-12">
+            <EmailCaptureForm />
+          </div>
+        )}
       </main>
 
 

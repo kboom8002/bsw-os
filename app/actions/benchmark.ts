@@ -14,6 +14,35 @@ import { OpportunityAnalyzer, type BrandOpportunityReport } from '../../lib/benc
 import { BENCHMARK_DOMAINS, type DomainSlug, type DomainConfig } from '../../lib/benchmark/domain-config';
 import { INDUSTRY_PANELS_DATA } from '../../db/seed/industry-panels/questions-data';
 
+export async function getBenchmarkSessionStatus(sessionId: string) {
+  const supabase = getSupabaseAdminClient();
+  const { data } = await supabase.from('benchmark_sessions').select('*').eq('session_id', sessionId).single();
+  return data;
+}
+
+export async function pauseBenchmarkSession(sessionId: string) {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.from('benchmark_sessions').update({ status: 'paused' }).eq('session_id', sessionId);
+  return data;
+}
+
+export async function resumeBenchmarkSession(sessionId: string) {
+  const supabase = getSupabaseAdminClient();
+  const { data: session } = await supabase.from('benchmark_sessions').select('*').eq('session_id', sessionId).single();
+  if (!session || session.status !== 'paused') return;
+  
+  await supabase.from('benchmark_sessions').update({ status: 'running' }).eq('session_id', sessionId);
+  
+  const domainConfig = BENCHMARK_DOMAINS[session.domain_slug as DomainSlug];
+  const industryType = domainConfig.industryType as keyof typeof INDUSTRY_PANELS_DATA;
+  const panelData = INDUSTRY_PANELS_DATA[industryType];
+  
+  const runner = new LightweightMetricRunner(['chatgpt_search', 'gemini_grounding']);
+  // resume
+  const result = await runner.resume(session.session_id, session.saved_state, domainConfig, panelData.questions, session.workspace_id);
+  return result;
+}
+
 const TABLE = 'industry_benchmark_snapshots';
 
 // ─── 타입 ──────────────────────────────────────────────────────
@@ -58,8 +87,9 @@ export async function runLightBenchmark(
   domainSlug: DomainSlug,
   workspaceId?: string,
   engines: string[] = ['chatgpt_search', 'gemini_grounding'],
-  targetBrandSlug?: string
-): Promise<{ success: boolean; message: string; results?: LightweightBrandResult[]; opportunities?: BrandOpportunityReport }> {
+  targetBrandSlug?: string,
+  background: boolean = false
+): Promise<{ success: boolean; message: string; sessionId?: string; results?: LightweightBrandResult[]; opportunities?: BrandOpportunityReport }> {
   try {
     const supabase = getSupabaseAdminClient();
     let actualWorkspaceId = workspaceId;
@@ -83,6 +113,13 @@ export async function runLightBenchmark(
     }
 
     const runner = new LightweightMetricRunner(engines);
+    
+    if (background) {
+      // Return immediately with sessionId, runner will execute in background
+      const sessionId = await runner.startBackground(actualWorkspaceId, domainSlug, domainConfig, panelData.questions, 'daily_light', targetBrandSlug);
+      return { success: true, message: 'Background session started', sessionId };
+    }
+    
     const result = await runner.run(domainConfig, panelData.questions, 'daily_light');
 
     // Supabase에 저장

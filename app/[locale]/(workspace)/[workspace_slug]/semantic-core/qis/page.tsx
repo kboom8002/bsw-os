@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslation } from "@/lib/i18n/context";
 import { createQisScene } from "@/app/actions/semantic";
 import { runQisGenAgent } from "@/lib/ai/semantic_agents";
 import { 
@@ -37,6 +38,8 @@ interface CanonicalQuestion {
 export default function QisScenesPage() {
   const params = useParams();
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
+  const locale = (params?.locale as string) || "ko";
+  const { t } = useTranslation();
   const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
 
   const [canonicals] = useState<CanonicalQuestion[]>([
@@ -191,14 +194,14 @@ export default function QisScenesPage() {
       <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div className="flex items-center gap-4">
           <Link 
-            href={`/${workspaceSlug}/semantic-core`}
+            href={`/${locale}/${workspaceSlug}/semantic-core`}
             className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <div className="text-xs text-cyan-400 font-mono">Semantic Core Studio</div>
-            <h1 className="text-2xl font-extrabold text-white">Query-Intent-Scenario (QIS) Scenes</h1>
+            <div className="text-xs text-cyan-400 font-mono">{t('semantic_core.studio_title')}</div>
+            <h1 className="text-2xl font-extrabold text-white">{t('semantic_core.qis_page_title')}</h1>
           </div>
         </div>
         <button

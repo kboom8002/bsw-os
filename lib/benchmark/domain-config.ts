@@ -13,6 +13,11 @@ export interface BrandConfig {
   keywords: string[];     // AAS 측정용 브랜드 키워드 (소문자)
   color: string;          // 대시보드 브랜드 컬러
   comparative_pairs?: string[]; // 전략적 고정 비교 대상 (slug)
+  
+  /** 브랜드가 제공하는 제품/서비스 카테고리 (GAP 정합성 필터에 사용) */
+  product_categories?: string[];
+  /** 브랜드 아이덴티티/포지셔닝 요약 (LLM 정합성 판단에 사용) */
+  brand_identity?: string;
 }
 
 export interface DomainConfig {
@@ -22,10 +27,68 @@ export interface DomainConfig {
   description: string;
   brands: BrandConfig[];
   sampleQuestionsForLight: number; // Daily 경량 측정 시 샘플링 질문 수
-  sampleQuestionsForFull: number;  // Weekly 전체 측정 시 질문 수
+  sampleQuestionsForFull: number;
+  repetitionCount?: number;  // Weekly 전체 측정 시 질문 수
   industryType: string;            // INDUSTRY_PANELS_DATA 키
   deep_dive_enabled?: boolean;     // Client Deep Dive 지원 여부
 }
+
+
+const KPOP_BRANDS = [
+  // ── HYBE ──
+  { slug: 'newjeans', name: 'NewJeans', name_en: 'NewJeans', domains: ['newjeans.kr', 'weverse.io/newjeans'], keywords: ['뉴진스', 'newjeans'], color: '#6366f1', comparative_pairs: ['illit', 'le-sserafim'] },
+  { slug: 'le-sserafim', name: 'LE SSERAFIM', name_en: 'LE SSERAFIM', domains: ['lesserafim.com', 'weverse.io/lesserafim'], keywords: ['르세라핌', 'lesserafim'], color: '#8b5cf6', comparative_pairs: ['newjeans', 'ive'] },
+  { slug: 'enhypen', name: 'ENHYPEN', name_en: 'ENHYPEN', domains: ['enhypen-official.com', 'weverse.io/enhypen'], keywords: ['엔하이픈', 'enhypen'], color: '#a855f7', comparative_pairs: ['txt', 'riize'] },
+  { slug: 'boynextdoor', name: 'BOYNEXTDOOR', name_en: 'BOYNEXTDOOR', domains: ['boynextdoor.today', 'weverse.io/boynextdoor'], keywords: ['보이넥스트도어', 'boynextdoor', '보넥도'], color: '#c084fc', comparative_pairs: ['riize', 'zerobaseone'] },
+  { slug: 'txt', name: 'TOMORROW X TOGETHER', name_en: 'TXT', domains: ['txt-official.com', 'weverse.io/txt'], keywords: ['투모로우바이투게더', 'txt', '투바투'], color: '#3b82f6', comparative_pairs: ['enhypen', 'stray-kids'] },
+  { slug: 'illit', name: 'ILLIT', name_en: 'ILLIT', domains: ['illit.com', 'weverse.io/illit'], keywords: ['아일릿', 'illit'], color: '#10b981', comparative_pairs: ['newjeans', 'babymonster'] },
+  { slug: 'tws', name: 'TWS', name_en: 'TWS', domains: ['pledis.co.kr/tws', 'weverse.io/tws'], keywords: ['투어스', 'tws'], color: '#06b6d4', comparative_pairs: ['boynextdoor', 'riize'] },
+  // ── SM ──
+  { slug: 'riize', name: 'RIIZE', name_en: 'RIIZE', domains: ['riize.smtown.com'], keywords: ['라이즈', 'riize'], color: '#ef4444', comparative_pairs: ['enhypen', 'boynextdoor'] },
+  { slug: 'aespa', name: 'aespa', name_en: 'aespa', domains: ['aespa.smtown.com'], keywords: ['에스파', 'aespa'], color: '#f43f5e', comparative_pairs: ['ive', 'le-sserafim'] },
+  // ── JYP ──
+  { slug: 'nmixx', name: 'NMIXX', name_en: 'NMIXX', domains: ['nmixx.jype.com'], keywords: ['엔믹스', 'nmixx'], color: '#f97316', comparative_pairs: ['ive', 'illit'] },
+  { slug: 'stray-kids', name: 'Stray Kids', name_en: 'Stray Kids', domains: ['straykids.jype.com'], keywords: ['스트레이키즈', 'stray kids', '스키즈'], color: '#fb923c', comparative_pairs: ['ateez', 'txt'] },
+  { slug: 'itzy', name: 'ITZY', name_en: 'ITZY', domains: ['itzy.jype.com'], keywords: ['있지', 'itzy'], color: '#f59e0b', comparative_pairs: ['aespa', 'le-sserafim'] },
+  // ── YG ──
+  { slug: 'babymonster', name: 'BABYMONSTER', name_en: 'BABYMONSTER', domains: ['babymonster.ygfamily.com'], keywords: ['베이비몬스터', 'babymonster', '베비몬'], color: '#eab308', comparative_pairs: ['illit', 'newjeans'] },
+  { slug: 'treasure', name: 'TREASURE', name_en: 'TREASURE', domains: ['treasure.ygfamily.com'], keywords: ['트레저', 'treasure'], color: '#facc15', comparative_pairs: ['riize', 'boynextdoor'] },
+  // ── Others ──
+  { slug: 'ive', name: 'IVE', name_en: 'IVE', domains: ['ive-official.com', 'ivestarship.com'], keywords: ['아이브', 'ive'], color: '#22c55e', comparative_pairs: ['newjeans', 'aespa'] },
+  { slug: 'zerobaseone', name: 'ZEROBASEONE', name_en: 'ZEROBASEONE', domains: ['zerobaseone.com', 'weverse.io/zerobaseone'], keywords: ['제로베이스원', 'zerobaseone', 'zb1'], color: '#0ea5e9', comparative_pairs: ['boynextdoor', 'riize'] },
+  { slug: 'ateez', name: 'ATEEZ', name_en: 'ATEEZ', domains: ['ateez-official.com'], keywords: ['에이티즈', 'ateez'], color: '#1d4ed8', comparative_pairs: ['stray-kids', 'treasure'] },
+  { slug: 'g-idle', name: '(G)I-DLE', name_en: '(G)I-DLE', domains: ['cubeent.co.kr/gidle'], keywords: ['아이들', '여자아이들', 'g i-dle', 'gidle'], color: '#db2777', comparative_pairs: ['le-sserafim', 'ive'] },
+  { slug: 'kiss-of-life', name: 'KISS OF LIFE', name_en: 'KISS OF LIFE', domains: ['kissoflife-official.com'], keywords: ['키스오브라이프', 'kiss of life', '키오프'], color: '#be185d', comparative_pairs: ['le-sserafim', 'babymonster'] },
+  { slug: 'stayc', name: 'STAYC', name_en: 'STAYC', domains: ['highup-ent.com/stayc'], keywords: ['스테이씨', 'stayc'], color: '#ec4899', comparative_pairs: ['ive', 'nmixx'] }
+];
+
+const SEOUL_DISTRICTS_BRANDS = [
+  { slug: 'gangnam', name: '강남구', name_en: 'Gangnam-gu', domains: ['gangnam.go.kr', 'visitseoul.net/gangnam'], keywords: ['강남구', 'gangnam'], color: '#ef4444', comparative_pairs: ['seocho', 'songpa'] },
+  { slug: 'gangdong', name: '강동구', name_en: 'Gangdong-gu', domains: ['gangdong.go.kr', 'visitseoul.net/gangdong'], keywords: ['강동구', 'gangdong'], color: '#f97316', comparative_pairs: ['songpa', 'gwangjin'] },
+  { slug: 'gangbuk', name: '강북구', name_en: 'Gangbuk-gu', domains: ['gangbuk.go.kr', 'visitseoul.net/gangbuk'], keywords: ['강북구', 'gangbuk'], color: '#f59e0b', comparative_pairs: ['dobong', 'nowon'] },
+  { slug: 'gangseo', name: '강서구', name_en: 'Gangseo-gu', domains: ['gangseo.seoul.kr', 'visitseoul.net/gangseo'], keywords: ['강서구', 'gangseo'], color: '#eab308', comparative_pairs: ['yangcheon', 'yeongdeungpo'] },
+  { slug: 'gwanak', name: '관악구', name_en: 'Gwanak-gu', domains: ['gwanak.go.kr', 'visitseoul.net/gwanak'], keywords: ['관악구', 'gwanak'], color: '#84cc16', comparative_pairs: ['dongjak', 'geumcheon'] },
+  { slug: 'gwangjin', name: '광진구', name_en: 'Gwangjin-gu', domains: ['gwangjin.go.kr', 'visitseoul.net/gwangjin'], keywords: ['광진구', 'gwangjin'], color: '#22c55e', comparative_pairs: ['seongdong', 'gangdong'] },
+  { slug: 'guro', name: '구로구', name_en: 'Guro-gu', domains: ['guro.go.kr', 'visitseoul.net/guro'], keywords: ['구로구', 'guro'], color: '#10b981', comparative_pairs: ['geumcheon', 'yeongdeungpo'] },
+  { slug: 'geumcheon', name: '금천구', name_en: 'Geumcheon-gu', domains: ['geumcheon.go.kr', 'visitseoul.net/geumcheon'], keywords: ['금천구', 'geumcheon'], color: '#14b8a6', comparative_pairs: ['guro', 'gwanak'] },
+  { slug: 'nowon', name: '노원구', name_en: 'Nowon-gu', domains: ['nowon.kr', 'visitseoul.net/nowon'], keywords: ['노원구', 'nowon'], color: '#06b6d4', comparative_pairs: ['dobong', 'jungnang'] },
+  { slug: 'dobong', name: '도봉구', name_en: 'Dobong-gu', domains: ['dobong.go.kr', 'visitseoul.net/dobong'], keywords: ['도봉구', 'dobong'], color: '#0ea5e9', comparative_pairs: ['gangbuk', 'nowon'] },
+  { slug: 'dongdaemun', name: '동대문구', name_en: 'Dongdaemun-gu', domains: ['ddm.go.kr', 'visitseoul.net/dongdaemun'], keywords: ['동대문구', 'dongdaemun'], color: '#3b82f6', comparative_pairs: ['seongdong', 'jungnang'] },
+  { slug: 'dongjak', name: '동작구', name_en: 'Dongjak-gu', domains: ['dongjak.go.kr', 'visitseoul.net/dongjak'], keywords: ['동작구', 'dongjak'], color: '#6366f1', comparative_pairs: ['gwanak', 'yeongdeungpo'] },
+  { slug: 'mapo', name: '마포구', name_en: 'Mapo-gu', domains: ['mapo.go.kr', 'visitseoul.net/mapo'], keywords: ['마포구', 'mapo'], color: '#8b5cf6', comparative_pairs: ['seodaemun', 'yongsan'] },
+  { slug: 'seodaemun', name: '서대문구', name_en: 'Seodaemun-gu', domains: ['sdm.go.kr', 'visitseoul.net/seodaemun'], keywords: ['서대문구', 'seodaemun'], color: '#a855f7', comparative_pairs: ['mapo', 'eunpyeong'] },
+  { slug: 'seocho', name: '서초구', name_en: 'Seocho-gu', domains: ['seocho.go.kr', 'visitseoul.net/seocho'], keywords: ['서초구', 'seocho'], color: '#d946ef', comparative_pairs: ['gangnam', 'dongjak'] },
+  { slug: 'seongdong', name: '성동구', name_en: 'Seongdong-gu', domains: ['sd.go.kr', 'visitseoul.net/seongdong'], keywords: ['성동구', 'seongdong'], color: '#ec4899', comparative_pairs: ['mapo', 'gwangjin'] },
+  { slug: 'seongbuk', name: '성북구', name_en: 'Seongbuk-gu', domains: ['sb.go.kr', 'visitseoul.net/seongbuk'], keywords: ['성북구', 'seongbuk'], color: '#f43f5e', comparative_pairs: ['jongno', 'gangbuk'] },
+  { slug: 'songpa', name: '송파구', name_en: 'Songpa-gu', domains: ['songpa.go.kr', 'visitseoul.net/songpa'], keywords: ['송파구', 'songpa'], color: '#fb7185', comparative_pairs: ['gangnam', 'gangdong'] },
+  { slug: 'yangcheon', name: '양천구', name_en: 'Yangcheon-gu', domains: ['yangcheon.go.kr', 'visitseoul.net/yangcheon'], keywords: ['양천구', 'yangcheon'], color: '#fca5a5', comparative_pairs: ['gangseo', 'yeongdeungpo'] },
+  { slug: 'yeongdeungpo', name: '영등포구', name_en: 'Yeongdeungpo-gu', domains: ['ydp.go.kr', 'visitseoul.net/yeongdeungpo'], keywords: ['영등포구', 'yeongdeungpo'], color: '#fdba74', comparative_pairs: ['mapo', 'dongjak'] },
+  { slug: 'yongsan', name: '용산구', name_en: 'Yongsan-gu', domains: ['yongsan.go.kr', 'visitseoul.net/yongsan'], keywords: ['용산구', 'yongsan'], color: '#fcd34d', comparative_pairs: ['junggu', 'mapo'] },
+  { slug: 'eunpyeong', name: '은평구', name_en: 'Eunpyeong-gu', domains: ['ep.go.kr', 'visitseoul.net/eunpyeong'], keywords: ['은평구', 'eunpyeong'], color: '#fde047', comparative_pairs: ['seodaemun', 'mapo'] },
+  { slug: 'jongno', name: '종로구', name_en: 'Jongno-gu', domains: ['jongno.go.kr', 'visitseoul.net/jongno'], keywords: ['종로구', 'jongno'], color: '#bef264', comparative_pairs: ['junggu', 'seongbuk'] },
+  { slug: 'junggu', name: '중구', name_en: 'Jung-gu', domains: ['junggu.seoul.kr', 'visitseoul.net/junggu'], keywords: ['중구', '중구청', 'junggu', 'jung-gu'], color: '#86efac', comparative_pairs: ['jongno', 'yongsan'] },
+  { slug: 'jungnang', name: '중랑구', name_en: 'Jungnang-gu', domains: ['jungnang.go.kr', 'visitseoul.net/jungnang'], keywords: ['중랑구', 'jungnang'], color: '#6ee7b7', comparative_pairs: ['dongdaemun', 'nowon'] },
+];
 
 export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
   skincare: {
@@ -45,6 +108,8 @@ export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
         domains: ['droanswer.com'],
         keywords: ['닥터오', 'dr.o', 'dro', 'droanswer', '더마리셋'],
         color: '#6366f1',
+        product_categories: ['세라마이드 크림', '더마 크림', '보습 크림', '민감성 피부 크림', '피부장벽 강화 크림'],
+        brand_identity: '피부과 전문의가 개발한 더마코스메틱 브랜드. 주력 제품은 세라마이드 기반 더마리셋 크림. 민감성·건조 피부 장벽 강화에 특화. 클렌저, 시카(CICA), 선케어, 세트 상품은 미보유.',
       },
       {
         slug: 'dr-jart',
@@ -334,42 +399,54 @@ export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
       },
     ],
   },
-  seoul_district: {
-    slug: 'seoul_district',
-    name: '서울 자치구 (플레이스 브랜드)',
+
+  seoul_district_ko: {
+    slug: 'seoul_district_ko',
+    name: '서울 자치구 (국문)',
     icon: '🏛️',
-    description: '서울시 25개 자치구 AI 가시성 지표',
-    industryType: 'place_brand',
+    description: '서울시 25개 자치구 AI 가시성 지표 (국문)',
+    industryType: 'place_brand_ko',
     deep_dive_enabled: true,
     sampleQuestionsForLight: 45,
     sampleQuestionsForFull: 80,
-    brands: [
-      { slug: 'gangnam', name: '강남구', name_en: 'Gangnam-gu', domains: ['gangnam.go.kr', 'visitseoul.net/gangnam'], keywords: ['강남구', 'gangnam'], color: '#ef4444', comparative_pairs: ['seocho', 'songpa'] },
-      { slug: 'gangdong', name: '강동구', name_en: 'Gangdong-gu', domains: ['gangdong.go.kr', 'visitseoul.net/gangdong'], keywords: ['강동구', 'gangdong'], color: '#f97316', comparative_pairs: ['songpa', 'gwangjin'] },
-      { slug: 'gangbuk', name: '강북구', name_en: 'Gangbuk-gu', domains: ['gangbuk.go.kr', 'visitseoul.net/gangbuk'], keywords: ['강북구', 'gangbuk'], color: '#f59e0b', comparative_pairs: ['dobong', 'nowon'] },
-      { slug: 'gangseo', name: '강서구', name_en: 'Gangseo-gu', domains: ['gangseo.seoul.kr', 'visitseoul.net/gangseo'], keywords: ['강서구', 'gangseo'], color: '#eab308', comparative_pairs: ['yangcheon', 'yeongdeungpo'] },
-      { slug: 'gwanak', name: '관악구', name_en: 'Gwanak-gu', domains: ['gwanak.go.kr', 'visitseoul.net/gwanak'], keywords: ['관악구', 'gwanak'], color: '#84cc16', comparative_pairs: ['dongjak', 'geumcheon'] },
-      { slug: 'gwangjin', name: '광진구', name_en: 'Gwangjin-gu', domains: ['gwangjin.go.kr', 'visitseoul.net/gwangjin'], keywords: ['광진구', 'gwangjin'], color: '#22c55e', comparative_pairs: ['seongdong', 'gangdong'] },
-      { slug: 'guro', name: '구로구', name_en: 'Guro-gu', domains: ['guro.go.kr', 'visitseoul.net/guro'], keywords: ['구로구', 'guro'], color: '#10b981', comparative_pairs: ['geumcheon', 'yeongdeungpo'] },
-      { slug: 'geumcheon', name: '금천구', name_en: 'Geumcheon-gu', domains: ['geumcheon.go.kr', 'visitseoul.net/geumcheon'], keywords: ['금천구', 'geumcheon'], color: '#14b8a6', comparative_pairs: ['guro', 'gwanak'] },
-      { slug: 'nowon', name: '노원구', name_en: 'Nowon-gu', domains: ['nowon.kr', 'visitseoul.net/nowon'], keywords: ['노원구', 'nowon'], color: '#06b6d4', comparative_pairs: ['dobong', 'jungnang'] },
-      { slug: 'dobong', name: '도봉구', name_en: 'Dobong-gu', domains: ['dobong.go.kr', 'visitseoul.net/dobong'], keywords: ['도봉구', 'dobong'], color: '#0ea5e9', comparative_pairs: ['gangbuk', 'nowon'] },
-      { slug: 'dongdaemun', name: '동대문구', name_en: 'Dongdaemun-gu', domains: ['ddm.go.kr', 'visitseoul.net/dongdaemun'], keywords: ['동대문구', 'dongdaemun'], color: '#3b82f6', comparative_pairs: ['seongdong', 'jungnang'] },
-      { slug: 'dongjak', name: '동작구', name_en: 'Dongjak-gu', domains: ['dongjak.go.kr', 'visitseoul.net/dongjak'], keywords: ['동작구', 'dongjak'], color: '#6366f1', comparative_pairs: ['gwanak', 'yeongdeungpo'] },
-      { slug: 'mapo', name: '마포구', name_en: 'Mapo-gu', domains: ['mapo.go.kr', 'visitseoul.net/mapo'], keywords: ['마포구', 'mapo'], color: '#8b5cf6', comparative_pairs: ['seodaemun', 'yongsan'] },
-      { slug: 'seodaemun', name: '서대문구', name_en: 'Seodaemun-gu', domains: ['sdm.go.kr', 'visitseoul.net/seodaemun'], keywords: ['서대문구', 'seodaemun'], color: '#a855f7', comparative_pairs: ['mapo', 'eunpyeong'] },
-      { slug: 'seocho', name: '서초구', name_en: 'Seocho-gu', domains: ['seocho.go.kr', 'visitseoul.net/seocho'], keywords: ['서초구', 'seocho'], color: '#d946ef', comparative_pairs: ['gangnam', 'dongjak'] },
-      { slug: 'seongdong', name: '성동구', name_en: 'Seongdong-gu', domains: ['sd.go.kr', 'visitseoul.net/seongdong'], keywords: ['성동구', 'seongdong'], color: '#ec4899', comparative_pairs: ['mapo', 'gwangjin'] },
-      { slug: 'seongbuk', name: '성북구', name_en: 'Seongbuk-gu', domains: ['sb.go.kr', 'visitseoul.net/seongbuk'], keywords: ['성북구', 'seongbuk'], color: '#f43f5e', comparative_pairs: ['jongno', 'gangbuk'] },
-      { slug: 'songpa', name: '송파구', name_en: 'Songpa-gu', domains: ['songpa.go.kr', 'visitseoul.net/songpa'], keywords: ['송파구', 'songpa'], color: '#fb7185', comparative_pairs: ['gangnam', 'gangdong'] },
-      { slug: 'yangcheon', name: '양천구', name_en: 'Yangcheon-gu', domains: ['yangcheon.go.kr', 'visitseoul.net/yangcheon'], keywords: ['양천구', 'yangcheon'], color: '#fca5a5', comparative_pairs: ['gangseo', 'yeongdeungpo'] },
-      { slug: 'yeongdeungpo', name: '영등포구', name_en: 'Yeongdeungpo-gu', domains: ['ydp.go.kr', 'visitseoul.net/yeongdeungpo'], keywords: ['영등포구', 'yeongdeungpo'], color: '#fdba74', comparative_pairs: ['mapo', 'dongjak'] },
-      { slug: 'yongsan', name: '용산구', name_en: 'Yongsan-gu', domains: ['yongsan.go.kr', 'visitseoul.net/yongsan'], keywords: ['용산구', 'yongsan'], color: '#fcd34d', comparative_pairs: ['junggu', 'mapo'] },
-      { slug: 'eunpyeong', name: '은평구', name_en: 'Eunpyeong-gu', domains: ['ep.go.kr', 'visitseoul.net/eunpyeong'], keywords: ['은평구', 'eunpyeong'], color: '#fde047', comparative_pairs: ['seodaemun', 'mapo'] },
-      { slug: 'jongno', name: '종로구', name_en: 'Jongno-gu', domains: ['jongno.go.kr', 'visitseoul.net/jongno'], keywords: ['종로구', 'jongno'], color: '#bef264', comparative_pairs: ['junggu', 'seongbuk'] },
-      { slug: 'junggu', name: '중구', name_en: 'Jung-gu', domains: ['junggu.seoul.kr', 'visitseoul.net/junggu'], keywords: ['중구', '중구청', 'junggu', 'jung-gu'], color: '#86efac', comparative_pairs: ['jongno', 'yongsan'] },
-      { slug: 'jungnang', name: '중랑구', name_en: 'Jungnang-gu', domains: ['jungnang.go.kr', 'visitseoul.net/jungnang'], keywords: ['중랑구', 'jungnang'], color: '#6ee7b7', comparative_pairs: ['dongdaemun', 'nowon'] },
-    ],
+    repetitionCount: 1,
+    brands: SEOUL_DISTRICTS_BRANDS
+  },
+  seoul_district_en: {
+    slug: 'seoul_district_en',
+    name: '서울 자치구 (영문)',
+    icon: '🏛️',
+    description: '서울시 25개 자치구 AI 가시성 지표 (영문)',
+    industryType: 'place_brand_en',
+    deep_dive_enabled: true,
+    sampleQuestionsForLight: 45,
+    sampleQuestionsForFull: 80,
+    repetitionCount: 1,
+    brands: SEOUL_DISTRICTS_BRANDS
+  },
+  kpop_idol_ko: {
+    slug: 'kpop_idol_ko',
+    name: 'K-pop 아이돌 (국문)',
+    icon: '🎤',
+    description: '4세대+ K-pop 아이돌 그룹 AI 가시성 벤치마크 (국문)',
+    industryType: 'kpop_idol_ko',
+    deep_dive_enabled: true,
+    sampleQuestionsForLight: 50,
+    sampleQuestionsForFull: 80,
+    repetitionCount: 1,
+    brands: KPOP_BRANDS
+  },
+  kpop_idol_en: {
+    slug: 'kpop_idol_en',
+    name: 'K-pop 아이돌 (영문)',
+    icon: '🎤',
+    description: '4세대+ K-pop 아이돌 그룹 AI 가시성 벤치마크 (영문)',
+    industryType: 'kpop_idol_en',
+    deep_dive_enabled: true,
+    sampleQuestionsForLight: 50,
+    sampleQuestionsForFull: 80,
+    repetitionCount: 1,
+    brands: KPOP_BRANDS
   },
 } as const;
 

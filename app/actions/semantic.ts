@@ -16,8 +16,25 @@ import {
   claimNodeSchema,
   lineageRecordSchema
 } from "../../lib/schema";
+import { SignalOrchestrator } from "../../lib/signal-collection/orchestrator";
 
 const SIMULATED_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+/**
+ * 0. Run Upstream Pipeline
+ */
+export async function runUpstreamPipeline(workspaceId: string, domainName: string, brandName: string) {
+  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+    "owner", "admin", "brand_strategist"
+  ]);
+  if (!isAuthorized) {
+    throw new Error("UNAUTHORIZED: Insufficient permissions to run pipeline.");
+  }
+
+  // The orchestrator handles meta, chain, recursive, evaluate, and save.
+  const result = await SignalOrchestrator.runFullPipeline(workspaceId, domainName, brandName);
+  return result;
+}
 
 /**
  * 1. Create Question Signal
@@ -123,6 +140,76 @@ export async function promoteSignalToQuestionCapital(workspaceId: string, signal
   });
 
   return capitalNode;
+}
+
+/**
+ * 3.1. Promote Multiple Signals to Question Capital Nodes
+ */
+export async function promoteMultipleSignalsToQuestionCapital(workspaceId: string, signalIds: string[], territoryTitle: string) {
+  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+    "owner", "admin", "brand_strategist", "semantic_architect"
+  ]);
+  if (!isAuthorized) {
+    throw new Error("UNAUTHORIZED: Insufficient permissions to promote signals.");
+  }
+
+  const supabase = getSupabaseAdminClient();
+  
+  // 1. Create a common Capital Node (or you could create one for each, but usually they go to one territory)
+  const slug = territoryTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + Date.now();
+  const { data: capitalNode, error: capErr } = await supabase
+    .from("question_capital_nodes")
+    .insert({
+      workspace_id: workspaceId,
+      title: territoryTitle,
+      slug,
+      strategic_weight: 1.0
+    })
+    .select()
+    .single();
+
+  if (capErr || !capitalNode) throw new Error(`Promotion Failed: ${capErr?.message}`);
+
+  // 2. Mark signal statuses as promoted
+  await supabase
+    .from("question_signals")
+    .update({ status: "promoted" })
+    .in("id", signalIds)
+    .eq("workspace_id", workspaceId);
+
+  // 3. Write audit trail
+  await supabase.from("audit_events").insert({
+    workspace_id: workspaceId,
+    user_id: SIMULATED_USER_ID,
+    action: "PROMOTE_MULTIPLE_SIGNALS",
+    target_type: "question_capital_nodes",
+    target_id: capitalNode.id,
+    payload: { title: capitalNode.title, count: signalIds.length }
+  });
+
+  return capitalNode;
+}
+
+/**
+ * 3.2. Update Multiple Question Signal Statuses (Batch Ignore/Promote)
+ */
+export async function updateMultipleQuestionSignalStatus(workspaceId: string, ids: string[], status: "mined" | "ignored" | "promoted") {
+  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+    "owner", "admin", "brand_strategist"
+  ]);
+  if (!isAuthorized) {
+    throw new Error("UNAUTHORIZED: Insufficient permissions to modify question signals.");
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("question_signals")
+    .update({ status })
+    .in("id", ids)
+    .eq("workspace_id", workspaceId);
+
+  if (error) throw new Error(`DB Error: ${error.message}`);
+  return true;
 }
 
 /**

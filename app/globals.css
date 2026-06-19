@@ -24,3 +24,44 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+
+/* PDF 인쇄(Print) 전용 최적화 스타일 */
+@media print {
+  /* 불필요한 UI 숨김 */
+  header, footer, nav, button, .print-hidden {
+    display: none !important;
+  }
+  
+  /* 다크모드 -> 라이트모드 텍스트 및 배경 강제 치환 (잉크 절약) */
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  .bg-slate-950, .bg-slate-900, .bg-slate-800 {
+    background-color: white !important;
+    color: black !important;
+    border-color: #e2e8f0 !important; /* slate-200 */
+  }
+  .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 {
+    color: #1e293b !important; /* slate-800 */
+  }
+  
+  /* 페이지 잘림 방지 */
+  .break-inside-avoid {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* 레이아웃 여백 제거 */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* 차트 렌더링 보정 */
+  canvas, svg {
+    max-width: 100% !important;
+  }
+}

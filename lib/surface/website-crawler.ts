@@ -176,22 +176,61 @@ function discoverLinks(baseUrl: string, html: string): string[] {
 export class WebsiteCrawler {
   private userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (BSW-AEO-Bot/1.0)';
 
-  async fetchPage(url: string): Promise<string> {
+  async fetchPage(url: string, isSpaFallback = false): Promise<string> {
     try {
-      const res = await fetch(url, {
+      // S-12: SPA Fallback via Jina Reader (acts as Playwright replacement)
+      const targetUrl = isSpaFallback ? `https://r.jina.ai/${url}` : url;
+      
+      const res = await fetch(targetUrl, {
         headers: {
           'User-Agent': this.userAgent,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept': isSpaFallback ? 'text/plain' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
         },
-        signal: AbortSignal.timeout(10000) // 10s timeout
+        signal: AbortSignal.timeout(15000) // 15s timeout
       });
+      
       if (!res.ok) {
         throw new Error(`Status ${res.status}`);
       }
-      return await res.text();
+      
+      let content = await res.text();
+      
+      // S-12: SPA Detection (small payload with script tags usually means CSR)
+      if (!isSpaFallback && content.length < 1500 && (content.includes('<script') || content.includes('id="root"') || content.includes('id="app"'))) {
+        console.warn(`[Crawler] SPA detected for ${url}. Triggering headless rendering fallback...`);
+        return this.fetchPage(url, true);
+      }
+      
+      return content;
     } catch (e: any) {
+      if (!isSpaFallback) {
+        console.warn(`[Crawler] Initial fetch failed for ${url}, trying SPA fallback...`);
+        return this.fetchPage(url, true);
+      }
       throw new Error(`Failed to fetch ${url}: ${e.message}`);
+    }
+  }
+
+  /**
+   * Check robots.txt (S-12)
+   */
+  async checkRobotsTxt(rootUrl: string): Promise<boolean> {
+    try {
+      const u = new URL(rootUrl);
+      const robotsUrl = `${u.origin}/robots.txt`;
+      const res = await fetch(robotsUrl, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const text = await res.text();
+        // Simple check if disallowed all
+        if (text.includes('User-agent: *') && text.includes('Disallow: /')) {
+          console.warn(`[Crawler] robots.txt disallows crawling for ${rootUrl}`);
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      return true; // if no robots.txt, assume allowed
     }
   }
 
@@ -248,6 +287,13 @@ export class WebsiteCrawler {
       const u = new URL(rootUrl);
       normalizedRoot = u.origin + u.pathname;
     } catch (_) {}
+
+    // S-12: Check robots.txt
+    const isAllowed = await this.checkRobotsTxt(normalizedRoot);
+    if (!isAllowed) {
+      console.warn(`[Crawler] Aborting crawl due to robots.txt restrictions.`);
+      return [];
+    }
 
     // Step 1: Try sitemap
     console.log(`[Crawler] Attempting to parse sitemap for ${normalizedRoot}`);

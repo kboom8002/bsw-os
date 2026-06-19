@@ -1,56 +1,72 @@
 import { EntityReflectionSnapshot } from '../schema';
 
+export interface AEPIBreakdown {
+  composite: number;
+  dimensions: Record<string, number>;
+  tech_modifier: number;
+  eeat_modifier: number;
+  industry: string;
+  weights_used: Record<string, number>;
+}
+
 export class AepiCalculator {
   // [factoid, procedural, comparative, authority, schema, topical, geo]
-  private static WEIGHT_PRESETS: Record<string, number[]> = {
-    skincare:       [0.25, 0.15, 0.15, 0.20, 0.10, 0.10, 0.05],
-    wedding_studio: [0.10, 0.10, 0.20, 0.15, 0.10, 0.15, 0.20],
-    medical:        [0.30, 0.15, 0.10, 0.25, 0.10, 0.05, 0.05],
-    default:        [0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.10]
+  private static WEIGHT_PRESETS: Record<string, Record<string, number>> = {
+    skincare:       { factoid: 0.20, procedural: 0.15, comparative: 0.25, authority: 0.15, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.05 },
+    wedding_studio: { factoid: 0.10, procedural: 0.10, comparative: 0.15, authority: 0.10, schema_org: 0.10, topical_cluster: 0.15, local_geo: 0.30 },
+    medical:        { factoid: 0.25, procedural: 0.20, comparative: 0.10, authority: 0.25, schema_org: 0.10, topical_cluster: 0.05, local_geo: 0.05 },
+    
+    k_beauty:       { factoid: 0.15, procedural: 0.20, comparative: 0.25, authority: 0.10, schema_org: 0.10, topical_cluster: 0.15, local_geo: 0.05 },
+    food_bev:       { factoid: 0.20, procedural: 0.15, comparative: 0.20, authority: 0.10, schema_org: 0.15, topical_cluster: 0.10, local_geo: 0.10 },
+    education:      { factoid: 0.25, procedural: 0.15, comparative: 0.15, authority: 0.20, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.05 },
+    pet_care:       { factoid: 0.20, procedural: 0.20, comparative: 0.20, authority: 0.15, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.05 },
+    legal:          { factoid: 0.15, procedural: 0.15, comparative: 0.10, authority: 0.30, schema_org: 0.10, topical_cluster: 0.05, local_geo: 0.15 },
+    finance:        { factoid: 0.20, procedural: 0.15, comparative: 0.15, authority: 0.25, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.05 },
+    fashion:        { factoid: 0.10, procedural: 0.10, comparative: 0.30, authority: 0.10, schema_org: 0.10, topical_cluster: 0.25, local_geo: 0.05 },
+    travel:         { factoid: 0.15, procedural: 0.15, comparative: 0.15, authority: 0.10, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.25 },
+    real_estate:    { factoid: 0.15, procedural: 0.10, comparative: 0.15, authority: 0.15, schema_org: 0.10, topical_cluster: 0.05, local_geo: 0.30 },
+    
+    default:        { factoid: 0.15, procedural: 0.15, comparative: 0.15, authority: 0.15, schema_org: 0.15, topical_cluster: 0.15, local_geo: 0.10 },
   };
 
   /**
-   * Calculates the composite AEPI (AI Engine Presence Index) for a given snapshot and industry type
+   * Calculates the composite AEPI
    */
   static calculate(snapshot: EntityReflectionSnapshot, industryType: string): number {
+    return this.calculateWithBreakdown(snapshot, industryType).composite;
+  }
+
+  static calculateWithBreakdown(snapshot: EntityReflectionSnapshot, industryType: string): AEPIBreakdown {
     const weights = this.WEIGHT_PRESETS[industryType] || this.WEIGHT_PRESETS.default;
-
-    const errValues = [
-      snapshot.err_factoid,
-      snapshot.err_procedural,
-      snapshot.err_comparative,
-      snapshot.err_authority,
-      snapshot.err_schema,
-      snapshot.err_topical,
-      snapshot.err_geo
-    ];
-
-    // 1. Calculate Base Weighted ERR Sum
-    let baseWeightedSum = 0;
-    for (let i = 0; i < errValues.length; i++) {
-      baseWeightedSum += errValues[i] * weights[i];
+    const dimensions: Record<string, number> = {};
+    
+    let baseScore = 0;
+    for (const [dim, weight] of Object.entries(weights)) {
+      const errKey = `err_${dim}` as keyof EntityReflectionSnapshot;
+      const dimScore = (snapshot[errKey] as number || 0);
+      dimensions[dim] = dimScore;
+      baseScore += dimScore * weight;
     }
 
-    // 2. Compute Tech Modifer (0.8 ~ 1.0)
-    // 0.8 base + 0.2 scaling based on tech audit score
     const techScore = snapshot.tech_mod_score;
     const techModifier = 0.8 + 0.2 * (techScore / 100);
 
-    // 3. Compute EEAT Modifier (0.8 ~ 1.0)
     const eeatScore = snapshot.eeat_mod_score;
     const eeatModifier = 0.8 + 0.2 * (eeatScore / 100);
 
-    // 4. Calculate Final Index
-    const aepi = baseWeightedSum * techModifier * eeatModifier;
-
-    // Round to 1 decimal place
-    return parseFloat(Math.min(100, Math.max(0, aepi)).toFixed(1));
+    const aepi = baseScore * techModifier * eeatModifier;
+    
+    return {
+      composite: parseFloat(Math.min(100, Math.max(0, aepi)).toFixed(1)),
+      dimensions,
+      tech_modifier: parseFloat(techModifier.toFixed(3)),
+      eeat_modifier: parseFloat(eeatModifier.toFixed(3)),
+      industry: industryType,
+      weights_used: weights,
+    };
   }
 
-  /**
-   * Get the weight preset for an industry
-   */
-  static getWeights(industryType: string): number[] {
+  static getWeights(industryType: string): Record<string, number> {
     return this.WEIGHT_PRESETS[industryType] || this.WEIGHT_PRESETS.default;
   }
 }

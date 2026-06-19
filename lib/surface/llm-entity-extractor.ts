@@ -1,6 +1,7 @@
 import { getAIProvider } from '../ai/ai-provider';
 import { CrawledPage } from './website-crawler';
 import { SurfaceEntity } from '../schema';
+import { IncrementalCache } from '../benchmark/incremental-cache';
 
 export interface ExtractedSurfaceEntity extends Omit<SurfaceEntity, 'id' | 'workspace_id' | 'created_at'> {
   id?: string;
@@ -8,9 +9,6 @@ export interface ExtractedSurfaceEntity extends Omit<SurfaceEntity, 'id' | 'work
 }
 
 export class LlmEntityExtractor {
-  /**
-   * Convert page schema.org schemas into SurfaceEntity objects
-   */
   private extractSchemaOrgEntities(page: CrawledPage, websiteUrl: string): ExtractedSurfaceEntity[] {
     const entities: ExtractedSurfaceEntity[] = [];
     
@@ -24,14 +22,49 @@ export class LlmEntityExtractor {
       const type = schema['@type'] || 'Thing';
       const name = schema.name || schema.headline || `${type} Schema`;
       
+      // Deep parsing logic
+      const parsedContent: Record<string, any> = { rawType: type };
+      let eeat_strength = 80;
+      
+      if (type === 'Product' || (Array.isArray(type) && type.includes('Product'))) {
+        parsedContent.brand = schema.brand?.name || schema.brand;
+        parsedContent.sku = schema.sku;
+        parsedContent.offers = schema.offers;
+        parsedContent.aggregateRating = schema.aggregateRating;
+        if (schema.aggregateRating) eeat_strength = 90; // High EEAT if it has reviews
+      } else if (type === 'FAQPage' || (Array.isArray(type) && type.includes('FAQPage'))) {
+        const faqs: any[] = [];
+        const mainEntity = Array.isArray(schema.mainEntity) ? schema.mainEntity : [schema.mainEntity];
+        for (const q of mainEntity) {
+          if (q && q['@type'] === 'Question') {
+            faqs.push({
+              question: q.name,
+              answer: q.acceptedAnswer?.text || q.acceptedAnswer?.name
+            });
+          }
+        }
+        parsedContent.faqs = faqs;
+      } else if (type === 'LocalBusiness' || (Array.isArray(type) && type.includes('LocalBusiness'))) {
+        parsedContent.address = schema.address;
+        parsedContent.telephone = schema.telephone;
+        parsedContent.openingHours = schema.openingHoursSpecification || schema.openingHours;
+      } else if (type === 'Article' || type === 'NewsArticle' || type === 'BlogPosting') {
+        parsedContent.author = schema.author?.name || schema.author;
+        parsedContent.datePublished = schema.datePublished;
+        parsedContent.publisher = schema.publisher?.name || schema.publisher;
+        if (schema.author) eeat_strength = 85;
+      } else {
+        parsedContent.raw = schema;
+      }
+
       entities.push({
         website_url: websiteUrl,
         source_page_url: page.url,
         surface_type: 'schema_org',
         entity_name: String(name).substring(0, 500),
-        entity_content: schema,
+        entity_content: parsedContent,
         completeness_score: 100,
-        eeat_strength: 80, // Schema.org structures are a strong technical authority signal
+        eeat_strength,
         has_schema_support: true,
         extraction_model: 'schema-parser',
         extraction_confidence: 100,
@@ -156,6 +189,135 @@ ${pageContext}
       workspace_id: workspaceId,
       id: ent.id || `se-${Date.now()}-${idx}`
     })) as SurfaceEntity[];
+
+    return allExtracted;
+  }
+
+  /**
+   * Extract entities from a batch of pages to save time and tokens (S-14)
+   */
+  async extractBatch(workspaceId: string, pages: CrawledPage[], websiteUrl: string): Promise<SurfaceEntity[]> {
+    const allExtracted: SurfaceEntity[] = [];
+    const pagesToProcess: CrawledPage[] = [];
+
+    // S-19: Check cache first
+    for (const page of pages) {
+      const cached = IncrementalCache.get(page.url, page.rawHtml || page.bodyText);
+      if (cached) {
+        allExtracted.push(...cached);
+      } else {
+        pagesToProcess.push(page);
+      }
+    }
+
+    if (pagesToProcess.length === 0) {
+      return allExtracted;
+    }
+
+    const schemaOrgEntities: ExtractedSurfaceEntity[] = [];
+    pagesToProcess.forEach(p => schemaOrgEntities.push(...this.extractSchemaOrgEntities(p, websiteUrl)));
+    
+    const llmEntities: ExtractedSurfaceEntity[] = [];
+    const provider = getAIProvider();
+
+    const combinedContext = pagesToProcess.map((page, idx) => `
+[Page ${idx + 1}]
+URL: ${page.url}
+Title: ${page.title}
+Meta Description: ${page.metaDescription}
+Headings:
+${page.headings.map(h => `H${h.level}: ${h.text}`).join('\n')}
+Body Text snippet:
+${page.bodyText.substring(0, 2000)}
+`).join('\n---\n');
+
+    const prompt = `당신은 AEO/GEO(AI Search Engine Optimization) 분석 전문가입니다. 
+제시된 웹페이지 모음 콘텐츠를 분석하여 AI 검색엔진이 Answer Card(답변 상자) 및 지식 그래프(Knowledge Graph)에 등록하고 소비자 답변으로 활용할 수 있는 핵심 지식 엔티티들을 식별하고 추출해주세요.
+
+각 엔티티는 아래 7가지 유형 중 하나로 정확히 분류되어야 합니다:
+1. factoid: 사실형 (제품 성분명, 수치, 사실 주장, 독자적 명칭)
+2. procedural: 절차형 (사용법, 사용 루틴, 단계별 프로세스)
+3. comparative: 비교형 (경쟁 제품 대비 차별성, 대안과의 비교)
+4. authority: 권위 신호 (특허, 임상 인증, 전문가 추천, 수상 이력, EEAT 요소)
+5. schema_org: Schema.org에 이미 구조화된 정보
+6. topical_cluster: 주제 클러스터 (핵심 카테고리, 특정 테마의 하위 주제 묶음)
+7. local_geo: 지역/지리 정보 (오프라인 매장 위치, 판매처 주소, 배송 범위)
+
+각 엔티티에 대해 다음 정보들을 채워주세요:
+- surface_type: 위의 7가지 유형명
+- entity_name: 엔티티의 명확하고 구체적인 이름
+- entity_content: 이 엔티티의 핵심 사실이나 정보들을 담은 key-value object
+- completeness_score: 엔티티 정보의 완전성/충분도 (0~100 점)
+- eeat_strength: 신뢰도 및 권위 강도 (0~100 점)
+- extraction_confidence: 추출 확신도 (0~100 점)
+
+웹페이지 모음 분석 대상 콘텐츠:
+${combinedContext}
+`;
+
+    const jsonSchema = {
+      type: 'object',
+      properties: {
+        entities: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              surface_type: {
+                type: 'string',
+                enum: ['factoid', 'procedural', 'comparative', 'authority', 'schema_org', 'topical_cluster', 'local_geo']
+              },
+              entity_name: { type: 'string' },
+              entity_content: { type: 'object' },
+              completeness_score: { type: 'number' },
+              eeat_strength: { type: 'number' },
+              extraction_confidence: { type: 'number' }
+            },
+            required: ['surface_type', 'entity_name', 'entity_content', 'completeness_score', 'eeat_strength', 'extraction_confidence']
+          }
+        }
+      },
+      required: ['entities']
+    };
+
+    try {
+      const response = await provider.generateStructuredOutput<any>(prompt, jsonSchema);
+
+      if (response && response.entities) {
+        for (const ent of response.entities) {
+          llmEntities.push({
+            website_url: websiteUrl,
+            source_page_url: websiteUrl, // generic for batch
+            surface_type: ent.surface_type,
+            entity_name: ent.entity_name.substring(0, 500),
+            entity_content: ent.entity_content || {},
+            completeness_score: Math.max(0, Math.min(100, ent.completeness_score)),
+            eeat_strength: Math.max(0, Math.min(100, ent.eeat_strength)),
+            has_schema_support: false,
+            extraction_model: 'gemini-flash-batch',
+            extraction_confidence: Math.max(0, Math.min(100, ent.extraction_confidence)),
+            extracted_at: new Date().toISOString()
+          });
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[LLM Entity Extractor] Failed to extract from batch via AI: ${e.message}. Using fallback.`);
+      pagesToProcess.forEach(p => llmEntities.push(...this.createFallbackEntities(p, websiteUrl)));
+    }
+
+    const newlyExtracted: SurfaceEntity[] = [...schemaOrgEntities, ...llmEntities].map((ent, idx) => ({
+      ...ent,
+      workspace_id: workspaceId,
+      id: ent.id || `se-${Date.now()}-${idx}`
+    })) as SurfaceEntity[];
+
+    allExtracted.push(...newlyExtracted);
+
+    // S-19: Save newly extracted to cache
+    for (const page of pagesToProcess) {
+      const pageEntities = newlyExtracted.filter(e => e.source_page_url === page.url || e.source_page_url === websiteUrl);
+      IncrementalCache.set(page.url, page.rawHtml || page.bodyText, pageEntities);
+    }
 
     return allExtracted;
   }

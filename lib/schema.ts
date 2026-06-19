@@ -285,6 +285,8 @@ export const questionCapitalNodeSchema = z.object({
   title: z.string().min(2).max(255),
   slug: z.string().min(2).max(100).regex(/^[a-z0-9-]+$/),
   strategic_weight: z.number().min(0).max(100).default(1),
+  s_score: z.number().min(0).max(100).default(0),
+  last_s_score_calculated_at: z.string().optional().nullable(),
   parent_id: z.string().uuid().optional().nullable(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
@@ -1518,6 +1520,21 @@ export const reversedAnswerCardSchema = z.object({
 export type ReversedAnswerCard = z.infer<typeof reversedAnswerCardSchema>;
 
 // ─────────────────────────────────────────────────────────────
+// 93.5. Reflection Quality & Details
+// ─────────────────────────────────────────────────────────────
+export type ReflectionQuality = 'exact' | 'partial' | 'distorted' | 'absent';
+
+export interface EntityReflectionDetail {
+  entity_id: string;
+  entity_name: string;
+  surface_type: string;
+  quality: ReflectionQuality;
+  matched_text?: string;
+  keyword_overlap: number;
+  competitor_mentioned?: string;
+}
+
+// ─────────────────────────────────────────────────────────────
 // 94. EntityReflectionSnapshot — 엔티티 반영률 스냅샷
 // ─────────────────────────────────────────────────────────────
 export const entityReflectionSnapshotSchema = z.object({
@@ -1604,13 +1621,20 @@ export const surfaceGapAnalysisSchema = z.object({
 
 export type SurfaceGapAnalysis = z.infer<typeof surfaceGapAnalysisSchema>;
 
+// ─────────────────────────────────────────────────────────────
+// 97. Question Lifecycle — 시맨틱 플라이휠 파이프라인
+// ─────────────────────────────────────────────────────────────
+export const questionLifecycleSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  canonical_question_id: z.string().uuid().optional().nullable(),
+  signal_id: z.string().uuid().optional().nullable(),
+  blueprint_id: z.string().uuid().optional().nullable(),
+  benchmark_snapshot_ids: z.array(z.string().uuid()).default([]),
+  deep_dive_session_ids: z.array(z.string().uuid()).default([]),
+  stage: z.enum(['signal', 'cq', 'benchmarked', 'targeted', 'blueprinted', 'verified']).default('signal'),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
 
-
-
-
-
-
-
-
-
-
+export type QuestionLifecycle = z.infer<typeof questionLifecycleSchema>;

@@ -1,4 +1,5 @@
 import { INDUSTRY_PANELS_DATA, SeedProbeQuestion, IndustryType } from '../../db/seed/industry-panels/questions-data';
+import { getAIProvider } from '../ai/ai-provider';
 
 export interface UnifiedQuestionMapping {
   id: string;
@@ -46,6 +47,23 @@ export class QisCrossMapper {
   }
 
   /**
+   * Cosine Similarity calculation
+   */
+  private cosineSimilarity(vecA: number[], vecB: number[]): number {
+    if (vecA.length !== vecB.length || vecA.length === 0) return 0;
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
+    }
+    if (normA === 0 || normB === 0) return 0;
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  /**
    * Perform cross mapping between Set A (Industry) and Set B (Site)
    */
   async crossMap(industry: string, siteProbes: SeedProbeQuestion[]): Promise<UnifiedQuestionMapping[]> {
@@ -54,6 +72,20 @@ export class QisCrossMapper {
     // Load Industry QIS (Set A)
     const indData = INDUSTRY_PANELS_DATA[industry as IndustryType];
     const industryQuestions = indData ? indData.questions : [];
+
+    // Pre-calculate Embeddings for S-08 (Jaccard + Embedding)
+    const ai = getAIProvider();
+    let industryEmbeddings: number[][] = [];
+    let siteEmbeddings: number[][] = [];
+    
+    if (ai.generateEmbeddings && industryQuestions.length > 0 && siteProbes.length > 0) {
+      try {
+        industryEmbeddings = await ai.generateEmbeddings(industryQuestions.map(q => q.question_text));
+        siteEmbeddings = await ai.generateEmbeddings(siteProbes.map(q => q.question_text));
+      } catch (err) {
+        console.warn("[QisCrossMapper] Embedding failed. Falling back to Jaccard-only.");
+      }
+    }
 
     const mappedSiteQuestionIndices = new Set<number>();
     const mappedIndustryQuestionIndices = new Set<number>();
@@ -66,11 +98,18 @@ export class QisCrossMapper {
       siteProbes.forEach((siteQ, siteIdx) => {
         if (mappedSiteQuestionIndices.has(siteIdx)) return;
 
-        const score = this.getJaccardSimilarity(indQ.question_text, siteQ.question_text);
+        const jaccardScore = this.getJaccardSimilarity(indQ.question_text, siteQ.question_text);
         const keywordMatch = this.checkKeywordMatch(indQ, siteQ);
         
-        // Boost similarity if there's a specific product/ingredient keyword match
-        const finalScore = keywordMatch ? score + 0.25 : score;
+        // Base score
+        let finalScore = keywordMatch ? jaccardScore + 0.25 : jaccardScore;
+
+        // Apply embedding similarity if available
+        if (industryEmbeddings.length > 0 && siteEmbeddings.length > 0) {
+          const cosSim = this.cosineSimilarity(industryEmbeddings[indIdx], siteEmbeddings[siteIdx]);
+          // Combine semantic similarity (0.6) and lexical similarity (0.4)
+          finalScore = (finalScore * 0.4) + (cosSim * 0.6);
+        }
 
         if (finalScore > bestScore) {
           bestScore = finalScore;

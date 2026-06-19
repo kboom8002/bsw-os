@@ -1,0 +1,124 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { CheckCircle2, Clock, Loader2, AlertCircle } from "lucide-react";
+
+interface ProgressTrackerProps {
+  sessionId: string;
+  locale: string;
+  tierName?: string;
+}
+
+interface ProgressData {
+  current_step: number;
+  total_steps: number;
+  message: string;
+}
+
+export default function ProgressTracker({ sessionId, locale, tierName = "Pro" }: ProgressTrackerProps) {
+  const router = useRouter();
+  const [status, setStatus] = useState<string>("running");
+  const [progress, setProgress] = useState<ProgressData>({
+    current_step: 0,
+    total_steps: 11,
+    message: "진단 대기 중..."
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    const pollStatus = async () => {
+      try {
+        const res = await fetch(`/api/audit/status?sessionId=${sessionId}`);
+        if (!res.ok) {
+          throw new Error("Failed to fetch status");
+        }
+        const data = await res.json();
+        
+        setStatus(data.status);
+        if (data.progress) {
+          setProgress(data.progress);
+        }
+
+        if (data.status === "completed") {
+          clearInterval(interval);
+          // Redirect to results page
+          router.push(`/${locale}/site-audit/results/${sessionId}`);
+        } else if (data.status === "failed") {
+          clearInterval(interval);
+          setError(data.progress?.message || "진단 중 오류가 발생했습니다.");
+        }
+      } catch (err: any) {
+        console.error("Polling error:", err);
+      }
+    };
+
+    pollStatus(); // initial call
+    interval = setInterval(pollStatus, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [sessionId, locale, router]);
+
+  const percentage = Math.round((progress.current_step / progress.total_steps) * 100);
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 font-sans text-slate-100">
+      <div className="max-w-xl w-full bg-slate-900/60 border border-slate-800 rounded-2xl p-8 backdrop-blur-xl shadow-2xl">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-500/20 rounded-full mb-4 border border-indigo-500/30">
+            {status === "failed" ? (
+              <AlertCircle className="h-6 w-6 text-red-400" />
+            ) : status === "completed" ? (
+              <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+            ) : (
+              <Loader2 className="h-6 w-6 text-indigo-400 animate-spin" />
+            )}
+          </div>
+          <h2 className="text-2xl font-bold text-slate-100">
+            {status === "failed" ? "진단 실패" : status === "completed" ? "진단 완료!" : "정밀 진단 진행 중..."}
+          </h2>
+          <p className="text-sm text-slate-400 mt-2">
+            {tierName} 진단 | 예상 소요: {tierName === "Enterprise" ? "~15분" : tierName === "Pro" ? "~8분" : "~3분"}
+          </p>
+        </div>
+
+        {error ? (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
+            {error}
+          </div>
+        ) : (
+          <>
+            <div className="bg-slate-950 rounded-xl p-6 border border-slate-800 mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-slate-300">진행률</span>
+                <span className="text-sm font-bold text-indigo-400">{percentage}%</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2.5 mb-4">
+                <div 
+                  className="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${percentage}%` }}
+                ></div>
+              </div>
+              
+              <div className="flex items-center gap-3 text-sm">
+                <Clock className="h-4 w-4 text-slate-500" />
+                <span className="text-slate-300">
+                  Step {progress.current_step}/{progress.total_steps}: <span className="text-slate-400">{progress.message}</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <p className="text-xs text-slate-500">
+                진단이 완료되면 결과 대시보드로 자동 이동합니다.<br/>
+                이 창을 닫아도 서버에서 진단은 계속 진행됩니다.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslation } from "@/lib/i18n/context";
 import { createOntologyNode, createOntologyEdge } from "@/app/actions/semantic";
 import { runTcoKgAgent } from "@/lib/ai/semantic_agents";
 import { 
@@ -34,6 +35,8 @@ interface EdgeItem {
 
 export default function KnowledgeGraphPage() {
   const params = useParams();
+  const { t } = useTranslation();
+  const locale = (params?.locale as string) || "ko";
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
 
@@ -195,14 +198,14 @@ export default function KnowledgeGraphPage() {
       <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div className="flex items-center gap-4">
           <Link 
-            href={`/${workspaceSlug}/semantic-core`}
+            href={`/${locale}/${workspaceSlug}/semantic-core`}
             className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <div className="text-xs text-cyan-400 font-mono">Semantic Core Studio</div>
-            <h1 className="text-2xl font-extrabold text-white">Ontology Knowledge Graph</h1>
+            <div className="text-xs text-cyan-400 font-mono">{t('semantic_core.studio_title')}</div>
+            <h1 className="text-2xl font-extrabold text-white">{t('semantic_core.kg_page_title')}</h1>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -214,7 +217,7 @@ export default function KnowledgeGraphPage() {
             }}
             className="px-4 py-2 text-xs font-bold rounded-xl border border-purple-500/20 text-purple-400 hover:bg-purple-950/20 bg-purple-950/10 flex items-center gap-1.5 transition-all"
           >
-            <Workflow className="w-4 h-4" /> Link Path
+            <Workflow className="w-4 h-4" /> {t('semantic_core.kg_link_path')}
           </button>
           <button
             onClick={() => {
@@ -224,7 +227,7 @@ export default function KnowledgeGraphPage() {
             }}
             className="px-4 py-2 text-xs font-bold rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-1.5 transition-all shadow-lg shadow-cyan-500/10"
           >
-            <Plus className="w-4 h-4" /> Map Node
+            <Plus className="w-4 h-4" /> {t('semantic_core.kg_map_node')}
           </button>
         </div>
       </div>
@@ -246,12 +249,12 @@ export default function KnowledgeGraphPage() {
           <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 space-y-5">
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <Network className="w-5 h-5 text-purple-400" />
-              Graph Paths & Relations Map
+              {t('semantic_core.kg_graph_paths')}
             </h3>
 
             {/* Edges / Paths */}
             <div className="space-y-3">
-              <div className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Active Path Paths</div>
+              <div className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">{t('semantic_core.kg_active_paths')}</div>
               <div className="grid grid-cols-1 gap-3">
                 {edges.map((edge) => (
                   <div key={edge.id} className="p-4 rounded-xl border border-white/5 bg-slate-900/40 flex items-center justify-between text-xs font-mono">
@@ -272,7 +275,7 @@ export default function KnowledgeGraphPage() {
 
             {/* Nodes */}
             <div className="space-y-3 pt-2">
-              <div className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Registered Node Vertices</div>
+              <div className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">{t('semantic_core.kg_registered_vertices')}</div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {nodes.map((node) => (
                   <div key={node.id} className="p-3 rounded-lg border border-white/5 bg-slate-900/30 flex items-center justify-between gap-3">
@@ -293,14 +296,14 @@ export default function KnowledgeGraphPage() {
           <form onSubmit={handleRunAgent} className="p-6 rounded-2xl border border-white/5 bg-slate-950/40 space-y-4">
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <Cpu className="w-5 h-5 text-cyan-400" />
-              AI TCO/KG Extractor Agent
+              {t('semantic_core.kg_ai_extractor')}
             </h3>
             <p className="text-slate-400 text-xs leading-normal">
-              Provide a target seed concept to let our AI agent automatically define concept attributes and connect related graph nodes.
+              {t('semantic_core.kg_ai_extractor_desc')}
             </p>
 
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-slate-400">Seed Concept Name</label>
+              <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.kg_seed_concept')}</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -338,10 +341,10 @@ export default function KnowledgeGraphPage() {
           {/* Create Node Form */}
           {isCreatingNode && (
             <form onSubmit={handleCreateNode} className="p-6 rounded-2xl border border-white/10 bg-slate-950/40 space-y-4">
-              <h3 className="font-bold text-sm text-slate-200">Map Graph Node</h3>
+              <h3 className="font-bold text-sm text-slate-200">{t('semantic_core.kg_map_graph_node')}</h3>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Node Name</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.kg_node_name')}</label>
                 <input
                   type="text"
                   value={nodeName}
@@ -353,7 +356,7 @@ export default function KnowledgeGraphPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Node Type</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.kg_node_type')}</label>
                 <select
                   value={nodeType}
                   onChange={(e) => setNodeType(e.target.value)}
@@ -371,7 +374,7 @@ export default function KnowledgeGraphPage() {
                   type="submit"
                   className="flex-1 px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all text-xs text-center"
                 >
-                  Create Node
+                  {t('semantic_core.kg_create_node')}
                 </button>
                 <button
                   type="button"
@@ -381,7 +384,7 @@ export default function KnowledgeGraphPage() {
                   }}
                   className="px-4 py-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-xs"
                 >
-                  Cancel
+                  {t('semantic_core.btn_cancel')}
                 </button>
               </div>
             </form>
@@ -390,10 +393,10 @@ export default function KnowledgeGraphPage() {
           {/* Create Edge Form */}
           {isCreatingEdge && (
             <form onSubmit={handleCreateEdge} className="p-6 rounded-2xl border border-purple-500/20 bg-slate-950/40 space-y-4">
-              <h3 className="font-bold text-sm text-slate-200">Establish Relation Edge</h3>
+              <h3 className="font-bold text-sm text-slate-200">{t('semantic_core.kg_establish_edge')}</h3>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Source Node</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.kg_source_node')}</label>
                 <select
                   value={sourceId}
                   onChange={(e) => setSourceId(e.target.value)}
@@ -408,7 +411,7 @@ export default function KnowledgeGraphPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Target Node</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.kg_target_node')}</label>
                 <select
                   value={targetId}
                   onChange={(e) => setTargetId(e.target.value)}
@@ -423,7 +426,7 @@ export default function KnowledgeGraphPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-400">Relation Type</label>
+                <label className="block text-xs font-semibold text-slate-400">{t('semantic_core.kg_relation_type')}</label>
                 <input
                   type="text"
                   value={relationType}
@@ -439,7 +442,7 @@ export default function KnowledgeGraphPage() {
                   type="submit"
                   className="flex-1 px-4 py-2 rounded-lg bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold transition-all text-xs text-center"
                 >
-                  Establish Link
+                  {t('semantic_core.kg_establish_link')}
                 </button>
                 <button
                   type="button"
@@ -449,7 +452,7 @@ export default function KnowledgeGraphPage() {
                   }}
                   className="px-4 py-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-xs"
                 >
-                  Cancel
+                  {t('semantic_core.btn_cancel')}
                 </button>
               </div>
             </form>
@@ -459,10 +462,10 @@ export default function KnowledgeGraphPage() {
             <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 space-y-4">
               <h3 className="font-bold text-sm text-slate-300 flex items-center gap-1.5">
                 <HelpCircle className="w-4 h-4 text-cyan-400" />
-                Ontology Paths Mapping
+                {t('semantic_core.kg_ontology_paths')}
               </h3>
               <p className="text-slate-400 text-xs leading-relaxed">
-                By mathematically representing the brand's knowledge structure, BSW-OS provides the logical structure necessary for advanced SEO query resolution engines.
+                {t('semantic_core.kg_ontology_paths_desc')}
               </p>
             </div>
           )}

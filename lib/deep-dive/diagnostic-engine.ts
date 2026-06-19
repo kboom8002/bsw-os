@@ -1,8 +1,10 @@
 import { getSupabaseAdminClient } from '../supabase';
 import { computeDMRI } from '../metrics/d-mri';
 import { OpportunityAnalyzer } from '../benchmark/opportunity-analyzer';
+import { QuestionDetail } from '../benchmark/lightweight-metric-runner';
 import { DeepDiveDiagnostic } from './types';
 import { getDomainConfig } from '../benchmark/domain-config';
+import { runDeepDiveMeasure } from './measure-engine';
 
 export class DiagnosticEngine {
   /**
@@ -18,45 +20,71 @@ export class DiagnosticEngine {
     const domainConfig = getDomainConfig(domainSlug);
     const brandName = domainConfig?.brands.find(b => b.slug === brandSlug)?.name || brandSlug;
     
-    let benchmarkSnapshot = {
+    let opportunityReport: any = null;
+    let questionDetails: QuestionDetail[] = [];
+    
+    let benchmarkSnapshot: any = {
       aas: 0, ocr: 0, bsf: 0, bair: 0,
       bdr: 0, cwr: 0, iri: 0, opp: 0,
-      rank: 0, totalBrands: 0
+      rank: 0, totalBrands: 0,
+      mentionQuality: { strongRate: 0, neutralRate: 0, negativeRate: 0 }
     };
     
-    const { data: latestSnapshot } = await supabase
-      .from('industry_benchmark_snapshots')
-      .select('leaderboard')
-      .eq('domain_slug', domainSlug)
-      .order('measured_at', { ascending: false })
-      .limit(1)
-      .single();
+    // 2 & 3. Real-time Deep Dive Measure (E-E-A-T Gap Analysis)
+    let measureSuccess = false;
+    try {
+      // 직접 함수 호출을 통해 Vercel의 자기참조 fetch 실패 방지
+      const measureData = await runDeepDiveMeasure(workspaceId, brandSlug, domainSlug);
       
-    if (latestSnapshot && latestSnapshot.leaderboard) {
-      const lb = latestSnapshot.leaderboard as any[];
-      const brandEntry = lb.find(b => b.brand_slug === brandSlug);
-      if (brandEntry) {
-        benchmarkSnapshot = {
-          aas: brandEntry.aas, ocr: brandEntry.ocr, bsf: brandEntry.bsf, bair: brandEntry.bair,
-          bdr: brandEntry.bdr || 0, cwr: brandEntry.cwr || 0, iri: brandEntry.iri || 0, opp: brandEntry.opp || 0,
-          rank: brandEntry.rank, totalBrands: lb.length
-        };
-      }
+      opportunityReport = measureData.opportunityReport;
+      questionDetails = measureData.questionDetails || [];
+      benchmarkSnapshot = measureData.benchmarkSnapshot;
+      measureSuccess = true;
+    } catch (e) {
+      console.warn("[DiagnosticEngine] Failed to measure real-time deep dive metrics. Falling back to DB snapshot.", e);
     }
     
-    // 3. E-E-A-T Gap Analysis (Mocked call from latest questions data)
-    // In reality, this would fetch from probe_runs or judgments.
-    // We'll construct an empty OpportunityReport since we don't have the currentDetails available synchronously here.
-    // The real implementation would query `metrics/lightweight` or `judgments` for currentDetails.
-    const opportunityReport = {
-      brand_slug: brandSlug,
-      brand_name: brandName,
-      total_opportunities: 0,
-      high_priority_count: 0,
-      opportunities: [],
-      eeat_summary: { expertise_gaps: 0, experience_gaps: 0, authority_gaps: 0, trust_gaps: 0 },
-      top_action_items: []
-    };
+    // Fallback: If real-time measure failed, try to load from DB
+    if (!measureSuccess) {
+      const { data: latestSnapshot } = await supabase
+        .from('industry_benchmark_snapshots')
+        .select('leaderboard')
+        .eq('domain_slug', domainSlug)
+        .order('measured_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (latestSnapshot && latestSnapshot.leaderboard) {
+        const lb = latestSnapshot.leaderboard as any[];
+        const brandEntry = lb.find(b => b.brand_slug === brandSlug);
+        if (brandEntry) {
+          benchmarkSnapshot = {
+            aas: brandEntry.aas || 0,
+            ocr: brandEntry.ocr || 0,
+            bsf: brandEntry.bsf || 0,
+            bair: brandEntry.bair || 0,
+            bdr: brandEntry.bdr || 0,
+            cwr: brandEntry.cwr || 0,
+            iri: brandEntry.iri || 0,
+            opp: brandEntry.opp || 0,
+            rank: brandEntry.rank || 0,
+            totalBrands: lb.length,
+            mentionQuality: { strongRate: 0, neutralRate: 0, negativeRate: 0 }
+          };
+        }
+      }
+      
+      // Provide an empty opportunity report if it couldn't be generated
+      opportunityReport = {
+        brand_slug: brandSlug,
+        brand_name: brandName,
+        total_opportunities: 0,
+        high_priority_count: 0,
+        opportunities: [],
+        eeat_summary: { expertise_gaps: 0, experience_gaps: 0, authority_gaps: 0, trust_gaps: 0 },
+        top_action_items: []
+      };
+    }
     
     // 4. Truth Readiness
     const { data: opTruths } = await supabase.from('brand_operational_truths').select('id, review_status').eq('workspace_id', workspaceId);
@@ -97,7 +125,8 @@ export class DiagnosticEngine {
         linkageRate,
         conceptsCount: conceptCount || 0,
         ontologyNodeCount: ontologyCount || 0
-      }
+      },
+      questionDetails
     };
   }
 }

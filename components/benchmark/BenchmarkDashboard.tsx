@@ -8,7 +8,7 @@ import {
   TrendingUp, TrendingDown, Minus,
   Search, Activity, Award, ChevronRight,
   HelpCircle, Sparkles, Camera, Droplets,
-  BarChart3, Clock, RefreshCw
+  BarChart3, Clock, RefreshCw, Music
 } from "lucide-react";
 // runLightBenchmark는 API Route(/api/benchmark/run)로 호출합니다 (maxDuration=60s)
 import type { DomainLeaderboardResult, BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark";
@@ -214,6 +214,7 @@ function DomainIcon({ slug }: { slug: string }) {
   if (slug === 'skincare') return <Droplets className="h-4 w-4" />;
   if (slug === 'wedding_studio') return <Camera className="h-4 w-4" />;
   if (slug.startsWith('seoul_district')) return <Sparkles className="h-4 w-4" />;
+  if (slug.startsWith('kpop_idol')) return <Music className="h-4 w-4" />;
   return <BarChart3 className="h-4 w-4" />;
 }
 

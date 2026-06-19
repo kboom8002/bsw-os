@@ -25,6 +25,7 @@ export interface BrandOpportunityReport {
     trust_gaps: number;
   };
   top_action_items: string[];
+  auto_generated_signals?: { query: string; intent: string; source: string }[];
 }
 
 function mapQuestionTypeToEeat(qType: string): 'expertise' | 'experience' | 'authority' | 'trust' {
@@ -56,6 +57,7 @@ export class OpportunityAnalyzer {
     
     const opportunities: BrandOpportunity[] = [];
     const eeatCounts = { expertise: 0, experience: 0, authority: 0, trust: 0 };
+    const autoSignals: { query: string; intent: string; source: string }[] = [];
 
     for (const q of currentDetails) {
       const engines = Object.keys(q.per_engine);
@@ -103,6 +105,13 @@ export class OpportunityAnalyzer {
            if (eeatDim === 'experience') eeatCounts.experience++;
            if (eeatDim === 'authority') eeatCounts.authority++;
            if (eeatDim === 'trust') eeatCounts.trust++;
+           
+           // AUTO-PILOT: GAP -> Signal
+           autoSignals.push({
+             query: q.question_text,
+             intent: q.question_type,
+             source: 'benchmark_opportunity_gap'
+           });
         }
         continue; // If it's a gap, it can't be weak or dominance
       }
@@ -128,6 +137,13 @@ export class OpportunityAnalyzer {
             competitors_present: [], engines_with_mention: [],
             eeat_dimension: eeatDim, 
             recommendation_ko: `패널 내 어떤 브랜드도 언급되지 않은 기회 영역(블루오션)입니다. 먼저 콘텐츠를 점유하면 즉각적인 AI 노출이 가능합니다.`
+          });
+          
+          // AUTO-PILOT: BLIND SPOT -> Signal
+          autoSignals.push({
+            query: q.question_text,
+            intent: q.question_type,
+            source: 'benchmark_opportunity_blind_spot'
           });
         }
         continue;
@@ -214,7 +230,8 @@ export class OpportunityAnalyzer {
         authority_gaps: eeatCounts.authority,
         trust_gaps: eeatCounts.trust
       },
-      top_action_items: actionItems.slice(0, 3)
+      top_action_items: actionItems.slice(0, 3),
+      auto_generated_signals: autoSignals
     };
   }
 }

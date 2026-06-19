@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, Globe, Search, ArrowRight, Sparkles } from "lucide-react";
+import { BarChart3, Globe, Search, ArrowRight, Sparkles, Building2 } from "lucide-react";
+import PricingCards from "./PricingCards";
 
 const EXAMPLES = [
   { url: "https://droanswer.com", brand: "DR.O (닥터오)" },
@@ -16,6 +17,7 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [brand, setBrand] = useState("");
+  const [industry, setIndustry] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -40,6 +42,7 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
     const params = new URLSearchParams({
       url: normalized,
       ...(brand.trim() ? { brand: brand.trim() } : {}),
+      ...(industry.trim() ? { industry: industry.trim() } : {}),
     });
     router.push(`/${locale}/site-audit?${params.toString()}`);
   };
@@ -78,14 +81,13 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
             ChatGPT Search + Gemini Grounding 역설계
           </div>
           <h1 className="text-4xl font-black text-slate-100 tracking-tight leading-tight mb-4">
-            어떤 웹사이트든<br />
+            AI가 당신의 브랜드를<br />
             <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-              AI 가시성을 진단합니다
+              정확히 알고 있을까?
             </span>
           </h1>
           <p className="text-slate-400 text-sm leading-relaxed">
-            대상 사이트를 크롤링하여 지식 그래프를 구성하고, AI 검색엔진이 해당 사이트를
-            얼마나 정확하게 반영하는지 측정합니다. 앤서카드 역설계 및 최적화 처방까지 제공합니다.
+            ChatGPT, Gemini, Perplexity가 우리 브랜드를 어떻게 인식하고 평가하는지 30초 만에 무료로 진단합니다.
           </p>
         </div>
 
@@ -106,6 +108,29 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
                   placeholder="https://example.com"
                   className="w-full pl-10 pr-4 py-3 bg-slate-800/60 border border-slate-700 rounded-xl text-slate-100 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all"
                 />
+              </div>
+            </div>
+
+                        {/* Industry input */}
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">
+                업종 <span className="text-slate-600 normal-case font-normal">(선택 · 미입력 시 자동 감지)</span>
+              </label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <select
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-800/60 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all appearance-none"
+                >
+                  <option value="">자동 감지 (Auto-detect)</option>
+                  <option value="wedding_studio">웨딩/스튜디오</option>
+                  <option value="skincare">스킨케어/코스메틱</option>
+                  <option value="clinic">병원/클리닉</option>
+                  <option value="restaurant">레스토랑/F&B</option>
+                  <option value="it_software">IT/SaaS</option>
+                  <option value="fashion_ecommerce">패션/쇼핑몰</option>
+                </select>
               </div>
             </div>
 
@@ -135,7 +160,7 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
               className="w-full py-3 px-6 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 cursor-pointer"
             >
               <Search className="h-4 w-4" />
-              감사 시작
+              30초 무료 진단 시작
               <ArrowRight className="h-4 w-4" />
             </button>
           </form>
@@ -175,7 +200,11 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
             </span>
           ))}
         </div>
-      </main>
+              {/* Pricing Section */}
+        <div className="mt-24 w-full">
+          <PricingCards />
+        </div>
+</main>
 
       <footer className="border-t border-slate-800 bg-slate-900/30 py-6 text-center text-xs text-slate-500">
         <p>© 2026 BSW-OS Brand Semantic Website OS. All Rights Reserved.</p>

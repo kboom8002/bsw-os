@@ -21,7 +21,7 @@ export interface SeedProbeQuestion {
 
 export type IndustryType =
   | 'beauty'
-  | 'skincare' | 'place_brand_ko' | 'place_brand_en'
+  | 'skincare' | 'place_brand_ko' | 'place_brand_en' | 'kpop_idol_ko' | 'kpop_idol_en'
   | 'wedding'
   | 'wedding_studio'
   | 'clinic'
@@ -2745,6 +2745,71 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
       // ==========================================
       // L7: Brand Override (DR.O) (20Q)
       // ==========================================
+    ]
+  },
+
+  kpop_idol_ko: {
+    panel_name: 'K-pop 아이돌 (국문)',
+    slug: 'kpop_idol_ko',
+    sbs_index_target: 'K-pop 평균',
+    questions: [
+      // L1_universal — 팬이 AI에 물어보는 일반 추천/탐색 질문
+      { question_text: '요즘 뜨는 4세대 K-pop 걸그룹 추천해줘', intent_context: 'recommendation', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['걸그룹', '4세대'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'K-pop 입문자에게 추천할 만한 아이돌 그룹 5개', intent_context: 'recommendation', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'list', weight: 1.0, query_variants: [], must_include: [], should_include: ['입문자', '추천'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '댄스 퍼포먼스가 뛰어난 K-pop 신인 보이그룹은?', intent_context: 'performance', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['댄스', '퍼포먼스', '보이그룹'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '라이브 실력이 좋은 4세대 아이돌 그룹 추천', intent_context: 'vocal', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['라이브', '보컬', '실력'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Y2K 컨셉의 K-pop 아이돌 추천해줘', intent_context: 'concept', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['Y2K', '컨셉'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '자체 제작 콘텐츠(유튜브)가 재미있는 아이돌 그룹은?', intent_context: 'content', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['자체 제작', '유튜브'], must_not_do: [], layer: 'L1_universal' },
+
+      // L6_trend — 트렌드/인기 관련 팬 질문
+      { question_text: '요즘 10대들에게 가장 인기 있는 K-pop 아이돌은?', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['10대', '인기'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '가장 최근에 데뷔한 주목할만한 대형 기획사 신인 그룹은?', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['신인', '대형 기획사'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '올해 해외에서 가장 주목받는 K-pop 그룹은?', intent_context: 'global', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['해외', '주목'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '이번 달 컴백하는 K-pop 아이돌 일정 정리해줘', intent_context: 'comeback_schedule', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['컴백', '일정'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '올해 음악방송 1위를 가장 많이 한 K-pop 그룹은?', intent_context: 'music_show_wins', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['음악방송', '1위'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '최근 빌보드 핫100에 진입한 K-pop 아이돌은?', intent_context: 'global_chart', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['빌보드', '핫100'], must_not_do: [], layer: 'L6_trend' },
+
+      // L3_ingredient — 음악 스타일/장르 관련 팬 질문
+      { question_text: 'R&B 스타일 곡을 잘 소화하는 K-pop 신인 아이돌', intent_context: 'music_style', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['R&B', '스타일'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '이지리스닝 음악이 특징인 아이돌 그룹 추천', intent_context: 'music_style', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['이지리스닝'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: 'K-pop 보이그룹 중 힙합 기반 곡이 많은 그룹은?', intent_context: 'music_style', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['힙합', '보이그룹'], must_not_do: [], layer: 'L3_ingredient' },
+
+      // L5_ymyl — 금전/안전 관련 팬 질문
+      { question_text: 'K-pop 콘서트 티켓 안전하게 구매하는 방법과 주의할 점', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['안전', '구매', '주의'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '아이돌 포토카드 거래할 때 사기 안 당하는 방법', intent_context: 'safety_trade', target_keyword: '', risk_level: 'high', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['포토카드', '사기', '거래'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: 'K-pop 팬미팅 해외 원정 시 비자, 숙소, 비용 팁', intent_context: 'travel_safety', target_keyword: '', risk_level: 'high', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['해외', '비자', '비용'], must_not_do: [], layer: 'L5_ymyl' },
+    ]
+  },
+  kpop_idol_en: {
+    panel_name: 'K-pop Idol (English)',
+    slug: 'kpop_idol_en',
+    sbs_index_target: 'K-pop Average',
+    questions: [
+      // L1_universal — Fan recommendation/discovery queries
+      { question_text: 'Recommend popular 4th generation K-pop girl groups right now', intent_context: 'recommendation_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['girl groups', '4th generation'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Top 5 K-pop idol groups to recommend to beginners', intent_context: 'recommendation_en', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'list', weight: 1.0, query_variants: [], must_include: [], should_include: ['beginners', 'recommend'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Which K-pop rookie boy group has the best dance performance?', intent_context: 'performance_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['dance', 'performance', 'boy group'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Recommend 4th generation idol groups with great live vocal skills', intent_context: 'vocal_en', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['live', 'vocal', 'skills'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Recommend K-pop idols with a Y2K concept', intent_context: 'concept_en', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['Y2K', 'concept'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: 'Which idol group has the most entertaining original YouTube content?', intent_context: 'content_en', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['YouTube', 'content'], must_not_do: [], layer: 'L1_universal' },
+
+      // L6_trend — Trending/popularity fan queries
+      { question_text: 'Who are the most popular K-pop idols among teenagers today?', intent_context: 'trend_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['popular', 'teenagers'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: 'Which newly debuted group from a major agency should I watch out for?', intent_context: 'trend_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['debuted', 'agency'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: 'Which K-pop group is gaining the most global attention this year?', intent_context: 'global_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['global', 'attention'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: 'What K-pop comebacks are scheduled this month?', intent_context: 'comeback_schedule_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['comebacks', 'scheduled'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: 'Which K-pop groups won the most music show awards this year?', intent_context: 'music_show_wins_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['music show', 'awards'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: 'Which K-pop acts recently charted on the Billboard Hot 100?', intent_context: 'global_chart_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['Billboard', 'Hot 100'], must_not_do: [], layer: 'L6_trend' },
+
+      // L3_ingredient — Music style fan queries
+      { question_text: 'K-pop rookie idols who do R&B style songs well', intent_context: 'music_style_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['R&B', 'style'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: 'Recommend idol groups known for easy-listening music', intent_context: 'music_style_en', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'recommendation', weight: 1.0, query_variants: [], must_include: [], should_include: ['easy-listening'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: 'Which K-pop boy groups are known for hip-hop based tracks?', intent_context: 'music_style_en', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['hip-hop', 'boy groups'], must_not_do: [], layer: 'L3_ingredient' },
+
+      // L5_ymyl — Safety/financial fan queries
+      { question_text: 'How to safely buy K-pop concert tickets and avoid scams', intent_context: 'safety_en', target_keyword: '', risk_level: 'high', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['safely', 'buy', 'tickets'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: 'How to avoid scams when trading K-pop photocards online', intent_context: 'safety_trade_en', target_keyword: '', risk_level: 'high', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['photocards', 'scams', 'trading'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: 'Tips for attending K-pop fan meetings abroad — visa, hotel, and budget', intent_context: 'travel_safety_en', target_keyword: '', risk_level: 'high', decision_stage: 'decision', question_type: 'informational', weight: 1.0, query_variants: [], must_include: [], should_include: ['abroad', 'visa', 'budget'], must_not_do: [], layer: 'L5_ymyl' },
     ]
   },
   wedding: {
