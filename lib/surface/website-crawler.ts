@@ -187,7 +187,7 @@ export class WebsiteCrawler {
           'Accept': isSpaFallback ? 'text/plain' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
         },
-        signal: AbortSignal.timeout(15000) // 15s timeout
+        signal: AbortSignal.timeout(8000) // 8s timeout (serverless-friendly)
       });
       
       if (!res.ok) {
