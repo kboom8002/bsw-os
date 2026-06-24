@@ -1,10 +1,9 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import { checkWorkspacePermission } from "../../lib/auth";
+import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
 import { questionValueScoreSchema } from "../../lib/schema";
 
-const SIMULATED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 /**
  * 1. Score or update a Question Value Score (QVS) record.
@@ -25,7 +24,9 @@ export async function scoreQuestionValue(
     scoring_method?: "auto" | "manual";
   }
 ) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner",
     "admin",
     "brand_strategist",
@@ -107,7 +108,7 @@ export async function scoreQuestionValue(
   // 4. Audit Trail Event
   await supabase.from("audit_events").insert({
     workspace_id: workspaceId,
-    user_id: SIMULATED_USER_ID,
+    user_id: userId,
     action: "SCORE_QUESTION_VALUE",
     target_type: "question_value_scores",
     target_id: result.id,
@@ -131,7 +132,9 @@ export async function getTopValueQuestions(
   industry: string,
   limit: number = 10
 ) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner",
     "admin",
     "brand_strategist",
@@ -161,7 +164,9 @@ export async function getTopValueQuestions(
  * 3. Find preemption opportunities: High value, low competition questions.
  */
 export async function getPreemptionOpportunities(workspaceId: string, limit: number = 5) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner",
     "admin",
     "brand_strategist",

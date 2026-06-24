@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { updateSession } from './lib/supabase/middleware';
 
 const PUBLIC_FILE = /\.(.*)$/;
 const LOCALES = ['ko', 'en'];
 const DEFAULT_LOCALE = 'ko';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip static assets, internal paths, and api routes
@@ -19,16 +20,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check if pathname has a locale prefix
-  const pathnameHasLocale = LOCALES.some(
-    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
-  );
-
-  if (pathnameHasLocale) {
-    return NextResponse.next();
-  }
-
-  // Detect locale from cookie or headers
+  // Detect locale from cookie or headers for redirect
   let locale = DEFAULT_LOCALE;
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
 
@@ -43,9 +35,41 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect to /[locale]/...
-  request.nextUrl.pathname = `/${locale}${pathname}`;
-  return NextResponse.redirect(request.nextUrl);
+  // Update supabase session
+  const { supabaseResponse, user } = await updateSession(request);
+
+  // Check if pathname has a locale prefix
+  const pathnameHasLocale = LOCALES.some(
+    (l) => pathname.startsWith(`/${l}/`) || pathname === `/${l}`
+  );
+
+  // Extract the path without the locale prefix to check protection
+  let pathWithoutLocale = pathname;
+  if (pathnameHasLocale) {
+    const matchedLocale = LOCALES.find((l) => pathname.startsWith(`/${l}/`) || pathname === `/${l}`);
+    if (matchedLocale) {
+      pathWithoutLocale = pathname.replace(`/${matchedLocale}`, '') || '/';
+    }
+  }
+
+  // Check if it's a login route
+  const isLoginRoute = pathWithoutLocale === '/login' || pathWithoutLocale.startsWith('/login/');
+  
+  // Protect all non-login routes (workspaces, etc.)
+  if (!user && !isLoginRoute && pathWithoutLocale !== '/') {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = `/${pathnameHasLocale ? pathname.split('/')[1] : locale}/login`;
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Redirect to /[locale]/... if missing locale
+  if (!pathnameHasLocale) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = `/${locale}${pathname}`;
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  return supabaseResponse;
 }
 
 export const config = {

@@ -1,8 +1,9 @@
 import { EmergenceSignal } from "../../schema";
 import { SignalCollector } from "../types";
+import { env } from "../../env";
 
-const KWEDDINGHUB_API_URL = process.env.KWEDDINGHUB_API_URL || 'http://localhost:3000';
-const KWEDDINGHUB_API_KEY = process.env.KWEDDINGHUB_API_KEY || 'mock-kweddinghub-api-key-for-dev';
+const KWEDDINGHUB_API_URL = env.HUB_API_URL;
+const KWEDDINGHUB_API_KEY = env.HUB_API_KEY || '';
 
 export class KWeddingHubCollector implements SignalCollector {
   async collect(workspaceId?: string, industry?: string): Promise<EmergenceSignal[]> {

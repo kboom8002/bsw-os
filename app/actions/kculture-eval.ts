@@ -1,13 +1,12 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import { checkWorkspacePermission } from "../../lib/auth";
+import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
 import { buildCulturalSSoTContext } from "../../lib/judges/cultural-ssot-context-builder";
 import { CulturalJudgeProvider } from "../../lib/judges/cultural-judge-provider";
 import { CulturalMetricsAggregator } from "../../lib/metrics/cultural-metrics-aggregator";
 import { OpportunityEngine } from "../../lib/kculture/opportunity-engine";
 
-const SIMULATED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 /**
  * Executes a complete K-Culture Evaluation Run.
@@ -18,7 +17,9 @@ export async function runKCultureEvaluation(
   domainPackId: string,
   condition: 'baseline' | 'intervention' = 'baseline'
 ) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "observatory_analyst"
   ]);
   if (!isAuthorized) {

@@ -1,5 +1,19 @@
 import { getSupabaseAdminClient } from './supabase';
 import { WorkspaceRole } from './schema';
+import { createClient } from './supabase/server';
+
+/**
+ * Ensures the user is authenticated and returns their UUID.
+ * Throws an error if they are not logged in.
+ */
+export async function requireAuth(): Promise<string> {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    throw new Error('Unauthorized');
+  }
+  return user.id;
+}
 
 /**
  * Server-side RBAC helper.

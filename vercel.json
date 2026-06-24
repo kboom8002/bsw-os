@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/benchmark?type=daily&secret=${CRON_SECRET}",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/qis-sync?secret=${CRON_SECRET}",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

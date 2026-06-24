@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import { checkWorkspacePermission } from "../../lib/auth";
+import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
 import { 
   organizationSchema,
   organizationMembershipSchema,
@@ -12,7 +12,6 @@ import {
 } from "../../lib/kculture/types";
 import { seedKCultureForWorkspace } from "../../lib/kculture/domain-pack-registry";
 
-const SIMULATED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 /**
  * 1. Upsert Organization
@@ -66,6 +65,8 @@ export async function joinOrganization(orgId: string, userId: string, role: 'own
  * 3. Get Organizations for simulated/active user
  */
 export async function getOrganizations() {
+  const userId = await requireAuth();
+
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("organizations")
@@ -73,7 +74,7 @@ export async function getOrganizations() {
       *,
       organization_memberships!inner(user_id, role)
     `)
-    .eq("organization_memberships.user_id", SIMULATED_USER_ID);
+    .eq("organization_memberships.user_id", userId);
 
   if (error) throw new Error(`DB Error: ${error.message}`);
   return data;
@@ -156,7 +157,9 @@ export async function getCulturalConcepts(workspaceId: string, domainPackId: str
  * 9. Upsert Cultural Concept
  */
 export async function upsertCulturalConcept(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -189,7 +192,7 @@ export async function upsertCulturalConcept(workspaceId: string, data: any) {
       identity_vector: parsed.identity_vector,
       evidence_sources: parsed.evidence_sources,
       action_policies: parsed.action_policies,
-      created_by: parsed.created_by || SIMULATED_USER_ID,
+      created_by: parsed.created_by || userId,
       reviewed_by: parsed.reviewed_by,
       updated_at: new Date().toISOString()
     })
@@ -218,7 +221,9 @@ export async function getCulturalOpportunities(workspaceId: string) {
  * 11. Upsert Cultural Opportunity
  */
 export async function upsertCulturalOpportunity(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "observatory_analyst"
   ]);
   if (!isAuthorized) {
@@ -258,7 +263,9 @@ export async function upsertCulturalOpportunity(workspaceId: string, data: any) 
  * 12. Submit Human Review Audit
  */
 export async function submitHumanReview(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "evidence_reviewer"
   ]);
   if (!isAuthorized) {
@@ -274,7 +281,7 @@ export async function submitHumanReview(workspaceId: string, data: any) {
       workspace_id: parsed.workspace_id,
       object_type: parsed.object_type,
       object_id: parsed.object_id,
-      reviewer_id: SIMULATED_USER_ID,
+      reviewer_id: userId,
       review_status: parsed.review_status,
       comments: parsed.comments,
       correction_payload: parsed.correction_payload,
@@ -291,7 +298,7 @@ export async function submitHumanReview(workspaceId: string, data: any) {
         .from("cultural_concepts")
         .update({
           status: "active",
-          reviewed_by: SIMULATED_USER_ID,
+          reviewed_by: userId,
           updated_at: new Date().toISOString(),
           ...(parsed.review_status === "corrected" ? parsed.correction_payload : {})
         })

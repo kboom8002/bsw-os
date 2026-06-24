@@ -1,12 +1,10 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import { checkWorkspacePermission } from "../../lib/auth";
+import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
 import { probePanelSchema, probeQuestionSchema, expectedLayerSchema } from "../../lib/schema";
 import { INDUSTRY_PANELS_DATA, IndustryType } from "../../db/seed/industry-panels/questions-data";
 
-// MOCK USER ID for server actions simulation
-const SIMULATED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 /**
  * Creates a customized, industry-standard Probe Panel with all questions and expected layers.
@@ -17,7 +15,8 @@ export async function createIndustryStandardPanel(
   brandKeyword: string,
   competitorKeywords: string[]
 ): Promise<{ panelId: string; questionCount: number }> {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -188,7 +187,8 @@ export async function diffPanels(
   panelIdA: string,
   panelIdB: string
 ): Promise<PanelDiff> {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -248,7 +248,8 @@ export async function rollbackPanel(
   workspaceId: string,
   panelId: string
 ): Promise<{ success: boolean; rolledBackTo: string }> {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -280,7 +281,7 @@ export async function rollbackPanel(
   // Audit trail
   await supabase.from("audit_events").insert({
     workspace_id: workspaceId,
-    user_id: SIMULATED_USER_ID,
+    user_id: userId,
     action: "PANEL_ROLLBACK",
     target_type: "probe_panels",
     target_id: panelId,

@@ -1,16 +1,16 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import { checkWorkspacePermission } from "../../lib/auth";
+import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
 
-// MOCK USER ID for server actions simulation
-const SIMULATED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 /**
  * Programmatic release gate evaluation engine
  */
 export async function evaluateReleaseGates(workspaceId: string) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");

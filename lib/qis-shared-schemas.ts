@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // QIS 신호 방출 스키마 (KWeddingHub → BSW)
 export const qisSignalPayloadSchema = z.object({
-  source_platform: z.literal('kweddinghub'),
+  source_platform: z.enum(['kweddinghub', 'aihompyhub', 'jehuhub', 'other']).default('kweddinghub'),
   signal_type: z.enum([
     'community_question',    // CAFE 아고라 Q&A
     'verified_review',       // 안심 후기
@@ -14,8 +14,20 @@ export const qisSignalPayloadSchema = z.object({
     'event_intent',          // 파티 플래너 의도
     'newlywed_lifecycle',    // 신혼 라이프 데이터
     'family_conflict',       // Family Bridge 갈등 패턴
+    // 스펙 추가
+    'sentiment_pattern',
+    'deal_contract',
+    'deal_price',
+    'trend_signal',
+    'intent_signal',
+    'lifecycle_event',
+    'conflict_pattern',
+    'entity_created',
+    'entity_reviewed',
+    'comparison_requested'
   ]),
-  industry: z.literal('wedding'),
+  industry: z.enum(['wedding', 'beauty', 'hanbang', 'book', 'expert', 'music', 'food']).default('wedding'),
+  hub_slug: z.string().optional(),
   tenant_id: z.string().uuid().optional(),
   raw_text: z.string().min(1),
   metadata: z.record(z.string(), z.unknown()).default({}),
@@ -25,6 +37,11 @@ export const qisSignalPayloadSchema = z.object({
 });
 
 export type QisSignalPayload = z.infer<typeof qisSignalPayloadSchema>;
+
+export const qisSignalBatchSchema = z.object({
+  signals: z.array(qisSignalPayloadSchema)
+});
+export type QisSignalBatch = z.infer<typeof qisSignalBatchSchema>;
 
 // QIS 예측 질문 수신 스키마 (BSW → KWeddingHub)
 export const qisPredictedQuestionSchema = z.object({
@@ -50,8 +67,12 @@ export const qisRealMetricsSchema = z.object({
     'average_transaction',   // 실거래 평균 단가
     'stress_seasonal',       // 감정 계절 패턴
     'question_emergence',    // 예측 질문 실제 출현 확인
+    'ai_visibility_score',   // AI 검색 노출 점수
+    'probe_citation_rate',   // 프로브 인용률
+    'sentiment_seasonal',    // 계절 감정 패턴
   ]),
-  industry: z.literal('wedding'),
+  industry: z.string().default('wedding'),
+  hub_slug: z.string().optional(),
   period_start: z.string(),
   period_end: z.string(),
   value: z.number(),
@@ -61,14 +82,41 @@ export const qisRealMetricsSchema = z.object({
 
 export type QisRealMetrics = z.infer<typeof qisRealMetricsSchema>;
 
+export const qisRealMetricsBatchSchema = z.object({
+  metrics: z.array(qisRealMetricsSchema)
+});
+export type QisRealMetricsBatch = z.infer<typeof qisRealMetricsBatchSchema>;
+
 // QIS Expected Layer 데이터 (KWeddingHub → BSW)
 export const qisExpectedLayerDataSchema = z.object({
   question_reference: z.string(), // slug 또는 ID
   tier: z.enum(['must_include', 'strongly_recommended', 'should_include', 'caution', 'must_not_do']),
   content: z.string().min(1),
-  source: z.enum(['verified_review', 'price_data', 'contract_clause', 'safety_guard', 'community_consensus']),
+  source: z.string(), // verified_review, price_data, contract_clause, safety_guard, community_consensus, etc.
   confidence: z.number().min(0).max(1),
   sample_count: z.number().int(),
+  industry: z.string().optional(),
 });
 
 export type QisExpectedLayerData = z.infer<typeof qisExpectedLayerDataSchema>;
+
+export const qisExpectedLayerBatchSchema = z.object({
+  layers: z.array(qisExpectedLayerDataSchema)
+});
+export type QisExpectedLayerBatch = z.infer<typeof qisExpectedLayerBatchSchema>;
+
+// QIS 피드백 수신 스키마 (KWeddingHub → BSW)
+export const qisFeedbackPayloadSchema = z.object({
+  bsw_question_id: z.string().uuid(),
+  emerged: z.boolean(),
+  emerged_at: z.string().optional(),
+  emergence_source: z.string().optional(), // cafe_agora, review, deal_room, stress_check
+  actual_frequency: z.number().int().optional(),
+});
+
+export type QisFeedbackPayload = z.infer<typeof qisFeedbackPayloadSchema>;
+
+export const qisFeedbackBatchSchema = z.object({
+  feedbacks: z.array(qisFeedbackPayloadSchema)
+});
+export type QisFeedbackBatch = z.infer<typeof qisFeedbackBatchSchema>;

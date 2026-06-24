@@ -2,7 +2,7 @@
 
 import crypto from "crypto";
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import { checkWorkspacePermission } from "../../lib/auth";
+import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
 import { 
   questionSignalSchema,
   questionCapitalNodeSchema,
@@ -18,13 +18,14 @@ import {
 } from "../../lib/schema";
 import { SignalOrchestrator } from "../../lib/signal-collection/orchestrator";
 
-const SIMULATED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 /**
  * 0. Run Upstream Pipeline
  */
 export async function runUpstreamPipeline(workspaceId: string, domainName: string, brandName: string) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -40,7 +41,9 @@ export async function runUpstreamPipeline(workspaceId: string, domainName: strin
  * 1. Create Question Signal
  */
 export async function createQuestionSignal(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -70,7 +73,9 @@ export async function createQuestionSignal(workspaceId: string, data: any) {
  * 2. Update Question Signal Status
  */
 export async function updateQuestionSignalStatus(workspaceId: string, id: string, status: "mined" | "ignored" | "promoted") {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -93,7 +98,9 @@ export async function updateQuestionSignalStatus(workspaceId: string, id: string
  * 3. Promote Signal to Question Capital Node
  */
 export async function promoteSignalToQuestionCapital(workspaceId: string, signalId: string, territoryTitle: string) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -132,7 +139,7 @@ export async function promoteSignalToQuestionCapital(workspaceId: string, signal
   // Write audit trail record for critical mutation
   await supabase.from("audit_events").insert({
     workspace_id: workspaceId,
-    user_id: SIMULATED_USER_ID,
+    user_id: userId,
     action: "PROMOTE_SIGNAL_TO_CAPITAL",
     target_type: "question_capital_nodes",
     target_id: capitalNode.id,
@@ -146,7 +153,9 @@ export async function promoteSignalToQuestionCapital(workspaceId: string, signal
  * 3.1. Promote Multiple Signals to Question Capital Nodes
  */
 export async function promoteMultipleSignalsToQuestionCapital(workspaceId: string, signalIds: string[], territoryTitle: string) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -180,7 +189,7 @@ export async function promoteMultipleSignalsToQuestionCapital(workspaceId: strin
   // 3. Write audit trail
   await supabase.from("audit_events").insert({
     workspace_id: workspaceId,
-    user_id: SIMULATED_USER_ID,
+    user_id: userId,
     action: "PROMOTE_MULTIPLE_SIGNALS",
     target_type: "question_capital_nodes",
     target_id: capitalNode.id,
@@ -194,7 +203,9 @@ export async function promoteMultipleSignalsToQuestionCapital(workspaceId: strin
  * 3.2. Update Multiple Question Signal Statuses (Batch Ignore/Promote)
  */
 export async function updateMultipleQuestionSignalStatus(workspaceId: string, ids: string[], status: "mined" | "ignored" | "promoted") {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -216,7 +227,9 @@ export async function updateMultipleQuestionSignalStatus(workspaceId: string, id
  * 4. Create Question Capital Node
  */
 export async function createQuestionCapitalNode(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -246,7 +259,9 @@ export async function createQuestionCapitalNode(workspaceId: string, data: any) 
  * 5. Update Question Capital Node
  */
 export async function updateQuestionCapitalNode(workspaceId: string, id: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -276,7 +291,9 @@ export async function updateQuestionCapitalNode(workspaceId: string, id: string,
  * 6. Create Canonical Question (with unique signature constraint checks)
  */
 export async function createCanonicalQuestion(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -318,7 +335,9 @@ export async function createCanonicalQuestion(workspaceId: string, data: any) {
  * 7. Merge Canonical Questions (Deduplication resolving tool)
  */
 export async function mergeCanonicalQuestions(workspaceId: string, targetCqId: string, sourceCqIds: string[]) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -346,7 +365,9 @@ export async function mergeCanonicalQuestions(workspaceId: string, targetCqId: s
  * 8. Create QIS Scene
  */
 export async function createQisScene(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -383,7 +404,9 @@ export async function createQisScene(workspaceId: string, data: any) {
  * 9. Update QIS Scene
  */
 export async function updateQisScene(workspaceId: string, id: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -414,7 +437,9 @@ export async function updateQisScene(workspaceId: string, id: string, data: any)
  * 10. Create TCO Concept
  */
 export async function createTcoConcept(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -446,7 +471,9 @@ export async function createTcoConcept(workspaceId: string, data: any) {
  * 11. Update TCO Concept
  */
 export async function updateTcoConcept(workspaceId: string, id: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -478,7 +505,9 @@ export async function updateTcoConcept(workspaceId: string, id: string, data: an
  * 12. Create Ontology Node
  */
 export async function createOntologyNode(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -507,7 +536,9 @@ export async function createOntologyNode(workspaceId: string, data: any) {
  * 13. Create Ontology Edge
  */
 export async function createOntologyEdge(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -557,7 +588,9 @@ export async function createOntologyEdge(workspaceId: string, data: any) {
  * 14. Create Concept Relation
  */
 export async function createConceptRelation(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -586,7 +619,9 @@ export async function createConceptRelation(workspaceId: string, data: any) {
  * 15. Create Concept Operator
  */
 export async function createConceptOperator(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -615,7 +650,9 @@ export async function createConceptOperator(workspaceId: string, data: any) {
  * 16. Create Claim Node
  */
 export async function createClaimNode(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -643,7 +680,9 @@ export async function createClaimNode(workspaceId: string, data: any) {
  * 17. Update Claim Node
  */
 export async function updateClaimNode(workspaceId: string, id: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -671,7 +710,9 @@ export async function updateClaimNode(workspaceId: string, id: string, data: any
  * 18. Create Lineage Record
  */
 export async function createLineageRecord(workspaceId: string, data: any) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "evidence_reviewer"
   ]);
   if (!isAuthorized) {
@@ -705,7 +746,9 @@ export async function createLineageRecord(workspaceId: string, data: any) {
  * If valid, hashes the trace values into a cryptographic system verification signature seal.
  */
 export async function evaluateLineageCompleteness(workspaceId: string, claimNodeId: string) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "evidence_reviewer"
   ]);
   if (!isAuthorized) {
@@ -809,7 +852,9 @@ export async function evaluateLineageCompleteness(workspaceId: string, claimNode
  * 20. Evaluate Semantic Lineage Gate (QIS Safety and Action stage check)
  */
 export async function evaluateSemanticLineageGate(workspaceId: string, qisSceneId: string) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -866,7 +911,9 @@ export async function evaluateSemanticLineageGate(workspaceId: string, qisSceneI
  * and the general Knowledge Graph / Claim Lineage elements on a single canvas, allowing overlapping layers.
  */
 export async function getKnowledgeGraphData(workspaceId: string) {
-  const isAuthorized = await checkWorkspacePermission(workspaceId, SIMULATED_USER_ID, [
+  const userId = await requireAuth();
+
+  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect", "executive_viewer"
   ]);
   if (!isAuthorized) {
