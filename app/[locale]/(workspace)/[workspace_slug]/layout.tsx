@@ -62,6 +62,7 @@ export default function WorkspaceLayout({
     { name: "nav.site_audit_settings", href: `/${locale}/${workspaceSlug}/site-audit/settings`, icon: Settings, module: "site-audit-settings" },
     { name: "nav.site_audit_history", href: `/${locale}/${workspaceSlug}/site-audit/history`, icon: Clock, module: "site-audit-history" },
     { name: "nav.site_audit_llms", href: `/${locale}/${workspaceSlug}/site-audit/llms-generator`, icon: FileBarChart, module: "site-audit-llms" },
+    { name: "nav.industry_benchmark", href: `/${locale}/${workspaceSlug}/site-audit/industry-benchmark`, icon: Eye, badge: "NEW", module: "industry-benchmark" },
     { name: "nav.benchmark", href: `/${locale}/benchmark`, icon: FileBarChart, badge: "Live", module: "benchmark" },
     { name: "nav.sbs_index", href: `/${locale}/sbs-index`, icon: Award, badge: "Public", module: "sbs-index" },
     { name: "nav.truth_studio", href: `/${locale}/${workspaceSlug}/truth`, icon: ShieldAlert, badge: "L2 Gate", module: "truth" },

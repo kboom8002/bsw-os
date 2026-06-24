@@ -22,6 +22,9 @@ import {
 } from "../../lib/schema";
 import { ParametricPersonaSnapshot } from "../../lib/persona/parametric-persona-snapshot";
 import { getSupabaseAdminClient } from "../../lib/supabase";
+import { RelativePositioner, RelativePosition } from "../../lib/industry/relative-positioner";
+import { StrategyGenerator, ImprovementStrategy } from "../../lib/industry/strategy-generator";
+import { getBenchmarkProfile, getIndustryBlueprint } from "./industry-benchmark";
 
 export interface AuditResult {
   websiteUrl: string;
@@ -40,6 +43,9 @@ export interface AuditResult {
   techInfra?: TechInfraAuditResult;
   schemaQuality?: SchemaQualityAuditResult;
   contentSemantic?: ContentSemanticResult;
+  // 업종 벤치마크 포지셔닝 & 전략 (tier1 이상에서 활성화)
+  relativePosition?: RelativePosition | null;
+  improvementStrategy?: ImprovementStrategy | null;
 }
 
 /**
@@ -109,6 +115,8 @@ export async function runQuickSiteAudit(
   const analyzer = new QuickSiteAnalyzer();
   const result = await analyzer.analyze(workspaceId, websiteUrl, brandName);
 
+  const detectedIndustry = industry || detectIndustry(websiteUrl, result.entities);
+
   const finalResult: AuditResult = {
     websiteUrl: result.websiteUrl,
     brandName: result.brandName,
@@ -121,11 +129,34 @@ export async function runQuickSiteAudit(
     gaps: result.gaps,
     trends: [],
     auditMode: result.auditMode,
-    industry,
+    industry: detectedIndustry,
     techInfra: result.techInfra,
     schemaQuality: result.schemaQuality,
-    contentSemantic: result.contentSemantic
+    contentSemantic: result.contentSemantic,
+    relativePosition: null,
+    improvementStrategy: null,
   };
+
+  // 업종 벤치마크 포지셔닝 (벤치마크 프로필이 있을 때만)
+  try {
+    if (detectedIndustry && detectedIndustry !== 'default') {
+      const [profile, blueprint] = await Promise.all([
+        getBenchmarkProfile(detectedIndustry),
+        getIndustryBlueprint(detectedIndustry),
+      ]);
+      if (profile && blueprint) {
+        const positioner = new RelativePositioner();
+        const strategyGen = new StrategyGenerator();
+        const position = positioner.position(finalResult, profile, blueprint);
+        const strategy = strategyGen.generate(position, blueprint, result.gaps);
+        finalResult.relativePosition = position;
+        finalResult.improvementStrategy = strategy;
+        console.log(`[Audit] Industry positioning: ${position.overallPercentile}th percentile in ${detectedIndustry}`);
+      }
+    }
+  } catch (e) {
+    console.warn('[Audit] Could not compute industry positioning:', e);
+  }
 
   try {
     const db = getSupabaseAdminClient();
@@ -133,7 +164,7 @@ export async function runQuickSiteAudit(
       workspace_id: workspaceId,
       brand_name: result.brandName,
       website_url: result.websiteUrl,
-      industry: industry || 'default',
+      industry: detectedIndustry || 'default',
       tier: 'free',
       status: 'completed',
       result_data: finalResult

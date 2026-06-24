@@ -30,6 +30,7 @@
     "site_audit_settings": "감사 설정",
     "site_audit_history": "감사 이력",
     "site_audit_llms": "llms.txt 생성기",
+    "industry_benchmark": "업종 벤치마크",
     "benchmark": "업종별 실측 벤치마크",
     "sbs_index": "공개 AI 평판지수 (SBS)",
     "kculture_studio": "K-컬처 인텔리전스"

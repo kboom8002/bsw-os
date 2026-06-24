@@ -41,6 +41,9 @@ export default async function ResultsPage({ params }: Props) {
       techInfra={res.techInfra}
       schemaQuality={res.schemaQuality}
       contentSemantic={res.contentSemantic}
+      relativePosition={res.relativePosition ?? null}
+      improvementStrategy={res.improvementStrategy ?? null}
     />
   );
 }
+

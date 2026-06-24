@@ -4,8 +4,9 @@ import React, { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   ShieldAlert, RefreshCw, BarChart3,
-  FileCode2, UserCheck, CheckCircle2, Globe, Clock,
-  Pencil, X, Search, Printer, Layers, FileJson, FileText, LayoutDashboard
+  FileCode2, UserCheck, Globe, Clock,
+  Pencil, X, Search, Printer, Layers, FileJson, FileText, LayoutDashboard,
+  TrendingUp, Target
 } from "lucide-react";
 import {
   SurfaceEntity, ReversedAnswerCard,
@@ -16,6 +17,8 @@ import {
 import { TechInfraAuditResult } from "../../lib/surface/tech-infra-auditor";
 import { SchemaQualityAuditResult } from "../../lib/surface/schema-quality-auditor";
 import { ContentSemanticResult } from "../../lib/surface/content-semantic-analyzer";
+import { RelativePosition } from "../../lib/industry/relative-positioner";
+import { ImprovementStrategy } from "../../lib/industry/strategy-generator";
 
 import AEPIScoreCard from "./AEPIScoreCard";
 import ERRRadarChart from "./ERRRadarChart";
@@ -37,6 +40,8 @@ import OverviewPanel from "./OverviewPanel";
 import TechInfraPanel from "./TechInfraPanel";
 import SchemaQualityPanel from "./SchemaQualityPanel";
 import ContentSemanticPanel from "./ContentSemanticPanel";
+import RelativePositioningPanel from "./RelativePositioningPanel";
+import StrategyPanel from "./StrategyPanel";
 
 interface SiteAuditDashboardProps {
   brandName: string;
@@ -55,6 +60,9 @@ interface SiteAuditDashboardProps {
   techInfra?: TechInfraAuditResult | null;
   schemaQuality?: SchemaQualityAuditResult | null;
   contentSemantic?: ContentSemanticResult | null;
+  // 업종 포지셔닝 & 전략 (tier1 이상에서 활성화)
+  relativePosition?: RelativePosition | null;
+  improvementStrategy?: ImprovementStrategy | null;
 }
 
 export default function SiteAuditDashboard({
@@ -73,7 +81,9 @@ export default function SiteAuditDashboard({
   onTriggerReRun,
   techInfra = null,
   schemaQuality = null,
-  contentSemantic = null
+  contentSemantic = null,
+  relativePosition = null,
+  improvementStrategy = null,
 }: SiteAuditDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -301,7 +311,7 @@ export default function SiteAuditDashboard({
           </div>
         )}
 
-        {/* Tabs navigation (8 Tabs) */}
+        {/* Tabs navigation (10 Tabs) */}
         <div className="flex flex-wrap gap-1.5 mb-8 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-full overflow-x-auto">
           {[
             { id: "overview", label: "진단 개요", icon: LayoutDashboard, lock: false },
@@ -310,6 +320,8 @@ export default function SiteAuditDashboard({
             { id: "content", label: "콘텐츠 시맨틱", icon: FileText, lock: isFree },
             { id: "prescriptions", label: "최적화 처방전", icon: ShieldAlert, lock: isFree },
             { id: "entities", label: "지식 자산", icon: FileCode2, lock: isFree },
+            { id: "positioning", label: "업종 포지셔닝", icon: TrendingUp, lock: isFree },
+            { id: "strategy", label: "개선 전략", icon: Target, lock: isFree },
             { id: "persona", label: "AI 페르소나", icon: UserCheck, lock: !isProPlus && !isFree },
             { id: "simulation", label: "8D 시뮬레이션", icon: ShieldAlert, lock: !isEnterprise && !isFree }
           ].map(tab => {
@@ -431,6 +443,54 @@ export default function SiteAuditDashboard({
               <div className="space-y-8">
                 <SurfaceMapPanel entities={localEntities} />
                 <AnswerCardList cards={localCards} />
+              </div>
+            )
+          )}
+
+          {activeTab === "positioning" && (
+            isFree ? (
+              <LockedPanel
+                title="업종 내 상대 포지셔닝"
+                description="업종별 우수/평균/미흡 사이트와 비교하여 22개 지표에서의 상대적 위치와 Gap-to-Best를 확인하세요."
+                requiredTierName="Lite"
+                priceDelta="₩89,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier1"
+              >
+                <div className="opacity-40 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl" />
+              </LockedPanel>
+            ) : relativePosition ? (
+              <RelativePositioningPanel position={relativePosition} />
+            ) : (
+              <div className="text-center py-16 text-slate-500 text-sm">
+                <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p className="font-semibold">업종 벤치마크 데이터가 아직 없습니다</p>
+                <p className="text-xs mt-1">사이드바의 '업종 벤치마크' 메뉴에서 레퍼런스 사이트 감사를 먼저 실행해주세요.</p>
+              </div>
+            )
+          )}
+
+          {activeTab === "strategy" && (
+            isFree ? (
+              <LockedPanel
+                title="업종 기반 개선 전략"
+                description="업종 표준 설계안(Blueprint)과 Gap-to-Best 분석을 기반으로 우선순위 개선 전략과 Quick Wins를 확인하세요."
+                requiredTierName="Lite"
+                priceDelta="₩89,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier1"
+              >
+                <div className="opacity-40 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl" />
+              </LockedPanel>
+            ) : improvementStrategy ? (
+              <StrategyPanel strategy={improvementStrategy} />
+            ) : (
+              <div className="text-center py-16 text-slate-500 text-sm">
+                <Target className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p className="font-semibold">개선 전략이 아직 생성되지 않았습니다</p>
+                <p className="text-xs mt-1">업종 벤치마크 감사를 완료하면 자동으로 생성됩니다.</p>
               </div>
             )
           )}
