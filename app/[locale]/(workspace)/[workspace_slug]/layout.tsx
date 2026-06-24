@@ -64,6 +64,7 @@ export default function WorkspaceLayout({
     { name: "nav.semantic_core", href: `/${locale}/${workspaceSlug}/semantic-core`, icon: HelpCircle, badge: "CQ/QIS", module: "semantic-core" },
     { name: "nav.objects_studio", href: `/${locale}/${workspaceSlug}/objects`, icon: Layers, module: "objects" },
     { name: "nav.surfaces", href: `/${locale}/${workspaceSlug}/surfaces`, icon: Layers, module: "surfaces" },
+    { name: "nav.persona", href: `/${locale}/${workspaceSlug}/persona`, icon: User, badge: "AI 매칭", module: "persona" },
     { name: "nav.website", href: `/${locale}/${workspaceSlug}/website`, icon: Layers, badge: "AEO/GEO", module: "website" },
     { name: "nav.observatory", href: `/${locale}/${workspaceSlug}/observatory`, icon: Eye, badge: "AAS 41%", module: "observatory" },
     { name: "nav.reports", href: `/${locale}/${workspaceSlug}/reports`, icon: FileBarChart, module: "reports" },
