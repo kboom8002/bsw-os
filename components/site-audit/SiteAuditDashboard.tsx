@@ -65,6 +65,7 @@ export default function SiteAuditDashboard({
   const [activeTab, setActiveTab] = useState("diagnostic");
   const [running, setRunning] = useState(false);
   const [currentAuditMode, setCurrentAuditMode] = useState<'estimated' | 'measured' | 'partial'>(initialAuditMode);
+  const [upgrading, setUpgrading] = useState(false);
 
   // URL edit state
   const [urlEditMode, setUrlEditMode] = useState(false);
@@ -113,6 +114,33 @@ export default function SiteAuditDashboard({
       setRunning(false);
     }
   };
+
+  const handleUpgradeToFullAudit = async (tier: 'tier1' | 'tier2' | 'tier3' = 'tier2') => {
+    setUpgrading(true);
+    try {
+      const res = await fetch('/api/audit/full-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          websiteUrl,
+          brandName,
+          tier,
+          competitors: [],
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to start full audit');
+      const { sessionId } = await res.json();
+      // Extract locale from pathname e.g. /ko/site-audit
+      const localeMatch = pathname?.match(/^\/([a-z]{2})\//);
+      const locale = localeMatch?.[1] || 'ko';
+      router.push(`/${locale}/site-audit/progress/${sessionId}?tier=${tier}`);
+    } catch (err) {
+      console.error('Upgrade to full audit failed:', err);
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -219,6 +247,39 @@ export default function SiteAuditDashboard({
               : "기록 없음"}
           </div>
         </div>
+
+        {/* Full Audit Upgrade Banner (shown when results are estimated/HTML-only) */}
+        {currentAuditMode === 'estimated' && (
+          <div className="mb-6 bg-gradient-to-r from-violet-900/40 to-indigo-900/40 border border-violet-500/30 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  ⚡ 추정치 (HTML-only)
+                </span>
+              </div>
+              <p className="text-sm font-bold text-slate-100">현재 결과는 HTML 파싱 기반 추정치입니다</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                ChatGPT·Gemini에 실제 질문을 던져 브랜드 반영률을 실측하고, LLM 기반 지식 그래프 구축 및 브랜드 페르소나를 역설계하려면 정밀 진단을 실행하세요.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => handleUpgradeToFullAudit('tier1')}
+                disabled={upgrading}
+                className="px-4 py-2.5 text-xs font-bold rounded-xl bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap"
+              >
+                🔬 Lite (~3분)
+              </button>
+              <button
+                onClick={() => handleUpgradeToFullAudit('tier2')}
+                disabled={upgrading}
+                className="px-4 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap shadow-lg shadow-indigo-500/20"
+              >
+                {upgrading ? '⏳ 시작 중...' : '🚀 Pro 전체 진단 (~8분)'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Diagnostic Score Card Rows */}
         {localSnapshot && (
