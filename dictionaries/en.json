@@ -27,6 +27,9 @@
     "fixit": "Fix-It Studio",
     "gates": "Release Gates",
     "site_audit": "Site Surface Audit",
+    "site_audit_settings": "Audit Settings",
+    "site_audit_history": "Audit History",
+    "site_audit_llms": "llms.txt Generator",
     "benchmark": "Industry Benchmark",
     "sbs_index": "Public AI Index (SBS)",
     "kculture_studio": "K-Culture Intelligence"

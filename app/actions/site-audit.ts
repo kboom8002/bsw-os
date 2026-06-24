@@ -1,6 +1,6 @@
 "use server";
 
-import { WebsiteCrawler } from "../../lib/surface/website-crawler";
+import { WebsiteCrawler, CrawledPage } from "../../lib/surface/website-crawler";
 import { LlmEntityExtractor } from "../../lib/surface/llm-entity-extractor";
 import { KnowledgeGraphBuilder } from "../../lib/surface/knowledge-graph-builder";
 import { AnswerCardReverser } from "../../lib/surface/answer-card-reverser";
@@ -12,6 +12,9 @@ import { PersonaReverseEngineer } from "../../lib/surface/persona-reverse-engine
 import { GapAnalyzer } from "../../lib/benchmark/gap-analyzer";
 import { TemporalTracker, TemporalTrend } from "../../lib/benchmark/temporal-tracker";
 import { QuickSiteAnalyzer, QuickAuditResult } from "../../lib/surface/quick-site-analyzer";
+import { TechInfraAuditor, TechInfraAuditResult } from "../../lib/surface/tech-infra-auditor";
+import { SchemaQualityAuditor, SchemaQualityAuditResult } from "../../lib/surface/schema-quality-auditor";
+import { ContentSemanticAnalyzer, ContentSemanticResult } from "../../lib/surface/content-semantic-analyzer";
 import {
   SurfaceEntity, ReversedAnswerCard,
   EntityReflectionSnapshot, ObservedParametricPersona,
@@ -34,6 +37,9 @@ export interface AuditResult {
   auditMode: 'estimated' | 'measured' | 'partial';
   sessionId?: string;
   industry?: string;
+  techInfra?: TechInfraAuditResult;
+  schemaQuality?: SchemaQualityAuditResult;
+  contentSemantic?: ContentSemanticResult;
 }
 
 /**
@@ -46,8 +52,8 @@ function detectIndustry(websiteUrl: string, entities: SurfaceEntity[]): string {
   ].join(' ').toLowerCase();
 
   const INDUSTRY_KEYWORDS: Record<string, string[]> = {
-    wedding_studio: ['웨딩', '스튜디오', '촬영', '포토', '스냅', '결혼', 'wedding', 'studio', 'photo', 'bridal', '드레스'],
     skincare: ['스킨케어', '화장품', '뷰티', '코스메틱', '피부', '세럼', '크림', 'skincare', 'cosmetic', 'beauty', 'serum', '클렌저'],
+    wedding_studio: ['웨딩', '스튜디오', '촬영', '포토', '스냅', '결혼', 'wedding', 'studio', 'photo', 'bridal', '드레스'],
     beauty: ['메이크업', '헤어', '살롱', '네일', 'makeup', 'salon', 'nail', 'hair'],
     clinic: ['병원', '클리닉', '의원', '진료', '치료', 'clinic', 'hospital', 'medical', '피부과', '성형'],
     restaurant: ['레스토랑', '음식점', '맛집', '카페', '배달', 'restaurant', 'cafe', 'dining'],
@@ -77,10 +83,6 @@ function detectIndustry(websiteUrl: string, entities: SurfaceEntity[]): string {
   return detected;
 }
 
-/**
- * Quick Audit: HTML 크롤링만으로 즉시 추정 (AI API 호출 없음, ~5초)
- */
-
 async function updateProgress(sessionId: string, currentStep: number, totalSteps: number, message: string) {
   try {
     const db = getSupabaseAdminClient();
@@ -107,7 +109,7 @@ export async function runQuickSiteAudit(
   const analyzer = new QuickSiteAnalyzer();
   const result = await analyzer.analyze(workspaceId, websiteUrl, brandName);
 
-  const finalResult = {
+  const finalResult: AuditResult = {
     websiteUrl: result.websiteUrl,
     brandName: result.brandName,
     entities: result.entities,
@@ -119,7 +121,10 @@ export async function runQuickSiteAudit(
     gaps: result.gaps,
     trends: [],
     auditMode: result.auditMode,
-    industry
+    industry,
+    techInfra: result.techInfra,
+    schemaQuality: result.schemaQuality,
+    contentSemantic: result.contentSemantic
   };
 
   try {
@@ -133,18 +138,13 @@ export async function runQuickSiteAudit(
       status: 'completed',
       result_data: finalResult
     }).select('id').single();
-    if (data) (finalResult as any).sessionId = data.id;
+    if (data) finalResult.sessionId = data.id;
   } catch (e) {
     console.error("Failed to save quick audit session:", e);
   }
 
-  return finalResult as AuditResult;
+  return finalResult;
 }
-
-/**
- * Full Audit: 10단계 파이프라인, 내결함성 적용.
- * 각 단계 실패 시 Quick Audit 추정값으로 폴백 (0 반환 방지)
- */
 
 export async function startAuditSession(
   workspaceId: string,
@@ -162,7 +162,7 @@ export async function startAuditSession(
     industry: industryInput || 'default',
     tier: tier,
     status: 'running',
-    progress: { current_step: 0, total_steps: 11, message: '진단 대기 중...' }
+    progress: { current_step: 0, total_steps: 14, message: '진단 대기 중...' }
   }).select('id').single();
 
   if (error || !data) {
@@ -171,7 +171,6 @@ export async function startAuditSession(
 
   const sessionId = data.id;
 
-  // Run in background (fire and forget)
   runFullSiteAuditBackground(sessionId, workspaceId, websiteUrl, brandName, competitors, tier, industryInput)
     .catch(err => {
       console.error(`Background audit ${sessionId} failed:`, err);
@@ -181,7 +180,8 @@ export async function startAuditSession(
   return sessionId;
 }
 
-async function runFullSiteAuditBackground(sessionId: string, 
+async function runFullSiteAuditBackground(
+  sessionId: string, 
   workspaceId: string,
   websiteUrl: string,
   brandName: string,
@@ -191,27 +191,27 @@ async function runFullSiteAuditBackground(sessionId: string,
 ): Promise<AuditResult> {
   console.log(`[Audit Action] Beginning full site audit for ${brandName} (${websiteUrl}), tier: ${tier}`);
 
-  // Quick audit as baseline (always available as fallback)
   let quickResult: QuickAuditResult | null = null;
   try {
-    await updateProgress(sessionId, 0, 11, '빠른 진단 기준으로 초기 추정 중...');
-  const analyzer = new QuickSiteAnalyzer();
+    await updateProgress(sessionId, 0, 14, '빠른 진단 기준으로 초기 추정 중...');
+    const analyzer = new QuickSiteAnalyzer();
     quickResult = await analyzer.analyze(workspaceId, websiteUrl, brandName);
   } catch (e: any) {
     console.warn(`[Audit Action] Quick audit baseline failed: ${e.message}`);
   }
 
-  // Track what succeeded for auditMode
   let hasLlmEntities = false;
   let hasReflection = false;
 
   try {
     // ── Step 1: Crawl Website ──
-    let crawledPages: any[] = [];
+    let crawlResult: any = null;
+    let crawledPages: CrawledPage[] = [];
     try {
       const crawler = new WebsiteCrawler();
-      await updateProgress(sessionId, 1, 11, '웹사이트 구조 크롤링 중...');
-      crawledPages = await crawler.crawl(websiteUrl, 10);
+      await updateProgress(sessionId, 1, 14, '웹사이트 구조 크롤링 중...');
+      crawlResult = await crawler.crawl(websiteUrl, 20);
+      crawledPages = crawlResult.pages || [];
       console.log(`[Audit] Step 1 OK: crawled ${crawledPages.length} pages`);
     } catch (e: any) {
       console.warn(`[Audit] Step 1 FAIL (crawl): ${e.message}. Using quick audit entities.`);
@@ -221,171 +221,231 @@ async function runFullSiteAuditBackground(sessionId: string,
       throw e;
     }
 
-    // ── Step 2: Extract Entities (LLM) ──
+    // ── Step 2: Tech Infra Audit (L1) ──
+    let techInfra: TechInfraAuditResult;
+    try {
+      await updateProgress(sessionId, 2, 14, 'L1: 기술 인프라(AI Crawler Accessibility) 진단 중...');
+      techInfra = TechInfraAuditor.audit(crawlResult);
+      console.log('[Audit] Step 2 OK: L1 Tech Infra Score =', techInfra.techInfraScore);
+    } catch (e: any) {
+      console.warn(`[Audit] Step 2 FAIL (tech-infra): ${e.message}`);
+      techInfra = quickResult?.techInfra || {
+        robotsBotMatrix: [], aiCrawlerAccessScore: 50, httpsEnabled: false, sslCertValid: false,
+        sslCertExpiryDays: 0, ttfbMs: 0, ttfbGrade: 'slow', redirectChainDepth: 0, brokenLinks: [],
+        renderingMode: 'ssr', spaDetected: false, sitemapExists: false, sitemapUrlCount: 0,
+        sitemapFreshnessScore: 0, llmsTxtExists: false, canonicalConsistency: 0, techInfraScore: 50, issues: []
+      };
+    }
+
+    // ── Step 3: Schema Quality Audit (L2) ──
+    let schemaQuality: SchemaQualityAuditResult;
+    try {
+      await updateProgress(sessionId, 3, 14, 'L2: 구조화 시맨틱(Schema & OG metadata) 진단 중...');
+      schemaQuality = SchemaQualityAuditor.audit(crawledPages);
+      console.log('[Audit] Step 3 OK: L2 Schema Quality Score =', schemaQuality.schemaQualityScore);
+    } catch (e: any) {
+      console.warn(`[Audit] Step 3 FAIL (schema-quality): ${e.message}`);
+      schemaQuality = quickResult?.schemaQuality || {
+        organizationSchema: null, localBusinessSchema: null, faqPageSchemas: [], howToSchemas: [],
+        productSchemas: [], articleSchemas: [], breadcrumbSchemas: [], aggregateRatingSchemas: [], otherSchemas: [],
+        orgSameAsProfiles: [], orgLogoPresent: false, orgContactPresent: false,
+        ogCompleteness: { hasOgTitle: false, hasOgDescription: false, hasOgImage: false, hasOgType: false, hasOgUrl: false, completenessScore: 0, perPageScores: [] },
+        metaTagAudit: { titleOptimization: [], descriptionQuality: [], authorPresent: 0, robotsDirectives: [], canonicalStatus: [] },
+        schemaQualityScore: 50, schemaTypeCount: 0, schemaCoverage: 0, issues: []
+      };
+    }
+
+    // ── Step 4: Extract Entities (LLM) ──
     let allEntities: SurfaceEntity[] = [];
     try {
       const extractor = new LlmEntityExtractor();
-      await updateProgress(sessionId, 2, 11, '지식 자산(Entity) 추출 중...');
-      allEntities = await extractor.extractBatch(workspaceId, crawledPages.slice(0, 5), websiteUrl);
+      await updateProgress(sessionId, 4, 14, '지식 자산(Entity) 추출 중...');
+      allEntities = await extractor.extractBatch(workspaceId, crawledPages.slice(0, 10), websiteUrl);
       hasLlmEntities = allEntities.length > 0;
-      console.log(`[Audit] Step 2 OK: extracted ${allEntities.length} entities in batch`);
+      console.log(`[Audit] Step 4 OK: extracted ${allEntities.length} entities in batch`);
     } catch (e: any) {
-      console.warn(`[Audit] Step 2 FAIL (LLM extract): ${e.message}. Using quick audit entities.`);
+      console.warn(`[Audit] Step 4 FAIL (LLM extract): ${e.message}. Using quick audit entities.`);
       allEntities = quickResult?.entities || [];
     }
 
-    // If LLM extraction produced nothing, use quick audit entities
     if (allEntities.length === 0 && quickResult) {
       allEntities = quickResult.entities;
     }
 
-    // ── Step 3: Build Knowledge Graph ──
+    // ── Step 5: Build Knowledge Graph ──
     let kg: any = { entities: allEntities, nodes: [], edges: [], concepts: [] };
     try {
       const kgBuilder = new KnowledgeGraphBuilder();
-      await updateProgress(sessionId, 3, 11, '지식 그래프 구축 중...');
+      await updateProgress(sessionId, 5, 14, '지식 그래프 구축 중...');
       kg = await kgBuilder.build(workspaceId, websiteUrl, allEntities);
-      console.log(`[Audit] Step 3 OK: KG with ${kg.entities.length} entities`);
+      console.log(`[Audit] Step 5 OK: KG with ${kg.entities.length} entities`);
     } catch (e: any) {
-      console.warn(`[Audit] Step 3 FAIL (KG): ${e.message}. Using flat entities.`);
+      console.warn(`[Audit] Step 5 FAIL (KG): ${e.message}. Using flat entities.`);
       kg = { entities: allEntities, nodes: [], edges: [], concepts: [] };
     }
 
-    // ── Step 4: Reverse Answer Cards ──
+    // ── Step 6: Reverse Answer Cards ──
     let cards: ReversedAnswerCard[] = quickResult?.cards || [];
     try {
       const reverser = new AnswerCardReverser();
-      await updateProgress(sessionId, 4, 11, 'AI 앤서카드 역설계 중...');
+      await updateProgress(sessionId, 6, 14, 'AI 앤서카드 역설계 중...');
       const reversedResult = await reverser.reverse(workspaceId, websiteUrl, kg);
       cards = reversedResult.cards;
-      console.log(`[Audit] Step 4 OK: ${cards.length} answer cards`);
+      console.log(`[Audit] Step 6 OK: ${cards.length} answer cards`);
     } catch (e: any) {
-      console.warn(`[Audit] Step 4 FAIL (cards): ${e.message}. Using quick cards.`);
+      console.warn(`[Audit] Step 6 FAIL (cards): ${e.message}. Using quick cards.`);
     }
 
-    // ── Step 5: Generate Probes ──
+    // ── Step 7: Generate Probes ──
     let customProbes: any[] = [];
     try {
       const probeGen = new ProbeGenerator();
-      await updateProgress(sessionId, 5, 11, '동적 프로빙 시나리오 생성 중...');
+      await updateProgress(sessionId, 7, 14, '동적 프로빙 시나리오 생성 중...');
       customProbes = await probeGen.generateProbes(cards, brandName, competitors);
-      console.log(`[Audit] Step 5 OK: ${customProbes.length} probes`);
+      console.log(`[Audit] Step 7 OK: ${customProbes.length} probes`);
     } catch (e: any) {
-      console.warn(`[Audit] Step 5 FAIL (probes): ${e.message}. Skipping reflection.`);
+      console.warn(`[Audit] Step 7 FAIL (probes): ${e.message}. Skipping reflection.`);
     }
 
-    // ── Step 6: QIS Cross Map (업종 자동 감지) ──
+    // ── Step 8: QIS Cross Map (업종 자동 감지) ──
     let mappings: any[] = [];
     const detectedIndustry = industryInput || detectIndustry(websiteUrl, kg.entities);
     try {
       if (detectedIndustry !== 'default') {
         const crossMapper = new QisCrossMapper();
-        await updateProgress(sessionId, 6, 11, 'QIS 기반 업종 교차 매핑 중...');
+        await updateProgress(sessionId, 8, 14, 'QIS 기반 업종 교차 매핑 중...');
         mappings = await crossMapper.crossMap(detectedIndustry, customProbes);
-        console.log(`[Audit] Step 6 OK: ${mappings.length} mappings (industry: ${detectedIndustry})`);
+        console.log(`[Audit] Step 8 OK: ${mappings.length} mappings (industry: ${detectedIndustry})`);
       } else {
-        console.log(`[Audit] Step 6 SKIP: no matching industry panel for this site.`);
+        console.log(`[Audit] Step 8 SKIP: no matching industry panel for this site.`);
       }
     } catch (e: any) {
-      console.warn(`[Audit] Step 6 FAIL (QIS): ${e.message}.`);
+      console.warn(`[Audit] Step 8 FAIL (QIS): ${e.message}.`);
     }
 
-    // ── Step 7: Entity Reflection (AI API calls — most likely to fail) ──
+    // ── Step 9: Content Semantic Analysis (L3) ──
+    let contentSemantic: ContentSemanticResult;
+    try {
+      await updateProgress(sessionId, 9, 14, 'L3: 콘텐츠 시맨틱(E-E-A-T, Answer-First, Freshness) 분석 중...');
+      contentSemantic = ContentSemanticAnalyzer.analyze(crawledPages, techInfra.httpsEnabled, schemaQuality.orgSameAsProfiles.length);
+      console.log('[Audit] Step 9 OK: L3 Content Semantic Score =', contentSemantic.contentSemanticScore);
+    } catch (e: any) {
+      console.warn(`[Audit] Step 9 FAIL (content-semantic): ${e.message}`);
+      contentSemantic = quickResult?.contentSemantic || {
+        eeat: { experience: 50, expertise: 50, authoritativeness: 50, trustworthiness: 50, overall: 50, signals: [] },
+        answerFirstScores: [],
+        freshnessAnalysis: { averageAgeDays: 180, freshContentRatio: 0, stalestPage: null, newestPage: null, freshnessScore: 50, perPageFreshness: [] },
+        topicClusters: [], quantitativeDataDensity: 0, multimediaAudit: { totalImages: 0, imagesWithAlt: 0, imagesWithoutAlt: 0, altTextQualityScore: 0, videoCount: 0, hasEmbeddedVideo: false, multimediaScore: 0 },
+        citationNetwork: { totalOutboundLinks: 0, uniqueExternalDomains: 0, authorityDomainRatio: 0, nofollowRatio: 0, citationQualityScore: 50, topCitedDomains: [] },
+        originalityScore: 50,
+        internalLinkTopology: { totalInternalLinks: 0, orphanPages: [], hubPages: [], averageLinksPerPage: 0, maxDepth: 0, topologyScore: 50 },
+        contentSemanticScore: 50, issues: []
+      };
+    }
+
+    // ── Step 10: Entity Reflection (AI API calls — most likely to fail) ──
     let snapshot: EntityReflectionSnapshot | null = quickResult?.snapshot || null;
     let reflectionDetails: any[] = [];
     let rawResponses: string[] = [];
     if (customProbes.length > 0) {
       try {
         const refRunner = new EntityReflectionRunner();
-        await updateProgress(sessionId, 7, 11, 'AI 엔진 대상 Entity Reflection 실측 중...');
+        await updateProgress(sessionId, 10, 14, 'AI 엔진 대상 Entity Reflection 실측 중...');
         const reflectionResult = await refRunner.run(
           workspaceId, websiteUrl, kg.entities,
-          customProbes.slice(0, 5), // limit to 5 probes for speed
-          [new URL(websiteUrl).host]
+          customProbes.slice(0, 5),
+          [new URL(websiteUrl).host],
+          'composite',
+          competitors
         );
         snapshot = reflectionResult.snapshot;
         reflectionDetails = reflectionResult.reflectionDetails;
         rawResponses = reflectionResult.rawResponses;
         hasReflection = true;
-        console.log(`[Audit] Step 7 OK: Reflection metrics captured`);
+        console.log(`[Audit] Step 10 OK: Reflection metrics captured`);
       } catch (e: any) {
-        console.warn(`[Audit] Step 7 FAIL (reflection): ${e.message}. Using quick estimates.`);
-        // Keep quickResult.snapshot as fallback (NOT zeros)
+        console.warn(`[Audit] Step 10 FAIL (reflection): ${e.message}. Using quick estimates.`);
       }
     }
 
-    // ── Step 8: AEPI Score ──
+    // Override tech_mod_score and eeat_mod_score in snapshot using our new layers
+    if (snapshot) {
+      snapshot.tech_mod_score = Math.round((techInfra.techInfraScore + schemaQuality.schemaQualityScore) / 2);
+      snapshot.eeat_mod_score = contentSemantic.eeat.overall;
+    }
+
+    // ── Step 11: AEPI Score ──
     if (snapshot && hasReflection) {
       try {
-        await updateProgress(sessionId, 8, 11, '종합 AEPI 가시성 지수 산출 중...');
+        await updateProgress(sessionId, 11, 14, '종합 AEPI 가시성 지수 산출 중...');
         const aepi = AepiCalculator.calculate(snapshot, detectedIndustry);
         snapshot.aepi_score = aepi;
-        console.log(`[Audit] Step 8 OK: AEPI = ${aepi}`);
+        console.log(`[Audit] Step 11 OK: AEPI = ${aepi}`);
       } catch (e: any) {
-        console.warn(`[Audit] Step 8 FAIL (AEPI): ${e.message}.`);
+        console.warn(`[Audit] Step 11 FAIL (AEPI): ${e.message}.`);
       }
     }
 
-    // ── Step 9: Persona (v2.0 or fallback) ──
+    // ── Step 12: Persona (v2.0 or fallback) ──
     let observedPersona: ObservedParametricPersona | null = null;
     let parametricSnapshot: ParametricPersonaSnapshot | null = null;
     let personaSpec: PersonaSpec | null = null;
     try {
       const personaEngineer = new PersonaReverseEngineer();
       if (tier === 'tier1' && rawResponses.length > 0) {
-        await updateProgress(sessionId, 9, 11, '브랜드 페르소나 분석 중...');
+        await updateProgress(sessionId, 12, 14, '브랜드 페르소나 분석 중...');
         observedPersona = await personaEngineer.analyze(
           workspaceId, websiteUrl, brandName, rawResponses
         );
-        console.log(`[Audit] Step 9 OK: v1 Persona extracted`);
+        console.log(`[Audit] Step 12 OK: v1 Persona extracted`);
       } else if (tier !== 'tier1') {
-        await updateProgress(sessionId, 9, 11, '파라메트릭 페르소나 N회 반복 측정 중...');
+        await updateProgress(sessionId, 12, 14, '파라메트릭 페르소나 N회 반복 측정 중...');
         parametricSnapshot = await personaEngineer.runFullPersonaAudit(
           workspaceId, websiteUrl, brandName, detectedIndustry, tier as 'free' | 'tier1.5' | 'tier2' | 'tier3'
         );
-        console.log(`[Audit] Step 9 OK: v2/v3 Parametric Persona Snapshot generated`);
+        console.log(`[Audit] Step 12 OK: v2/v3 Parametric Persona Snapshot generated`);
       }
     } catch (e: any) {
-      console.warn(`[Audit] Step 9 FAIL (Persona): ${e.message}`);
+      console.warn(`[Audit] Step 12 FAIL (Persona): ${e.message}`);
     }
 
-    // ── Step 10: Gap Analysis ──
+    // ── Step 13: Gap Analysis ──
     let gaps: SurfaceGapAnalysis[] = quickResult?.gaps || [];
     try {
       if (mappings.length > 0) {
         const gapAnalyzer = new GapAnalyzer();
-        await updateProgress(sessionId, 10, 11, '최적화 Gap 분석 및 처방전 발급 중...');
+        await updateProgress(sessionId, 13, 14, '최적화 Gap 분석 및 처방전 발급 중...');
         gaps = await gapAnalyzer.analyze(
           workspaceId, websiteUrl, kg.entities,
-          reflectionDetails, mappings
+          reflectionDetails, mappings,
+          techInfra, schemaQuality, contentSemantic
         );
-        console.log(`[Audit] Step 10 OK: ${gaps.length} gaps`);
+        console.log(`[Audit] Step 13 OK: ${gaps.length} gaps`);
       }
     } catch (e: any) {
-      console.warn(`[Audit] Step 10 FAIL (gaps): ${e.message}. Using quick gaps.`);
+      console.warn(`[Audit] Step 13 FAIL (gaps): ${e.message}. Using quick gaps.`);
     }
 
-    // ── Step 11: Temporal Trends ──
+    // ── Step 14: Temporal Trends ──
     let trends: TemporalTrend[] = [];
     try {
       if (snapshot) {
         const tracker = new TemporalTracker();
-        await updateProgress(sessionId, 11, 11, '시계열 트렌드 기록 중...');
+        await updateProgress(sessionId, 14, 14, '시계열 트렌드 기록 중...');
         trends = await tracker.getTrends(websiteUrl, snapshot);
-        console.log(`[Audit] Step 11 OK: ${trends.length} temporal trends fetched`);
+        console.log(`[Audit] Step 14 OK: ${trends.length} temporal trends fetched`);
       }
     } catch (e: any) {
-      console.warn(`[Audit] Step 11 FAIL (trends): ${e.message}`);
+      console.warn(`[Audit] Step 14 FAIL (trends): ${e.message}`);
     }
 
-    // Determine audit mode
     const auditMode: AuditResult['auditMode'] = hasReflection
       ? 'measured'
       : hasLlmEntities
         ? 'partial'
         : 'estimated';
 
-    const finalResult = {
+    const finalResult: AuditResult = {
       websiteUrl,
       brandName,
       entities: kg.entities,
@@ -397,27 +457,91 @@ async function runFullSiteAuditBackground(sessionId: string,
       gaps,
       trends,
       auditMode,
-      industry: detectedIndustry
+      industry: detectedIndustry,
+      techInfra,
+      schemaQuality,
+      contentSemantic
     };
+
+    // Save L1, L2, L3 snapshot tables to Supabase with dynamic fallback
+    let tech_infra_snapshot_id: string | undefined;
+    let schema_quality_snapshot_id: string | undefined;
+    let content_semantic_snapshot_id: string | undefined;
+
+    try {
+      const db = getSupabaseAdminClient();
+      
+      const { data: tData } = await db.from('tech_infra_snapshots').insert({
+        workspace_id: workspaceId,
+        website_url: websiteUrl,
+        audit_session_id: sessionId,
+        robots_bot_matrix: techInfra.robotsBotMatrix,
+        ai_crawler_access_score: techInfra.aiCrawlerAccessScore,
+        https_enabled: techInfra.httpsEnabled,
+        ttfb_ms: techInfra.ttfbMs,
+        sitemap_url_count: techInfra.sitemapUrlCount,
+        llms_txt_exists: techInfra.llmsTxtExists,
+        canonical_consistency: techInfra.canonicalConsistency,
+        tech_infra_score: techInfra.techInfraScore,
+        issues: techInfra.issues,
+        measured_at: new Date().toISOString()
+      }).select('id').single();
+      if (tData) tech_infra_snapshot_id = tData.id;
+
+      const { data: sData } = await db.from('schema_quality_snapshots').insert({
+        workspace_id: workspaceId,
+        website_url: websiteUrl,
+        audit_session_id: sessionId,
+        schema_quality_score: schemaQuality.schemaQualityScore,
+        schema_type_count: schemaQuality.schemaTypeCount,
+        org_schema_present: !!schemaQuality.organizationSchema,
+        faq_schema_count: schemaQuality.faqPageSchemas.length,
+        og_completeness_score: schemaQuality.ogCompleteness.completenessScore,
+        issues: schemaQuality.issues,
+        measured_at: new Date().toISOString()
+      }).select('id').single();
+      if (sData) schema_quality_snapshot_id = sData.id;
+
+      const { data: cData } = await db.from('content_semantic_snapshots').insert({
+        workspace_id: workspaceId,
+        website_url: websiteUrl,
+        audit_session_id: sessionId,
+        eeat_experience: contentSemantic.eeat.experience,
+        eeat_expertise: contentSemantic.eeat.expertise,
+        eeat_authoritativeness: contentSemantic.eeat.authoritativeness,
+        eeat_trustworthiness: contentSemantic.eeat.trustworthiness,
+        answer_first_avg_score: contentSemantic.answerFirstScores.length > 0 ? Math.round(contentSemantic.answerFirstScores.reduce((sum, item) => sum + item.directAnswerScore, 0) / contentSemantic.answerFirstScores.length) : 0,
+        freshness_score: contentSemantic.freshnessAnalysis.freshnessScore,
+        content_semantic_score: contentSemantic.contentSemanticScore,
+        issues: contentSemantic.issues,
+        measured_at: new Date().toISOString()
+      }).select('id').single();
+      if (cData) content_semantic_snapshot_id = cData.id;
+
+    } catch (dbErr) {
+      console.warn('[Audit Action] Could not insert L1/L2/L3 snapshots to DB. Table columns might be missing:', dbErr);
+    }
 
     try {
       const db = getSupabaseAdminClient();
       await db.from('audit_sessions').update({
         status: 'completed',
         completed_at: new Date().toISOString(),
-        result_data: finalResult
+        result_data: finalResult,
+        ...(tech_infra_snapshot_id ? { tech_infra_snapshot_id } : {}),
+        ...(schema_quality_snapshot_id ? { schema_quality_snapshot_id } : {}),
+        ...(content_semantic_snapshot_id ? { content_semantic_snapshot_id } : {})
       }).eq('id', sessionId);
     } catch (e) {
       console.error("Failed to save full audit session:", e);
     }
 
-    return finalResult as AuditResult;
+    return finalResult;
   } catch (e: any) {
     console.error(`[Audit Action] Full audit failed: ${e.message}. Returning quick audit.`);
     if (quickResult) {
       return quickResultToAudit(quickResult, industryInput);
     }
-    // Ultimate fallback
     return {
       websiteUrl, brandName,
       entities: [], cards: [],
@@ -440,6 +564,9 @@ function quickResultToAudit(q: QuickAuditResult, industry?: string): AuditResult
     personaSpec: null,
     gaps: q.gaps,
     trends: [],
-    auditMode: q.auditMode
+    auditMode: q.auditMode,
+    techInfra: q.techInfra,
+    schemaQuality: q.schemaQuality,
+    contentSemantic: q.contentSemantic
   };
 }

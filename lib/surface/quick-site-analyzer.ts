@@ -8,11 +8,14 @@
  * 소요시간: ~3-8초 (3-5 페이지 크롤링)
  */
 
-import { WebsiteCrawler, CrawledPage, parseHtml } from './website-crawler';
+import { WebsiteCrawler, CrawledPage } from './website-crawler';
 import {
   SurfaceEntity, ReversedAnswerCard,
   EntityReflectionSnapshot, SurfaceGapAnalysis
 } from '../schema';
+import { TechInfraAuditor, TechInfraAuditResult } from './tech-infra-auditor';
+import { SchemaQualityAuditor, SchemaQualityAuditResult } from './schema-quality-auditor';
+import { ContentSemanticAnalyzer, ContentSemanticResult } from './content-semantic-analyzer';
 
 export interface QuickAuditResult {
   websiteUrl: string;
@@ -23,6 +26,9 @@ export interface QuickAuditResult {
   gaps: SurfaceGapAnalysis[];
   crawledPages: number;
   auditMode: 'estimated' | 'measured' | 'partial';
+  techInfra?: TechInfraAuditResult;
+  schemaQuality?: SchemaQualityAuditResult;
+  contentSemantic?: ContentSemanticResult;
 }
 
 // ─── EEAT 신호 키워드 ──────────────────────────────────
@@ -37,6 +43,11 @@ const PROCEDURAL_KEYWORDS = ['방법', '순서', '루틴', '가이드', '단계'
 const COMPARATIVE_KEYWORDS = ['비교', 'vs', '차이', '추천', '순위', 'compare', 'best', 'top', 'ranking', '어떤'];
 const AUTHORITY_KEYWORDS = ['임상', '연구', '특허', '수상', '인증', 'clinical', 'research', 'patent', 'award', 'certified'];
 const GEO_KEYWORDS = ['위치', '주소', '매장', '지점', '오시는', 'location', 'address', 'store', 'branch', '서울', '부산', '대구'];
+const BRAND_IDENTITY_KEYWORDS = ['소개', '철학', '가치', '비전', '역사', 'about', 'philosophy', 'vision', 'history', '브랜드'];
+const PRODUCT_CATALOG_KEYWORDS = ['상품', '제품', '서비스', '가격', '구매', 'shop', 'product', 'service', 'price', 'buy', '카탈로그'];
+const EXPERTISE_KEYWORDS = ['저자', '프로필', '작가', '연구원', '이력', 'author', 'profile', 'career', 'credentials'];
+const TEMPORAL_KEYWORDS = ['이벤트', '행사', '일정', '기간', 'news', 'event', 'calendar', 'schedule'];
+const MEDIA_KEYWORDS = ['갤러리', '사진', '영상', '유튜브', 'gallery', 'photo', 'video', 'youtube'];
 
 export class QuickSiteAnalyzer {
   /**
@@ -48,30 +59,37 @@ export class QuickSiteAnalyzer {
     brandName: string
   ): Promise<QuickAuditResult> {
     const crawler = new WebsiteCrawler();
+    let crawlResult: any = null;
     let pages: CrawledPage[] = [];
 
     try {
-      pages = await crawler.crawl(websiteUrl, 5); // max 5 pages, 10s timeout per page
+      // Crawl max 5 pages for quick audit
+      crawlResult = await crawler.crawl(websiteUrl, 5);
+      pages = crawlResult.pages || [];
     } catch (e: any) {
       console.warn(`[QuickAnalyzer] Crawl failed: ${e.message}. Using minimal fallback.`);
     }
 
     if (pages.length === 0) {
-      // Can't crawl at all → return minimal estimated data
       return this.buildMinimalFallback(workspaceId, websiteUrl, brandName);
     }
 
-    // 1. Extract entities from HTML
+    // 1. L1, L2, L3 Auditing
+    const techInfra = TechInfraAuditor.audit(crawlResult);
+    const schemaQuality = SchemaQualityAuditor.audit(pages);
+    const contentSemantic = ContentSemanticAnalyzer.analyze(pages, techInfra.httpsEnabled, schemaQuality.orgSameAsProfiles.length);
+
+    // 2. Extract entities from HTML
     const entities = this.extractEntitiesFromHtml(pages, workspaceId, websiteUrl);
 
-    // 2. Estimate scores
-    const snapshot = this.estimateSnapshot(workspaceId, websiteUrl, entities, pages);
+    // 3. Estimate scores and build snapshot
+    const snapshot = this.estimateSnapshot(workspaceId, websiteUrl, entities, pages, techInfra, schemaQuality, contentSemantic);
 
-    // 3. Generate answer card stubs
+    // 4. Generate answer card stubs
     const cards = this.generateCards(workspaceId, websiteUrl, entities, brandName);
 
-    // 4. Generate gap analysis
-    const gaps = this.generateGaps(workspaceId, websiteUrl, entities);
+    // 5. Generate gap analysis (integrating L1/L2/L3 gaps)
+    const gaps = this.generateGaps(workspaceId, websiteUrl, entities, techInfra, schemaQuality, contentSemantic);
 
     return {
       websiteUrl,
@@ -81,7 +99,10 @@ export class QuickSiteAnalyzer {
       snapshot,
       gaps,
       crawledPages: pages.length,
-      auditMode: 'estimated'
+      auditMode: 'estimated',
+      techInfra,
+      schemaQuality,
+      contentSemantic
     };
   }
 
@@ -125,14 +146,15 @@ export class QuickSiteAnalyzer {
         }
       }
 
-      // B. Page title as factoid entity
+      // B. Page title as brand_identity or factoid entity
       if (page.title && page.title.length > 3) {
+        const isMain = page.url === websiteUrl || page.url === `${websiteUrl}/` || page.url.endsWith('/index.html');
         entities.push({
           id: `se-q-${idx++}`,
           workspace_id: workspaceId,
           website_url: websiteUrl,
           source_page_url: page.url,
-          surface_type: 'factoid',
+          surface_type: isMain ? 'brand_identity' : 'factoid',
           entity_name: page.title.substring(0, 200),
           entity_content: {
             description: page.metaDescription?.substring(0, 200) || '',
@@ -148,7 +170,7 @@ export class QuickSiteAnalyzer {
         });
       }
 
-      // C. Heading-based entities (classified by content)
+      // C. Heading-based entities (classified by content into 12 types)
       const seenHeadings = new Set<string>();
       for (const h of page.headings.slice(0, 8)) {
         const normText = h.text.trim();
@@ -177,16 +199,17 @@ export class QuickSiteAnalyzer {
         });
       }
 
-      // D. EEAT signal detection from body text
+      // D. EEAT signal detection from body text (person_expertise / authority)
       const bodyLower = page.bodyText.toLowerCase();
       const eeatSignals = this.detectEeatSignals(bodyLower);
       if (eeatSignals.length > 0) {
+        const hasExpertise = eeatSignals.some(s => s.startsWith('expertise'));
         entities.push({
           id: `se-q-${idx++}`,
           workspace_id: workspaceId,
           website_url: websiteUrl,
           source_page_url: page.url,
-          surface_type: 'authority',
+          surface_type: hasExpertise ? 'person_expertise' : 'authority',
           entity_name: `${page.title || '사이트'} — E-E-A-T 신호 (${eeatSignals.length}개)`,
           entity_content: {
             signals: eeatSignals,
@@ -222,7 +245,6 @@ export class QuickSiteAnalyzer {
       }
     }
 
-    // Deduplicate by normalized name
     return this.deduplicateEntities(entities);
   }
 
@@ -232,6 +254,11 @@ export class QuickSiteAnalyzer {
     if (COMPARATIVE_KEYWORDS.some(kw => lower.includes(kw))) return 'comparative';
     if (AUTHORITY_KEYWORDS.some(kw => lower.includes(kw))) return 'authority';
     if (GEO_KEYWORDS.some(kw => lower.includes(kw))) return 'local_geo';
+    if (BRAND_IDENTITY_KEYWORDS.some(kw => lower.includes(kw))) return 'brand_identity';
+    if (PRODUCT_CATALOG_KEYWORDS.some(kw => lower.includes(kw))) return 'product_catalog';
+    if (EXPERTISE_KEYWORDS.some(kw => lower.includes(kw))) return 'person_expertise';
+    if (TEMPORAL_KEYWORDS.some(kw => lower.includes(kw))) return 'temporal_event';
+    if (MEDIA_KEYWORDS.some(kw => lower.includes(kw))) return 'media_asset';
     return 'topical_cluster';
   }
 
@@ -278,29 +305,28 @@ export class QuickSiteAnalyzer {
     workspaceId: string,
     websiteUrl: string,
     entities: SurfaceEntity[],
-    pages: CrawledPage[]
+    pages: CrawledPage[],
+    techInfra: TechInfraAuditResult,
+    schemaQuality: SchemaQualityAuditResult,
+    contentSemantic: ContentSemanticResult
   ): EntityReflectionSnapshot {
     const totalEntities = entities.length;
     const schemaCount = entities.filter(e => e.surface_type === 'schema_org').length;
     const highEeatCount = entities.filter(e => e.eeat_strength > 60).length;
 
-    // Tech modifier: Schema.org 구조화 데이터 존재 비율
-    const tech_mod_score = totalEntities > 0
-      ? Math.min(95, Math.round((schemaCount / totalEntities) * 80) + 15)
-      : 20;
+    // Tech modifier: Schema.org 구조화 데이터 존재 비율 + TechInfra 점수 반영
+    const tech_mod_score = Math.round((techInfra.techInfraScore + schemaQuality.schemaQualityScore) / 2);
 
-    // EEAT modifier: 고신뢰 엔티티 비율 + 신호 보너스
-    const eeat_mod_score = totalEntities > 0
-      ? Math.min(95, Math.round((highEeatCount / totalEntities) * 70) + 25)
-      : 25;
+    // EEAT modifier: Content EEAT 점수 반영
+    const eeat_mod_score = contentSemantic.eeat.overall;
 
-    // ERR 7차원 추정: 엔티티 타입별 존재 여부 + 수량 기반
+    // ERR 7차원 추정
     const typeCount = (type: string) => entities.filter(e => e.surface_type === type).length;
 
-    const err_factoid     = Math.min(85, 15 + typeCount('factoid') * 7);
+    const err_factoid     = Math.min(85, 15 + typeCount('factoid') * 7 + typeCount('brand_identity') * 10);
     const err_procedural  = Math.min(80, 10 + typeCount('procedural') * 10);
     const err_comparative = Math.min(70, 5 + typeCount('comparative') * 12);
-    const err_authority   = Math.min(85, 10 + typeCount('authority') * 10);
+    const err_authority   = Math.min(85, 10 + typeCount('authority') * 10 + typeCount('person_expertise') * 8);
     const err_schema      = schemaCount > 0 ? Math.min(90, 35 + schemaCount * 8) : 5;
     const err_topical     = Math.min(75, 10 + typeCount('topical_cluster') * 6);
     const err_geo         = Math.min(70, 5 + typeCount('local_geo') * 15);
@@ -316,6 +342,9 @@ export class QuickSiteAnalyzer {
 
     const estimatedReflected = Math.round(totalEntities * Math.min(1, aepi / 100));
 
+    // L4 Reflection properties (mock baseline)
+    const citationRate = Math.round(aepi * 0.7);
+
     return {
       workspace_id: workspaceId,
       website_url: websiteUrl,
@@ -330,11 +359,17 @@ export class QuickSiteAnalyzer {
       aepi_score: aepi,
       tech_mod_score,
       eeat_mod_score,
-      tech_audit: { schema_entities: schemaCount, total_entities: totalEntities },
-      eeat_audit: { high_eeat_entities: highEeatCount, total_entities: totalEntities },
+      tech_audit: { schema_entities: schemaCount, total_entities: totalEntities, score: techInfra.techInfraScore },
+      eeat_audit: { high_eeat_entities: highEeatCount, total_entities: totalEntities, score: contentSemantic.eeat.overall },
       total_entities_checked: totalEntities,
       total_entities_reflected: estimatedReflected,
-      measured_at: new Date().toISOString()
+      measured_at: new Date().toISOString(),
+      citationRate,
+      citationPositions: { inline: Math.round(citationRate * 0.4), footer: Math.round(citationRate * 0.6), absent: 100 - citationRate },
+      competitorMentionRate: Math.max(0, 100 - citationRate),
+      competitorDetails: [],
+      intentEntityMatchRate: { informational: Math.round(aepi), commercial: Math.round(aepi * 0.8) },
+      distortionPatterns: { absent: 100 - citationRate }
     };
   }
 
@@ -349,7 +384,7 @@ export class QuickSiteAnalyzer {
     const cards: ReversedAnswerCard[] = [];
     const now = new Date().toISOString();
 
-    // Map surface_type → card_type
+    // Map 12 surface_types to 10 card_types
     const typeToCard: Record<string, ReversedAnswerCard['card_type']> = {
       factoid: 'direct_answer',
       procedural: 'how_to',
@@ -357,10 +392,14 @@ export class QuickSiteAnalyzer {
       authority: 'direct_answer',
       schema_org: 'product',
       topical_cluster: 'faq',
-      local_geo: 'local'
+      local_geo: 'local',
+      brand_identity: 'direct_answer',
+      product_catalog: 'product',
+      person_expertise: 'expert_profile',
+      temporal_event: 'event_card',
+      media_asset: 'list'
     };
 
-    // Generate trigger queries based on entity type
     const makeTriggers = (ent: SurfaceEntity): string[] => {
       const name = ent.entity_name.length > 60
         ? ent.entity_name.substring(0, 60)
@@ -383,12 +422,21 @@ export class QuickSiteAnalyzer {
           return [`${name}`, `${brandName} ${name} 정보`];
         case 'local_geo':
           return [`${brandName} 위치`, `${brandName} 매장 주소`];
+        case 'brand_identity':
+          return [`${brandName} 소개`, `${brandName} 가치 철학`];
+        case 'product_catalog':
+          return [`${brandName} 상품 종류`, `${brandName} 가격 정보`];
+        case 'person_expertise':
+          return [`${brandName} 저자`, `${brandName} 전문가 소개`];
+        case 'temporal_event':
+          return [`${brandName} 이벤트 일정`, `${brandName} 소식`];
+        case 'media_asset':
+          return [`${brandName} 사진`, `${brandName} 동영상`];
         default:
           return [`${brandName} ${name}`];
       }
     };
 
-    // Create cards from ALL entities (cap at 15 total)
     for (const ent of entities.slice(0, 15)) {
       const cardType = typeToCard[ent.surface_type] || 'direct_answer';
       const isSchemaSupported = ent.has_schema_support;
@@ -420,14 +468,17 @@ export class QuickSiteAnalyzer {
   private generateGaps(
     workspaceId: string,
     websiteUrl: string,
-    entities: SurfaceEntity[]
+    entities: SurfaceEntity[],
+    techInfra: TechInfraAuditResult,
+    schemaQuality: SchemaQualityAuditResult,
+    contentSemantic: ContentSemanticResult
   ): SurfaceGapAnalysis[] {
     const gaps: SurfaceGapAnalysis[] = [];
     const now = new Date().toISOString();
 
+    // 1. Schema gaps for entities
     for (const ent of entities) {
-      // Schema.org 없는 엔티티 → YELLOW (기술 최적화 필요)
-      if (!ent.has_schema_support && ent.surface_type !== 'local_geo') {
+      if (!ent.has_schema_support && ent.surface_type !== 'local_geo' && ent.surface_type !== 'schema_org') {
         gaps.push({
           workspace_id: workspaceId,
           website_url: websiteUrl,
@@ -443,59 +494,106 @@ export class QuickSiteAnalyzer {
           priority_score: Math.round(60 + (100 - ent.eeat_strength) * 0.3),
           analyzed_at: now
         });
-      } else {
-        // Schema.org 있는 엔티티 → GREEN (유지)
-        gaps.push({
-          workspace_id: workspaceId,
-          website_url: websiteUrl,
-          entity_name: ent.entity_name,
-          entity_type: ent.surface_type,
-          quadrant: 'green',
-          industry_qis_layer: null,
-          linked_canonical_question_id: null,
-          linked_surface_entity_id: ent.id || null,
-          prescription_detail: 'Asset maintained. Continue monitoring.',
-          estimated_aepi_impact: 0,
-          priority_score: 10,
-          analyzed_at: now
-        });
       }
     }
 
-    // Check for missing content types → RED (콘텐츠 갭)
-    const hasType = (type: string) => entities.some(e => e.surface_type === type);
-    const contentGaps: Array<{ name: string; type: string; layer: string }> = [];
-
-    if (!hasType('procedural')) {
-      contentGaps.push({ name: '사용 가이드/절차 콘텐츠 부재', type: 'procedural', layer: 'L4_journey' });
-    }
-    if (!hasType('comparative')) {
-      contentGaps.push({ name: '경쟁 비교/추천 콘텐츠 부재', type: 'comparative', layer: 'L2_competitive' });
-    }
-    if (!hasType('authority')) {
-      contentGaps.push({ name: '전문성/인증 권위 콘텐츠 부재', type: 'authority', layer: 'L5_ymyl' });
-    }
-    if (!hasType('local_geo')) {
-      contentGaps.push({ name: '지역/오프라인 접점 정보 부재', type: 'local_geo', layer: 'L1_universal' });
-    }
-    if (!hasType('schema_org')) {
-      contentGaps.push({ name: 'Schema.org 구조화 데이터 전체 부재', type: 'schema_org', layer: 'L3_ingredient' });
-    }
-
-    for (const gap of contentGaps) {
+    // 2. Integration of L1: Tech Infra issues
+    for (const issue of techInfra.issues) {
+      const prescMap: Record<string, SurfaceGapAnalysis['prescription_type']> = {
+        crawlability: 'fix_robots_txt',
+        performance: 'improve_meta', // placeholder, but can map to standard
+        security: 'fix_https',
+        structure: 'add_canonical'
+      };
+      
+      let quad: 'red' | 'yellow' | 'white' = 'yellow';
+      if (issue.severity === 'critical') quad = 'red';
+      
       gaps.push({
         workspace_id: workspaceId,
         website_url: websiteUrl,
-        entity_name: gap.name,
+        entity_name: issue.title,
+        entity_type: 'tech_infra_issue',
+        quadrant: quad,
+        industry_qis_layer: 'L1_universal',
+        linked_canonical_question_id: null,
+        linked_surface_entity_id: null,
+        prescription_type: prescMap[issue.category] || 'improve_meta',
+        prescription_detail: issue.description + ' Recommendation: ' + issue.recommendation,
+        estimated_aepi_impact: issue.severity === 'critical' ? 20.0 : 8.0,
+        priority_score: issue.severity === 'critical' ? 95 : 65,
+        analyzed_at: now
+      });
+    }
+
+    // 3. Integration of L2: Schema issues
+    for (const issue of schemaQuality.issues) {
+      let quad: 'red' | 'yellow' = 'yellow';
+      if (issue.severity === 'critical') quad = 'red';
+
+      gaps.push({
+        workspace_id: workspaceId,
+        website_url: websiteUrl,
+        entity_name: issue.message,
+        entity_type: 'schema_quality_issue',
+        quadrant: quad,
+        industry_qis_layer: 'L3_ingredient',
+        linked_canonical_question_id: null,
+        linked_surface_entity_id: null,
+        prescription_type: issue.property === 'author' ? 'add_author_markup' : 'add_schema',
+        prescription_detail: issue.recommendation,
+        estimated_aepi_impact: issue.severity === 'critical' ? 15.0 : 5.0,
+        priority_score: issue.severity === 'critical' ? 90 : 55,
+        analyzed_at: now
+      });
+    }
+
+    // 4. Integration of L3: Content Semantic issues
+    for (const issue of contentSemantic.issues) {
+      let quad: 'red' | 'yellow' = 'yellow';
+      if (issue.severity === 'critical') quad = 'red';
+
+      const prescMap: Record<string, SurfaceGapAnalysis['prescription_type']> = {
+        eeat: 'add_eeat_signal',
+        answer_first: 'improve_heading',
+        freshness: 'update_content',
+        structure: 'improve_internal_linking',
+        originality: 'create_content'
+      };
+
+      gaps.push({
+        workspace_id: workspaceId,
+        website_url: websiteUrl,
+        entity_name: issue.title,
+        entity_type: 'content_semantic_issue',
+        quadrant: quad,
+        industry_qis_layer: 'L5_ymyl',
+        linked_canonical_question_id: null,
+        linked_surface_entity_id: null,
+        prescription_type: prescMap[issue.category] || 'create_content',
+        prescription_detail: issue.description + ' ' + issue.recommendation,
+        estimated_aepi_impact: issue.severity === 'critical' ? 18.0 : 7.0,
+        priority_score: issue.severity === 'critical' ? 88 : 60,
+        analyzed_at: now
+      });
+    }
+
+    // 5. Redundant placeholder check for completely missing content types
+    const hasType = (type: string) => entities.some(e => e.surface_type === type);
+    if (!hasType('procedural')) {
+      gaps.push({
+        workspace_id: workspaceId,
+        website_url: websiteUrl,
+        entity_name: '사용 가이드/절차 콘텐츠 부재',
         entity_type: 'industry_topic_gap',
         quadrant: 'red',
-        industry_qis_layer: gap.layer,
+        industry_qis_layer: 'L4_journey',
         linked_canonical_question_id: null,
         linked_surface_entity_id: null,
         prescription_type: 'create_content',
-        prescription_detail: `Create dedicated ${gap.type} content to fill this gap. This content type is missing from your site.`,
-        estimated_aepi_impact: 18.0,
-        priority_score: 85,
+        prescription_detail: 'Create dedicated procedural guide content to improve search visibility for tutorial queries.',
+        estimated_aepi_impact: 15.0,
+        priority_score: 80,
         analyzed_at: now
       });
     }
@@ -513,6 +611,26 @@ export class QuickSiteAnalyzer {
     const now = new Date().toISOString();
     let hostname = websiteUrl;
     try { hostname = new URL(websiteUrl).hostname; } catch {}
+
+    const fallbackSnapshot: EntityReflectionSnapshot = {
+      workspace_id: workspaceId,
+      website_url: websiteUrl,
+      engine_name: 'estimated',
+      err_factoid: 0, err_procedural: 0, err_comparative: 0,
+      err_authority: 0, err_schema: 0, err_topical: 0, err_geo: 0,
+      aepi_score: 0,
+      tech_mod_score: 0, eeat_mod_score: 0,
+      tech_audit: { schema_entities: 0, total_entities: 0 },
+      eeat_audit: { high_eeat_entities: 0, total_entities: 0 },
+      total_entities_checked: 0, total_entities_reflected: 0,
+      measured_at: now,
+      citationRate: 0,
+      citationPositions: {},
+      competitorMentionRate: 0,
+      competitorDetails: [],
+      intentEntityMatchRate: {},
+      distortionPatterns: {}
+    };
 
     return {
       websiteUrl,
@@ -533,19 +651,7 @@ export class QuickSiteAnalyzer {
         extracted_at: now
       }],
       cards: [],
-      snapshot: {
-        workspace_id: workspaceId,
-        website_url: websiteUrl,
-        engine_name: 'estimated',
-        err_factoid: 0, err_procedural: 0, err_comparative: 0,
-        err_authority: 0, err_schema: 0, err_topical: 0, err_geo: 0,
-        aepi_score: 0,
-        tech_mod_score: 0, eeat_mod_score: 0,
-        tech_audit: { schema_entities: 0, total_entities: 0 },
-        eeat_audit: { high_eeat_entities: 0, total_entities: 0 },
-        total_entities_checked: 0, total_entities_reflected: 0,
-        measured_at: now
-      },
+      snapshot: fallbackSnapshot,
       gaps: [{
         workspace_id: workspaceId,
         website_url: websiteUrl,

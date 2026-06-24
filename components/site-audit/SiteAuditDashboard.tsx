@@ -5,13 +5,17 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   ShieldAlert, RefreshCw, BarChart3,
   FileCode2, UserCheck, CheckCircle2, Globe, Clock,
-  Pencil, X, Search, Printer
+  Pencil, X, Search, Printer, Layers, FileJson, FileText, LayoutDashboard
 } from "lucide-react";
 import {
   SurfaceEntity, ReversedAnswerCard,
   EntityReflectionSnapshot, ObservedParametricPersona,
   PersonaSpec, SurfaceGapAnalysis
 } from "../../lib/schema";
+
+import { TechInfraAuditResult } from "../../lib/surface/tech-infra-auditor";
+import { SchemaQualityAuditResult } from "../../lib/surface/schema-quality-auditor";
+import { ContentSemanticResult } from "../../lib/surface/content-semantic-analyzer";
 
 import AEPIScoreCard from "./AEPIScoreCard";
 import ERRRadarChart from "./ERRRadarChart";
@@ -29,6 +33,11 @@ import LockedPanel from "./LockedPanel";
 import EmailCaptureForm from "./EmailCaptureForm";
 import { Lock } from "lucide-react";
 
+import OverviewPanel from "./OverviewPanel";
+import TechInfraPanel from "./TechInfraPanel";
+import SchemaQualityPanel from "./SchemaQualityPanel";
+import ContentSemanticPanel from "./ContentSemanticPanel";
+
 interface SiteAuditDashboardProps {
   brandName: string;
   websiteUrl: string;
@@ -43,6 +52,9 @@ interface SiteAuditDashboardProps {
   auditMode?: 'estimated' | 'measured' | 'partial';
   tier?: 'free' | 'tier1' | 'tier1.5' | 'tier2' | 'tier3';
   onTriggerReRun?: () => Promise<any>;
+  techInfra?: TechInfraAuditResult | null;
+  schemaQuality?: SchemaQualityAuditResult | null;
+  contentSemantic?: ContentSemanticResult | null;
 }
 
 export default function SiteAuditDashboard({
@@ -58,16 +70,18 @@ export default function SiteAuditDashboard({
   trends = [],
   auditMode: initialAuditMode = 'estimated',
   tier = 'free',
-  onTriggerReRun
+  onTriggerReRun,
+  techInfra = null,
+  schemaQuality = null,
+  contentSemantic = null
 }: SiteAuditDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [activeTab, setActiveTab] = useState("diagnostic");
+  const [activeTab, setActiveTab] = useState("overview");
   const [running, setRunning] = useState(false);
   const [currentAuditMode, setCurrentAuditMode] = useState<'estimated' | 'measured' | 'partial'>(initialAuditMode);
   const [upgrading, setUpgrading] = useState(false);
 
-  // URL edit state
   const [urlEditMode, setUrlEditMode] = useState(false);
   const [editUrl, setEditUrl] = useState(websiteUrl);
   const [editBrand, setEditBrand] = useState(brandName);
@@ -84,7 +98,6 @@ export default function SiteAuditDashboard({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  // Stateful metrics for dynamic updates
   const [localEntities, setLocalEntities] = useState<SurfaceEntity[]>(entities);
   const [localCards, setLocalCards] = useState<ReversedAnswerCard[]>(cards);
   const [localSnapshot, setLocalSnapshot] = useState<EntityReflectionSnapshot | null>(snapshot);
@@ -92,6 +105,9 @@ export default function SiteAuditDashboard({
   const [localParametricSnapshot, setLocalParametricSnapshot] = useState<ParametricPersonaSnapshot | null>(parametricSnapshot || null);
   const [localGaps, setLocalGaps] = useState<SurfaceGapAnalysis[]>(gaps);
   const [localTrends, setLocalTrends] = useState<TemporalTrend[]>(trends);
+  const [localTechInfra, setLocalTechInfra] = useState<TechInfraAuditResult | null>(techInfra);
+  const [localSchemaQuality, setLocalSchemaQuality] = useState<SchemaQualityAuditResult | null>(schemaQuality);
+  const [localContentSemantic, setLocalContentSemantic] = useState<ContentSemanticResult | null>(contentSemantic);
 
   const handleReRun = async () => {
     if (!onTriggerReRun) return;
@@ -107,6 +123,9 @@ export default function SiteAuditDashboard({
         if (res.gaps) setLocalGaps(res.gaps);
         if (res.trends) setLocalTrends(res.trends);
         if (res.auditMode) setCurrentAuditMode(res.auditMode);
+        if (res.techInfra) setLocalTechInfra(res.techInfra);
+        if (res.schemaQuality) setLocalSchemaQuality(res.schemaQuality);
+        if (res.contentSemantic) setLocalContentSemantic(res.contentSemantic);
       }
     } catch (err) {
       console.error("Re-run audit error:", err);
@@ -130,7 +149,6 @@ export default function SiteAuditDashboard({
       });
       if (!res.ok) throw new Error('Failed to start full audit');
       const { sessionId } = await res.json();
-      // Extract locale from pathname e.g. /ko/site-audit
       const localeMatch = pathname?.match(/^\/([a-z]{2})\//);
       const locale = localeMatch?.[1] || 'ko';
       router.push(`/${locale}/site-audit/progress/${sessionId}?tier=${tier}`);
@@ -141,6 +159,9 @@ export default function SiteAuditDashboard({
     }
   };
 
+  const isFree = tier === 'free';
+  const isProPlus = tier === 'tier2' || tier === 'tier3';
+  const isEnterprise = tier === 'tier3';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -162,7 +183,6 @@ export default function SiteAuditDashboard({
           </div>
           
           <div className="flex items-center gap-2">
-            {/* URL display / edit bar */}
             {urlEditMode ? (
               <form onSubmit={handleUrlChange} className="flex items-center gap-2">
                 <input
@@ -198,7 +218,7 @@ export default function SiteAuditDashboard({
                 <Pencil className="h-3 w-3 text-slate-600 group-hover:text-indigo-400" />
               </button>
             )}
-                        {tier !== 'free' && (
+            {tier !== 'free' && (
               <button
                 onClick={() => window.print()}
                 className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all cursor-pointer print-hidden"
@@ -248,7 +268,7 @@ export default function SiteAuditDashboard({
           </div>
         </div>
 
-        {/* Full Audit Upgrade Banner (shown when results are estimated/HTML-only) */}
+        {/* Full Audit Upgrade Banner */}
         {currentAuditMode === 'estimated' && (
           <div className="mb-6 bg-gradient-to-r from-violet-900/40 to-indigo-900/40 border border-violet-500/30 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
             <div>
@@ -281,190 +301,205 @@ export default function SiteAuditDashboard({
           </div>
         )}
 
-        {/* Diagnostic Score Card Rows */}
-        {localSnapshot && (
-          <div className="mb-8">
-            <AEPIScoreCard
-              aepiScore={localSnapshot.aepi_score}
-              techScore={localSnapshot.tech_mod_score}
-              eeatScore={localSnapshot.eeat_mod_score}
-              totalEntities={localSnapshot.total_entities_checked}
-              reflectedEntities={localSnapshot.total_entities_reflected}
-              auditMode={currentAuditMode}
-            />
-          </div>
-        )}
-
-        {/* Tabs navigation */}
-        <div className="flex gap-2 mb-8 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-fit">
-          <button
-            onClick={() => setActiveTab("diagnostic")}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-lg transition-all ${
-              activeTab === "diagnostic"
-                ? "bg-indigo-600 text-white shadow-lg"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            AEO 가시성 종합 진단
-          </button>
-          
-          <button
-            onClick={() => setActiveTab("prescriptions")}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-lg transition-all ${
-              activeTab === "prescriptions"
-                ? "bg-indigo-600 text-white shadow-lg"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            {tier === 'free' ? <Lock className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
-            최적화 처방전 목록 ({localGaps.filter(g => g.quadrant !== 'green' && g.prescription_type).length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("entities")}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-lg transition-all ${
-              activeTab === "entities"
-                ? "bg-indigo-600 text-white shadow-lg"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            {tier === 'free' ? <Lock className="h-3.5 w-3.5" /> : <FileCode2 className="h-3.5 w-3.5" />}
-            추출 지식 자산 분석
-          </button>
-
-          <button
-            onClick={() => setActiveTab("persona")}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-lg transition-all ${
-              activeTab === "persona"
-                ? "bg-indigo-600 text-white shadow-lg"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            {tier === 'free' ? <Lock className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
-            AI 브랜드 페르소나 매칭
-          </button>
-
-          {(localParametricSnapshot?.tier === 'tier3' || tier === 'free') && (
-            <button
-              onClick={() => setActiveTab("simulation")}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-lg transition-all ${
-                activeTab === "simulation"
-                  ? "bg-indigo-600 text-white shadow-lg"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {tier === 'free' ? <Lock className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
-              페르소나 8D 시뮬레이션
-            </button>
-          )}
+        {/* Tabs navigation (8 Tabs) */}
+        <div className="flex flex-wrap gap-1.5 mb-8 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-full overflow-x-auto">
+          {[
+            { id: "overview", label: "진단 개요", icon: LayoutDashboard, lock: false },
+            { id: "tech_infra", label: "기술 인프라", icon: Layers, lock: false },
+            { id: "schema", label: "구조화 시맨틱", icon: FileJson, lock: isFree },
+            { id: "content", label: "콘텐츠 시맨틱", icon: FileText, lock: isFree },
+            { id: "prescriptions", label: "최적화 처방전", icon: ShieldAlert, lock: isFree },
+            { id: "entities", label: "지식 자산", icon: FileCode2, lock: isFree },
+            { id: "persona", label: "AI 페르소나", icon: UserCheck, lock: !isProPlus && !isFree },
+            { id: "simulation", label: "8D 시뮬레이션", icon: ShieldAlert, lock: !isEnterprise && !isFree }
+          ].map(tab => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  active
+                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {tab.lock ? <Lock className="h-3 w-3 shrink-0 text-slate-500" /> : <Icon className="h-3.5 w-3.5 shrink-0" />}
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab contents */}
         <div className="space-y-8">
-          {activeTab === "diagnostic" && (
-            <>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1">
-                  {localSnapshot && (
-                    <ERRRadarChart
-                      errFactoid={localSnapshot.err_factoid}
-                      errProcedural={localSnapshot.err_procedural}
-                      errComparative={localSnapshot.err_comparative}
-                      errAuthority={localSnapshot.err_authority}
-                      errSchema={localSnapshot.err_schema}
-                      errTopical={localSnapshot.err_topical}
-                      errGeo={localSnapshot.err_geo}
-                    />
-                  )}
+          {activeTab === "overview" && (
+            <OverviewPanel
+              snapshot={localSnapshot}
+              techInfra={localTechInfra}
+              schemaQuality={localSchemaQuality}
+              contentSemantic={localContentSemantic}
+              gaps={localGaps}
+              trends={localTrends}
+              auditMode={currentAuditMode}
+            />
+          )}
+
+          {activeTab === "tech_infra" && (
+            <TechInfraPanel techInfra={localTechInfra} />
+          )}
+
+          {activeTab === "schema" && (
+            isFree ? (
+              <LockedPanel 
+                title="구조화 시맨틱 분석" 
+                description="Schema.org 구조화 마크다운의 속성 레벨 완성도를 확인하고, 누락된 항목을 심층적으로 분석해보세요."
+                requiredTierName="Lite"
+                priceDelta="₩89,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier1"
+              >
+                <div className="opacity-40 pointer-events-none">
+                  <SchemaQualityPanel schemaQuality={localSchemaQuality} />
                 </div>
-                <div className="lg:col-span-2">
-                  <GapQuadrantMatrix gaps={localGaps} />
-                </div>
-              </div>
-              
-              {/* Temporal Trends (S-09) */}
-              <div className="mt-8">
-                <TemporalTrendChart trends={localTrends} />
-              </div>
-            </>
-          )}
-
-          {activeTab === "prescriptions" && tier === 'free' ? (
-            <LockedPanel 
-              title="최적화 처방전 분석" 
-              description="발견된 최적화 기회에 대한 구체적인 원인과 콘텐츠 해결책(처방전)을 확인하세요."
-              requiredTierName="Lite"
-              priceDelta="₩89,000"
-              currentUrl={websiteUrl}
-              currentBrand={brandName}
-              targetTierId="tier1"
-            >
-              <div className="opacity-50 pointer-events-none"><PrescriptionList gaps={localGaps} /></div>
-            </LockedPanel>
-          ) : activeTab === "prescriptions" && (
-            <PrescriptionList gaps={localGaps} />
-          )}
-
-          {activeTab === "entities" && tier === 'free' ? (
-            <LockedPanel 
-              title="추출 지식 자산 전체 분석" 
-              description="크롤링된 모든 웹사이트 데이터가 AI 지식 그래프로 어떻게 구성되었는지 상세히 확인합니다."
-              requiredTierName="Lite"
-              priceDelta="₩89,000"
-              currentUrl={websiteUrl}
-              currentBrand={brandName}
-              targetTierId="tier1"
-            >
-              <div className="opacity-50 pointer-events-none space-y-8">
-                <SurfaceMapPanel entities={localEntities} />
-                <AnswerCardList cards={localCards} />
-              </div>
-            </LockedPanel>
-          ) : activeTab === "entities" && (
-            <div className="space-y-8">
-              <SurfaceMapPanel entities={localEntities} />
-              <AnswerCardList cards={localCards} />
-            </div>
-          )}
-
-          {activeTab === "persona" && tier === 'free' ? (
-            <LockedPanel 
-              title="AI 브랜드 페르소나 역설계" 
-              description="AI가 브랜드를 어떤 인격으로 인식하는지 B2B/B2C 이중 모델로 144회 반복 측정하여 정밀 해부합니다."
-              requiredTierName="Pro"
-              priceDelta="₩249,000"
-              currentUrl={websiteUrl}
-              currentBrand={brandName}
-              targetTierId="tier1.5"
-            >
-              <div className="opacity-50 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl"></div>
-            </LockedPanel>
-          ) : activeTab === "persona" && (
-            localParametricSnapshot ? (
-              <ParametricPersonaPanel snapshot={localParametricSnapshot} />
+              </LockedPanel>
             ) : (
-              <PersonaDeltaPanel
-                observedPersona={localObservedPersona}
-                personaSpec={personaSpec}
-              />
+              <SchemaQualityPanel schemaQuality={localSchemaQuality} />
             )
           )}
 
-          {activeTab === "simulation" && tier === 'free' ? (
-            <LockedPanel 
-              title="페르소나 8D 시뮬레이션 & Floor Risk" 
-              description="적대적 공격 시나리오(Floor Risk)를 포함하여 AI가 브랜드 페르소나를 파괴하지 않고 방어하는지 8차원으로 시뮬레이션합니다."
-              requiredTierName="Enterprise"
-              priceDelta="₩590,000"
-              currentUrl={websiteUrl}
-              currentBrand={brandName}
-              targetTierId="tier3"
-            >
-              <div className="opacity-50 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl"></div>
-            </LockedPanel>
-          ) : activeTab === "simulation" && localParametricSnapshot && (
-            <PersonaFidelityPanel snapshot={localParametricSnapshot} />
+          {activeTab === "content" && (
+            isFree ? (
+              <LockedPanel 
+                title="콘텐츠 시맨틱 분석" 
+                description="E-E-A-T 4축 점수 및 웹사이트의 Answer-First 문체 분석, 콘텐츠 신선도 타임라인을 확인하세요."
+                requiredTierName="Lite"
+                priceDelta="₩89,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier1"
+              >
+                <div className="opacity-40 pointer-events-none">
+                  <ContentSemanticPanel contentSemantic={localContentSemantic} />
+                </div>
+              </LockedPanel>
+            ) : (
+              <ContentSemanticPanel contentSemantic={localContentSemantic} />
+            )
+          )}
+
+          {activeTab === "prescriptions" && (
+            isFree ? (
+              <LockedPanel 
+                title="최적화 처방전 분석" 
+                description="발견된 최적화 기회에 대한 구체적인 원인과 콘텐츠 해결책(처방전)을 확인하세요."
+                requiredTierName="Lite"
+                priceDelta="₩89,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier1"
+              >
+                <div className="opacity-40 pointer-events-none">
+                  <PrescriptionList gaps={localGaps} />
+                </div>
+              </LockedPanel>
+            ) : (
+              <PrescriptionList gaps={localGaps} />
+            )
+          )}
+
+          {activeTab === "entities" && (
+            isFree ? (
+              <LockedPanel 
+                title="추출 지식 자산 전체 분석" 
+                description="크롤링된 모든 웹사이트 데이터가 AI 지식 그래프로 어떻게 구성되었는지 상세히 확인합니다."
+                requiredTierName="Lite"
+                priceDelta="₩89,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier1"
+              >
+                <div className="opacity-40 pointer-events-none space-y-8">
+                  <SurfaceMapPanel entities={localEntities} />
+                  <AnswerCardList cards={localCards} />
+                </div>
+              </LockedPanel>
+            ) : (
+              <div className="space-y-8">
+                <SurfaceMapPanel entities={localEntities} />
+                <AnswerCardList cards={localCards} />
+              </div>
+            )
+          )}
+
+          {activeTab === "persona" && (
+            isFree ? (
+              <LockedPanel 
+                title="AI 브랜드 페르소나 역설계" 
+                description="AI가 브랜드를 어떤 인격으로 인식하는지 B2B/B2C 이중 모델로 144회 반복 측정하여 정밀 해부합니다."
+                requiredTierName="Pro"
+                priceDelta="₩249,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier1.5"
+              >
+                <div className="opacity-40 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl" />
+              </LockedPanel>
+            ) : !isProPlus ? (
+              <LockedPanel 
+                title="AI 브랜드 페르소나 역설계" 
+                description="AI가 브랜드를 어떤 인격으로 인식하는지 B2B/B2C 이중 모델로 144회 반복 측정하여 정밀 해부합니다."
+                requiredTierName="Pro"
+                priceDelta="₩249,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier1.5"
+              >
+                <div className="opacity-40 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl" />
+              </LockedPanel>
+            ) : (
+              localParametricSnapshot ? (
+                <ParametricPersonaPanel snapshot={localParametricSnapshot} />
+              ) : (
+                <PersonaDeltaPanel
+                  observedPersona={localObservedPersona}
+                  personaSpec={personaSpec}
+                />
+              )
+            )
+          )}
+
+          {activeTab === "simulation" && (
+            isFree ? (
+              <LockedPanel 
+                title="페르소나 8D 시뮬레이션 & Floor Risk" 
+                description="적대적 공격 시나리오(Floor Risk)를 포함하여 AI가 브랜드 페르소나를 파괴하지 않고 방어하는지 8차원으로 시뮬레이션합니다."
+                requiredTierName="Enterprise"
+                priceDelta="₩590,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier3"
+              >
+                <div className="opacity-40 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl" />
+              </LockedPanel>
+            ) : !isEnterprise ? (
+              <LockedPanel 
+                title="페르소나 8D 시뮬레이션 & Floor Risk" 
+                description="적대적 공격 시나리오(Floor Risk)를 포함하여 AI가 브랜드 페르소나를 파괴하지 않고 방어하는지 8차원으로 시뮬레이션합니다."
+                requiredTierName="Enterprise"
+                priceDelta="₩590,000"
+                currentUrl={websiteUrl}
+                currentBrand={brandName}
+                targetTierId="tier3"
+              >
+                <div className="opacity-40 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl" />
+              </LockedPanel>
+            ) : (
+              localParametricSnapshot && <PersonaFidelityPanel snapshot={localParametricSnapshot} />
+            )
           )}
         </div>
       
@@ -475,7 +510,6 @@ export default function SiteAuditDashboard({
           </div>
         )}
       </main>
-
 
       <footer className="border-t border-slate-800 bg-slate-900/30 py-8 text-center text-xs text-slate-500 mt-12">
         <p>© 2026 BSW-OS Brand Semantic Website OS. All Rights Reserved.</p>

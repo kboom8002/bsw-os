@@ -1476,7 +1476,9 @@ export const surfaceEntitySchema = z.object({
   source_page_url: z.string().url(),                   // 추출된 페이지 URL
   surface_type: z.enum([
     'factoid', 'procedural', 'comparative', 'authority',
-    'schema_org', 'topical_cluster', 'local_geo'
+    'schema_org', 'topical_cluster', 'local_geo',
+    'brand_identity', 'product_catalog', 'person_expertise',
+    'temporal_event', 'media_asset'
   ]),
   entity_name: z.string().min(1).max(500),
   entity_content: z.record(z.string(), z.any()).default({}),
@@ -1503,7 +1505,11 @@ export const reversedAnswerCardSchema = z.object({
   id: z.string().uuid().optional(),
   workspace_id: z.string().uuid(),
   website_url: z.string().url(),
-  card_type: z.enum(['direct_answer', 'how_to', 'comparison', 'list', 'faq', 'product', 'local']),
+  card_type: z.enum([
+    'direct_answer', 'how_to', 'comparison', 'list',
+    'faq', 'product', 'local',
+    'review_summary', 'event_card', 'expert_profile'
+  ]),
   headline: z.string().min(1).max(500),
   trigger_queries: z.array(z.string()).default([]),
   body_entity_ids: z.array(z.string().uuid()).default([]),             // SurfaceEntity(#92) FK[]
@@ -1522,7 +1528,7 @@ export type ReversedAnswerCard = z.infer<typeof reversedAnswerCardSchema>;
 // ─────────────────────────────────────────────────────────────
 // 93.5. Reflection Quality & Details
 // ─────────────────────────────────────────────────────────────
-export type ReflectionQuality = 'exact' | 'partial' | 'distorted' | 'absent';
+export type ReflectionQuality = 'exact' | 'partial' | 'distorted' | 'absent' | 'outdated' | 'competitor_substituted' | 'hallucinated';
 
 export interface EntityReflectionDetail {
   entity_id: string;
@@ -1558,6 +1564,17 @@ export const entityReflectionSnapshotSchema = z.object({
   total_entities_reflected: z.number().int().default(0),
   measured_at: z.string(),
   created_at: z.string().optional(),
+  // Extended L4 Details
+  citationRate: z.number().min(0).max(100).default(0),
+  citationPositions: z.record(z.string(), z.number()).default({}),
+  competitorMentionRate: z.number().min(0).max(100).default(0),
+  competitorDetails: z.array(z.object({
+    competitorName: z.string(),
+    mentionCount: z.number(),
+    probeCount: z.number(),
+  })).default([]),
+  intentEntityMatchRate: z.record(z.string(), z.number()).default({}),
+  distortionPatterns: z.record(z.string(), z.number()).default({}),
 });
 
 export type EntityReflectionSnapshot = z.infer<typeof entityReflectionSnapshotSchema>;
@@ -1610,7 +1627,9 @@ export const surfaceGapAnalysisSchema = z.object({
   prescription_type: z.enum([
     'add_schema', 'improve_heading', 'add_eeat_signal',
     'create_content', 'improve_internal_linking',
-    'add_faq_markup', 'improve_meta', 'opportunity_content'
+    'add_faq_markup', 'improve_meta', 'opportunity_content',
+    'fix_robots_txt', 'add_canonical', 'update_content',
+    'add_author_markup', 'add_llms_txt', 'fix_https'
   ]).optional().nullable(),
   prescription_detail: z.string().optional().nullable(),
   estimated_aepi_impact: z.number().min(0).max(100).default(0),
@@ -1638,3 +1657,89 @@ export const questionLifecycleSchema = z.object({
 });
 
 export type QuestionLifecycle = z.infer<typeof questionLifecycleSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 98. TechInfraSnapshot — 기술 인프라 스냅샷
+// ─────────────────────────────────────────────────────────────
+export const techInfraSnapshotSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  website_url: z.string().url(),
+  audit_session_id: z.string().uuid().optional(),
+  robots_bot_matrix: z.array(z.object({
+    botName: z.string(),
+    allowed: z.boolean(),
+    disallowPaths: z.array(z.string()).default([]),
+  })).default([]),
+  ai_crawler_access_score: z.number().min(0).max(100).default(0),
+  https_enabled: z.boolean().default(false),
+  ttfb_ms: z.number().default(0),
+  ttfb_grade: z.enum(['fast', 'moderate', 'slow']).default('slow'),
+  sitemap_url_count: z.number().default(0),
+  sitemap_freshness_score: z.number().min(0).max(100).default(0),
+  llms_txt_exists: z.boolean().default(false),
+  canonical_consistency: z.number().min(0).max(100).default(0),
+  rendering_mode: z.enum(['ssr', 'csr', 'hybrid']).default('ssr'),
+  tech_infra_score: z.number().min(0).max(100).default(0),
+  issues: z.array(z.any()).default([]),
+  measured_at: z.string(),
+  created_at: z.string().optional(),
+});
+
+export type TechInfraSnapshot = z.infer<typeof techInfraSnapshotSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 99. SchemaQualitySnapshot — 스키마 품질 스냅샷
+// ─────────────────────────────────────────────────────────────
+export const schemaQualitySnapshotSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  website_url: z.string().url(),
+  audit_session_id: z.string().uuid().optional(),
+  schema_quality_score: z.number().min(0).max(100).default(0),
+  schema_type_count: z.number().default(0),
+  schema_coverage: z.number().min(0).max(100).default(0),
+  org_schema_present: z.boolean().default(false),
+  org_same_as_count: z.number().default(0),
+  faq_schema_count: z.number().default(0),
+  howto_schema_count: z.number().default(0),
+  product_schema_count: z.number().default(0),
+  article_schema_count: z.number().default(0),
+  og_completeness_score: z.number().min(0).max(100).default(0),
+  author_coverage: z.number().min(0).max(100).default(0),
+  issues: z.array(z.any()).default([]),
+  measured_at: z.string(),
+  created_at: z.string().optional(),
+});
+
+export type SchemaQualitySnapshot = z.infer<typeof schemaQualitySnapshotSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 100. ContentSemanticSnapshot — 콘텐츠 시맨틱 스냅샷
+// ─────────────────────────────────────────────────────────────
+export const contentSemanticSnapshotSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  website_url: z.string().url(),
+  audit_session_id: z.string().uuid().optional(),
+  eeat_experience: z.number().min(0).max(100).default(0),
+  eeat_expertise: z.number().min(0).max(100).default(0),
+  eeat_authoritativeness: z.number().min(0).max(100).default(0),
+  eeat_trustworthiness: z.number().min(0).max(100).default(0),
+  eeat_overall: z.number().min(0).max(100).default(0),
+  answer_first_avg_score: z.number().min(0).max(100).default(0),
+  freshness_score: z.number().min(0).max(100).default(0),
+  freshness_avg_age_days: z.number().default(0),
+  topic_cluster_count: z.number().default(0),
+  multimedia_score: z.number().min(0).max(100).default(0),
+  citation_quality_score: z.number().min(0).max(100).default(0),
+  internal_link_topology_score: z.number().min(0).max(100).default(0),
+  originality_score: z.number().min(0).max(100).default(0),
+  content_semantic_score: z.number().min(0).max(100).default(0),
+  issues: z.array(z.any()).default([]),
+  measured_at: z.string(),
+  created_at: z.string().optional(),
+});
+
+export type ContentSemanticSnapshot = z.infer<typeof contentSemanticSnapshotSchema>;
+

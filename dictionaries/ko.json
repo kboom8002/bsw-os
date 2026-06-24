@@ -27,6 +27,9 @@
     "fixit": "해결 스튜디오 (Fix-It)",
     "gates": "릴리스 게이트",
     "site_audit": "서피스 역설계 분석 (Site Audit)",
+    "site_audit_settings": "감사 설정",
+    "site_audit_history": "감사 이력",
+    "site_audit_llms": "llms.txt 생성기",
     "benchmark": "업종별 실측 벤치마크",
     "sbs_index": "공개 AI 평판지수 (SBS)",
     "kculture_studio": "K-컬처 인텔리전스"

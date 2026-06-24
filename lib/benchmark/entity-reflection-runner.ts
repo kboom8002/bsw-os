@@ -8,7 +8,11 @@ export interface EntityReflectionResult {
   snapshot: EntityReflectionSnapshot;
   reflectionDetails: EntityReflectionDetail[];
   rawResponses: string[];
+  rawCitations?: any[][];
 }
+
+const COMPARATIVE_KEYWORDS = ['비교', 'vs', '차이', '추천', '순위', 'compare', 'best', 'top', 'ranking', '어떤'];
+const PRODUCT_CATALOG_KEYWORDS = ['상품', '제품', '서비스', '가격', '구매', 'shop', 'product', 'service', 'price', 'buy', '카탈로그'];
 
 export class EntityReflectionRunner {
   private engines: string[];
@@ -48,10 +52,6 @@ export class EntityReflectionRunner {
     return matchedCount / uniqueKeywords.length;
   }
 
-  /**
-   * classifyReflection
-   * 4-Tier quality: exact, partial, distorted, absent
-   */
   private classifyReflection(
     entity: SurfaceEntity,
     responseText: string,
@@ -60,21 +60,15 @@ export class EntityReflectionRunner {
     const normResponse = normalizeKorean(responseText.toLowerCase());
     const keywordOverlap = this.calcKeywordOverlap(entity.entity_content, normResponse);
 
-    // exact: Name is matched + Keyword overlap >= 80%
-    // If name matches but keywords are weaker, fallback to partial
     if (fuzzyKoreanMatch(entity.entity_name, responseText)) {
       if (keywordOverlap >= 0.8) return 'exact';
       if (keywordOverlap >= 0.4) return 'partial';
       return 'partial'; 
     }
 
-    // partial: Name not matched but keywords >= 60%
     if (keywordOverlap >= 0.6) return 'partial';
-
-    // distorted: keyword overlap 20%~60%
     if (keywordOverlap >= 0.2) return 'distorted';
 
-    // Domain citation check
     const citesDomain = brandDomains.some(bd => {
       const cleanBd = bd.toLowerCase().replace(/^www\./, '');
       return normResponse.includes(cleanBd);
@@ -84,9 +78,6 @@ export class EntityReflectionRunner {
     return 'absent';
   }
 
-  /**
-   * classifyReflectionWithCompetitor
-   */
   private classifyReflectionWithCompetitor(
     entity: SurfaceEntity,
     responseText: string,
@@ -160,11 +151,9 @@ export class EntityReflectionRunner {
         keyword_overlap: 0
       };
 
-      const qualityRank = { exact: 4, partial: 3, distorted: 2, absent: 1 };
+      const qualityRank = { exact: 4, partial: 3, distorted: 2, absent: 1, outdated: 0, competitor_substituted: 0, hallucinated: 0 };
 
       for (const resp of responses) {
-        // Combined text + citations logic can be integrated in responseText.
-        // We simplified citations check to just brandDomains in classifyReflection
         const detail = this.classifyReflectionWithCompetitor(entity, resp.text, brandDomains, competitors);
         
         if (qualityRank[detail.quality] > qualityRank[bestDetail.quality]) {
@@ -183,11 +172,17 @@ export class EntityReflectionRunner {
       authority: { total: 0, weightedReflected: 0 },
       schema_org: { total: 0, weightedReflected: 0 },
       topical_cluster: { total: 0, weightedReflected: 0 },
-      local_geo: { total: 0, weightedReflected: 0 }
+      local_geo: { total: 0, weightedReflected: 0 },
+      brand_identity: { total: 0, weightedReflected: 0 },
+      product_catalog: { total: 0, weightedReflected: 0 },
+      person_expertise: { total: 0, weightedReflected: 0 },
+      temporal_event: { total: 0, weightedReflected: 0 },
+      media_asset: { total: 0, weightedReflected: 0 }
     };
 
     const QUALITY_WEIGHTS: Record<ReflectionQuality, number> = {
       exact: 1.0, partial: 0.6, distorted: 0.2, absent: 0.0,
+      outdated: 0.0, competitor_substituted: 0.0, hallucinated: 0.0
     };
 
     let reflectedCount = 0;
@@ -226,6 +221,123 @@ export class EntityReflectionRunner {
       ? Math.round((highEeatEntitiesCount / totalEntities) * 100) 
       : 50;
 
+    // L4 Citation & Competitors Calculations
+    let citedResponses = 0;
+    const citationPositions = { inline: 0, footer: 0, absent: 0 };
+    
+    for (const resp of responses) {
+      let isCited = false;
+      let inlineCite = false;
+      let footerCite = false;
+
+      if (resp.citations && Array.isArray(resp.citations)) {
+        for (const cite of resp.citations) {
+          const citeUrl = String(cite.url || cite.uri || cite || '').toLowerCase();
+          if (brandDomains.some(bd => citeUrl.includes(bd.toLowerCase().replace(/^www\./, '')))) {
+            isCited = true;
+            footerCite = true;
+            break;
+          }
+        }
+      }
+
+      const inlineRegex = /\[[^\]]+\]\((https?:\/\/[^\)]+)\)/g;
+      let match;
+      while ((match = inlineRegex.exec(resp.text)) !== null) {
+        const linkUrl = match[1].toLowerCase();
+        if (brandDomains.some(bd => linkUrl.includes(bd.toLowerCase().replace(/^www\./, '')))) {
+          isCited = true;
+          inlineCite = true;
+          break;
+        }
+      }
+
+      if (isCited) {
+        citedResponses++;
+        if (inlineCite) {
+          citationPositions.inline++;
+        } else {
+          citationPositions.footer++;
+        }
+      } else {
+        citationPositions.absent++;
+      }
+    }
+
+    const citationRate = responses.length > 0 ? Math.round((citedResponses / responses.length) * 100) : 0;
+
+    let competitorMentionCount = 0;
+    const competitorDetailsMap: Record<string, { mentionCount: number; probeCount: number }> = {};
+    for (const comp of competitors) {
+      competitorDetailsMap[comp] = { mentionCount: 0, probeCount: 0 };
+    }
+
+    for (const resp of responses) {
+      let competitorFound = false;
+      for (const comp of competitors) {
+        const isCompMentioned = fuzzyKoreanMatch(comp, resp.text) || resp.text.toLowerCase().includes(comp.toLowerCase());
+        if (isCompMentioned) {
+          competitorFound = true;
+          competitorDetailsMap[comp].mentionCount++;
+        }
+        competitorDetailsMap[comp].probeCount++;
+      }
+      if (competitorFound) {
+        competitorMentionCount++;
+      }
+    }
+
+    const competitorMentionRate = responses.length > 0 ? Math.round((competitorMentionCount / responses.length) * 100) : 0;
+    const competitorDetails = Object.entries(competitorDetailsMap).map(([name, data]) => ({
+      competitorName: name,
+      mentionCount: data.mentionCount,
+      probeCount: data.probeCount
+    }));
+
+    // Intent Match
+    const intentEntityMatchRate: Record<string, number> = { informational: 0, commercial: 0 };
+    let infoCount = 0;
+    let commCount = 0;
+    let infoMatchSum = 0;
+    let commMatchSum = 0;
+
+    for (let i = 0; i < responses.length; i++) {
+      const resp = responses[i];
+      const probe = probes[i];
+      const query = (probe?.question_text || '').toLowerCase();
+      const isCommercial = COMPARATIVE_KEYWORDS.some(kw => query.includes(kw)) || PRODUCT_CATALOG_KEYWORDS.some(kw => query.includes(kw));
+
+      let matchCount = 0;
+      for (const entity of entities) {
+        const overlap = this.calcKeywordOverlap(entity.entity_content, resp.text);
+        if (overlap >= 0.4) {
+          matchCount++;
+        }
+      }
+      const matchRate = entities.length > 0 ? Math.round((matchCount / entities.length) * 100) : 0;
+
+      if (isCommercial) {
+        commCount++;
+        commMatchSum += matchRate;
+      } else {
+        infoCount++;
+        infoMatchSum += matchRate;
+      }
+    }
+
+    intentEntityMatchRate.informational = infoCount > 0 ? Math.round(infoMatchSum / infoCount) : 0;
+    intentEntityMatchRate.commercial = commCount > 0 ? Math.round(commMatchSum / commCount) : 0;
+
+    // Distortion patterns
+    const distortionPatterns: Record<string, number> = { exact: 0, partial: 0, distorted: 0, absent: 0, competitor_substituted: 0 };
+    reflectionDetails.forEach(detail => {
+      if (detail.competitor_mentioned) {
+        distortionPatterns.competitor_substituted = (distortionPatterns.competitor_substituted || 0) + 1;
+      } else {
+        distortionPatterns[detail.quality] = (distortionPatterns[detail.quality] || 0) + 1;
+      }
+    });
+
     const snapshot: EntityReflectionSnapshot = {
       workspace_id: workspaceId,
       website_url: websiteUrl,
@@ -237,14 +349,20 @@ export class EntityReflectionRunner {
       err_schema,
       err_topical,
       err_geo,
-      aepi_score: 0, // calculated externally
+      aepi_score: 0,
       tech_mod_score,
       eeat_mod_score,
       tech_audit: { schema_entities: schemaEntitiesCount, total_entities: totalEntities },
       eeat_audit: { high_eeat_entities: highEeatEntitiesCount, total_entities: totalEntities },
       total_entities_checked: totalEntities,
       total_entities_reflected: reflectedCount,
-      measured_at: measuredAt
+      measured_at: measuredAt,
+      citationRate,
+      citationPositions,
+      competitorMentionRate,
+      competitorDetails,
+      intentEntityMatchRate,
+      distortionPatterns
     };
 
     try {
@@ -260,13 +378,13 @@ export class EntityReflectionRunner {
       } else if (data) {
         snapshot.id = data.id;
       }
-    } catch (_) {
-    }
+    } catch (_) {}
 
     return {
       snapshot,
       reflectionDetails,
-      rawResponses: responses.map(r => r.text)
+      rawResponses: responses.map(r => r.text),
+      rawCitations: responses.map(r => r.citations)
     };
   }
 }

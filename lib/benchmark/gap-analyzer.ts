@@ -1,6 +1,9 @@
 import { SurfaceEntity, SurfaceGapAnalysis, EntityReflectionDetail } from '../schema';
 import { UnifiedQuestionMapping } from '../surface/qis-cross-mapper';
 import { getSupabaseAdminClient } from '../supabase';
+import { TechInfraAuditResult } from '../surface/tech-infra-auditor';
+import { SchemaQualityAuditResult } from '../surface/schema-quality-auditor';
+import { ContentSemanticResult } from '../surface/content-semantic-analyzer';
 
 export class GapAnalyzer {
   /**
@@ -11,7 +14,10 @@ export class GapAnalyzer {
     websiteUrl: string,
     entities: SurfaceEntity[],
     reflectionDetails: EntityReflectionDetail[],
-    mappings: UnifiedQuestionMapping[]
+    mappings: UnifiedQuestionMapping[],
+    techInfra?: TechInfraAuditResult,
+    schemaQuality?: SchemaQualityAuditResult,
+    contentSemantic?: ContentSemanticResult
   ): Promise<SurfaceGapAnalysis[]> {
     const analysisResults: SurfaceGapAnalysis[] = [];
     const analyzedAt = new Date().toISOString();
@@ -26,7 +32,6 @@ export class GapAnalyzer {
       const isReflected = quality !== 'absent';
       const quadrant = isReflected ? 'green' : 'yellow';
 
-      // Find matching QIS layer if mapped
       const matchingMap = mappings.find(m => m.site_question_ref?.must_include.some(w => 
         entity.entity_name.toLowerCase().includes(w.toLowerCase())
       ));
@@ -37,14 +42,13 @@ export class GapAnalyzer {
       let priority_score = 0;
 
       if (quadrant === 'yellow') {
-        // Yellow: site content exists but is NOT reflected. Technical/EEAT fixes.
         if (!entity.has_schema_support) {
           prescription_type = 'add_schema';
           prescription_detail = `Add Schema.org JSON-LD structured markup for entity "${entity.entity_name}" (type: ${entity.surface_type}) to anchor crawlers.`;
           estimated_aepi_impact = 12.5;
         } else if (entity.eeat_strength < 55) {
           prescription_type = 'add_eeat_signal';
-          prescription_detail = `Strengthen E-E-A-T signals for "${entity.entity_name}". Include medical advisor review badges, citation links, or practitioner credentials.`;
+          prescription_detail = `Strengthen E-E-A-T signals for "${entity.entity_name}". Include advisor reviews, authority citation links, or professional credentials.`;
           estimated_aepi_impact = 15.0;
         } else {
           prescription_type = 'improve_heading';
@@ -64,7 +68,6 @@ export class GapAnalyzer {
         }
 
       } else {
-        // Green: site content exists and IS reflected. Keep/maintain.
         if (quality === 'partial') {
           prescription_detail = `Partially reflected (${Math.round(detail!.keyword_overlap * 100)}% keywords). Consider adding exact matches.`;
           priority_score = 20;
@@ -102,7 +105,7 @@ export class GapAnalyzer {
 
       const prescription_detail = `Create high-quality authority content targeting the core consumer query: "${map.question_text}". Ensure keywords [${keywordsText}] are prominent in H2 headings.`;
       
-      const estimated_aepi_impact = 18.0; // High impact since bridging a direct gap
+      const estimated_aepi_impact = 18.0;
       const priority_score = Math.round(
         (map.industry_qis_layer === 'L1_universal' ? 40 : 25) + 
         (estimated_aepi_impact * 3.0)
@@ -125,7 +128,94 @@ export class GapAnalyzer {
       });
     });
 
-    // 3. Generate Opportunistic Insights (WHITE quadrant - Blue Ocean opportunities)
+    // 3. Process L1: Tech Infra issues if provided
+    if (techInfra && techInfra.issues) {
+      const prescMap: Record<string, SurfaceGapAnalysis['prescription_type']> = {
+        crawlability: 'fix_robots_txt',
+        performance: 'improve_meta',
+        security: 'fix_https',
+        structure: 'add_canonical'
+      };
+
+      for (const issue of techInfra.issues) {
+        let quad: 'red' | 'yellow' | 'white' = 'yellow';
+        if (issue.severity === 'critical') quad = 'red';
+
+        analysisResults.push({
+          workspace_id: workspaceId,
+          website_url: websiteUrl,
+          entity_name: issue.title,
+          entity_type: 'tech_infra_issue',
+          quadrant: quad,
+          industry_qis_layer: 'L1_universal',
+          linked_canonical_question_id: null,
+          linked_surface_entity_id: null,
+          prescription_type: prescMap[issue.category] || 'improve_meta',
+          prescription_detail: issue.description + ' Recommendation: ' + issue.recommendation,
+          estimated_aepi_impact: issue.severity === 'critical' ? 20.0 : 8.0,
+          priority_score: issue.severity === 'critical' ? 95 : 65,
+          analyzed_at: analyzedAt
+        });
+      }
+    }
+
+    // 4. Process L2: Schema issues if provided
+    if (schemaQuality && schemaQuality.issues) {
+      for (const issue of schemaQuality.issues) {
+        let quad: 'red' | 'yellow' = 'yellow';
+        if (issue.severity === 'critical') quad = 'red';
+
+        analysisResults.push({
+          workspace_id: workspaceId,
+          website_url: websiteUrl,
+          entity_name: issue.message,
+          entity_type: 'schema_quality_issue',
+          quadrant: quad,
+          industry_qis_layer: 'L3_ingredient',
+          linked_canonical_question_id: null,
+          linked_surface_entity_id: null,
+          prescription_type: issue.property === 'author' ? 'add_author_markup' : 'add_schema',
+          prescription_detail: issue.recommendation,
+          estimated_aepi_impact: issue.severity === 'critical' ? 15.0 : 5.0,
+          priority_score: issue.severity === 'critical' ? 90 : 55,
+          analyzed_at: analyzedAt
+        });
+      }
+    }
+
+    // 5. Process L3: Content Semantic issues if provided
+    if (contentSemantic && contentSemantic.issues) {
+      const prescMap: Record<string, SurfaceGapAnalysis['prescription_type']> = {
+        eeat: 'add_eeat_signal',
+        answer_first: 'improve_heading',
+        freshness: 'update_content',
+        structure: 'improve_internal_linking',
+        originality: 'create_content'
+      };
+
+      for (const issue of contentSemantic.issues) {
+        let quad: 'red' | 'yellow' = 'yellow';
+        if (issue.severity === 'critical') quad = 'red';
+
+        analysisResults.push({
+          workspace_id: workspaceId,
+          website_url: websiteUrl,
+          entity_name: issue.title,
+          entity_type: 'content_semantic_issue',
+          quadrant: quad,
+          industry_qis_layer: 'L5_ymyl',
+          linked_canonical_question_id: null,
+          linked_surface_entity_id: null,
+          prescription_type: prescMap[issue.category] || 'create_content',
+          prescription_detail: issue.description + ' ' + issue.recommendation,
+          estimated_aepi_impact: issue.severity === 'critical' ? 18.0 : 7.0,
+          priority_score: issue.severity === 'critical' ? 88 : 60,
+          analyzed_at: analyzedAt
+        });
+      }
+    }
+
+    // 6. Generate Opportunistic Insights (WHITE quadrant - Blue Ocean opportunities)
     const whiteOpps = mappings.filter(m => m.coverage_status === 'site_only' && m.industry_qis_layer === 'L6_trend');
     if (whiteOpps.length > 0) {
       whiteOpps.slice(0, 2).forEach((opp, idx) => {

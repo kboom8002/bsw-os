@@ -38,6 +38,9 @@ export default async function ResultsPage({ params }: Props) {
       trends={res.trends}
       auditMode={res.auditMode}
       tier={data.tier as any}
+      techInfra={res.techInfra}
+      schemaQuality={res.schemaQuality}
+      contentSemantic={res.contentSemantic}
     />
   );
 }
