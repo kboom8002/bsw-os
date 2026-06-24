@@ -1,464 +1,705 @@
-# BSW-OS × GENESIS AI홈피 — 시너지 연계 전략 및 가치 창출 프레임워크
+# BSW-OS × GENESIS AI홈피 — 통합 시너지 전략 및 가치 창출 프레임워크 v2.0
 
-> **Version:** 1.0 (2026-06-24)
-> **Scope:** BSW-OS 서피스/브랜드 역설계 × GENESIS AI홈피 벤치마킹 빌더 + Growth Orchestrator
-> **핵심 명제:** AEO 진단 → 즉시 고품질 웹사이트 개설 → 자동 성장의 End-to-End 파이프라인
+> **Version:** 2.0 (2026-06-24) — QIS 양방향 연동 + Hub Platform + Archetype 시스템 통합
+> **Scope:** BSW-OS 역설계/QIS/벤치마크 × GENESIS 테넌트 온보딩/Growth Orchestrator/Hub Platform
+> **핵심 명제:** AEO 진단 → QIS 질문 자산 연동 → 즉시 고품질 웹사이트 개설 → 자동 성장의 완전한 폐루프
 
 ---
 
 ## Executive Summary
 
-BSW-OS의 **서피스/브랜드 역설계 시스템**은 브랜드 웹사이트의 현재 상태를 3-Layer로 진단하고, 업종 벤치마크 대비 상대 포지셔닝과 개선 전략을 도출합니다. GENESIS AI홈피는 **벤치마킹 기반 웹사이트 팩토리**와 **Growth Orchestrator**를 통해 웹사이트를 빌드하고 자동으로 성장시킵니다.
+BSW-OS의 **서피스/브랜드 역설계 + QIS(Question Intelligence System)**는 브랜드의 AEO 현황을 진단하고, 질문 자산을 발굴·예측·가치화합니다. GENESIS AI홈피의 **업종 허브 플랫폼 + Growth Orchestrator + Archetype 시스템**은 허브에서 수집된 1차 데이터(커뮤니티 Q&A, 검증 리뷰, 실거래가)를 기반으로 테넌트 웹사이트를 구축하고 자동으로 성장시킵니다.
 
-이 두 시스템의 연계는 **"진단 → 설계 → 구축 → 운영 → 재진단"** 의 완전한 폐루프(Closed-Loop)를 형성하여, 고객 브랜드가 AEO 진단을 받은 즉시 업종 최상위 수준의 웹사이트를 개설하고, 이후 자동으로 콘텐츠를 개선하며, 다시 진단하여 효과를 측정하는 **자기 진화형 AEO 플랫폼**을 실현합니다.
-
----
-
-## 1. MECE 시너지 프레임워크: 5개 가치 축
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│           BSW-OS × GENESIS 시너지 가치 창출 프레임워크            │
-├─────────────┬─────────────┬──────────────┬──────────┬──────────┤
-│  Axis 1     │  Axis 2     │  Axis 3      │ Axis 4   │ Axis 5   │
-│  진단→설계  │  설계→구축   │  구축→운영   │ 운영→재진단│ 데이터   │
-│  Intelligence│ Fabrication │ Growth       │ Feedback │ Flywheel │
-│  Bridge     │  Bridge     │  Bridge      │ Loop     │          │
-├─────────────┼─────────────┼──────────────┼──────────┼──────────┤
-│ Blueprint   │ Template    │ Gap→Mission  │ GEO↔AEPI │ Industry │
-│ →Template   │ →Website    │ Card Auto    │ Score    │ Benchmark│
-│ Mapping     │ Build       │ Bridge       │ Sync     │ Flywheel │
-├─────────────┼─────────────┼──────────────┼──────────┼──────────┤
-│ Gap→Content │ Design      │ Polish       │ Temporal │ Cross-   │
-│ Seed        │ Token Auto  │ Scorer       │ Trend    │ Tenant   │
-│ Injection   │ Mapping     │ ←L3 Feed     │ ←Growth  │ Learning │
-├─────────────┼─────────────┼──────────────┼──────────┼──────────┤
-│ Schema      │ GNB/IA      │ Predicted    │ Persona  │ Reference│
-│ Blueprint   │ Auto-Gen    │ Content      │ Drift    │ Site     │
-│ →JSON-LD    │ from IA     │ ←QIS+Gap     │ Alert    │ Pool     │
-└─────────────┴─────────────┴──────────────┴──────────┴──────────┘
-```
+v1.0 대비 v2.0의 핵심 차별점:
+- **QIS 양방향 연동:** BSW가 Hub에서 신호/메트릭/기대레이어를 Pull → 예측 질문을 Push → Hub가 피드백
+- **Hub Content Pool:** 업종 허브의 큐레이션된 콘텐츠가 테넌트에 자동 공급 (direct/custom/draft)
+- **Archetype 매칭:** BSW 진단 결과 → 11개 아키타입 중 최적 매칭 → Vec7D + 디자인 + GNB 일괄 결정
+- **Predicted Content Pipeline:** QIS 예측 질문 → CMOS 자동 드래프트 → 24시간 리뷰 마감 → 자동 비활성화
+- **S2P Growth Bridge:** 프로젝트 완료 → Gap Report 10영역 → TF8 블록 초기화 → Growth 자동 점화
+- **Mixture Hub:** 크로스 허브 콘텐츠 자동 조합 (POI/Theme/Editorial)
 
 ---
 
-## 2. Axis 1: Intelligence Bridge (진단 → 설계)
-
-> **BSW-OS의 진단 결과가 GENESIS의 설계 입력으로 직접 흘러들어가는 다리**
-
-### 2.1 Blueprint → Template Profile 자동 매핑
-
-| BSW-OS 출력 | GENESIS 입력 | 변환 로직 |
-|------------|-------------|---------|
-| `IndustryBlueprint.techInfraStandard` | `TemplateProfile.search_mode` | SSR 강제, AI 봇 허용, llms.txt 포함 여부 결정 |
-| `IndustryBlueprint.schemaStandard` | `TemplateProfile.trust_mode` | 필수 Schema.org 타입 → Trust Grammar 매핑 |
-| `IndustryBlueprint.contentStrategy` | `TemplateProfile.routine_priority_mode` | Answer-First 전략 → 콘텐츠 구조 결정 |
-| `IndustryBlueprint.designPatterns` | `TemplateProfile.conversion_mode` | CTA 패턴, 내부링크 전략 → Conversion Grammar |
-| `RelativePosition.overallTier` | `TemplateProfile.intended_brand_tier` | S/A/B 등급 → Premium/Standard/Starter 매핑 |
-
-**가치:** 관리자가 업종 벤치마크를 실행하면, 해당 업종의 표준 설계안이 자동으로 GENESIS 템플릿 프로필로 변환되어, 신규 테넌트 온보딩 시 **업종 최상위 수준의 설계 기준이 즉시 적용**됩니다.
-
-### 2.2 Gap Analysis → Content Seed Injection
-
-BSW-OS의 4-사분면 갭 분석 결과를 GENESIS의 초기 콘텐츠 시드로 직접 주입합니다.
-
-| 사분면 | GENESIS 변환 | 콘텐츠 타입 매핑 |
-|--------|-------------|---------------|
-| 🔴 RED (콘텐츠 부재) | `universal_content_assets` 초기 드래프트 | `prescription_type` → UCA `type` 매핑 (아래 표 참조) |
-| 🟡 YELLOW (미반영) | Polish Planner 우선 타겟 | 기존 콘텐츠 → `enrich_body` / `add_aeo` 전략 |
-| ⚪ WHITE (블루오션) | Growth Orchestrator 기회 토픽 | `opportunity_content` → `topics` 테이블 시드 |
-| 🟢 GREEN (유지) | 콘텐츠 보존 & 모니터링 | 변경 없음, 시계열 추적만 |
-
-**Gap → UCA Type 매핑:**
-
-| BSW-OS prescription_type | GENESIS UCA type | 생성 방식 |
-|--------------------------|-----------------|---------|
-| `create_content` | `answer` / `article` | AI 드래프트 생성 |
-| `add_faq_markup` | `faq` | FAQ 구조화 생성 |
-| `add_schema` | `product` / `solution` | 스키마 보강 콘텐츠 |
-| `add_eeat_signal` | `evidence` / `case_study` | EEAT 보강 콘텐츠 |
-| `add_author_markup` | `person` / `creator` | 전문가 프로필 생성 |
-| `opportunity_content` | `brand_story` / `routine` | 블루오션 콘텐츠 |
-
-### 2.3 Schema Blueprint → JSON-LD 자동 생성
-
-BSW-OS의 `SchemaQualityAuditResult`에서 누락된 Schema.org 타입을 GENESIS의 JSON-LD 자동 생성기에 직접 연결합니다.
+## 1. MECE 시너지 프레임워크: 7개 가치 축 (v2.0)
 
 ```
-BSW-OS SchemaQualityAuditor
-  → 누락 스키마 타입 식별 (Organization, FAQPage, Product 등)
-    → GENESIS Storefront JSON-LD Generator
-      → 자동 Schema.org 마크업 생성 (30+ 타입 지원)
-        → 신규 사이트에 처음부터 완벽한 스키마 포함
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                BSW-OS × GENESIS 통합 시너지 가치 창출 프레임워크 v2.0              │
+├──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬───────────────┤
+│ Axis 1   │ Axis 2   │ Axis 3   │ Axis 4   │ Axis 5   │ Axis 6   │ Axis 7       │
+│ 진단→설계│ 설계→구축 │ 구축→운영│ 운영→재진│ QIS 양방향│ Hub→     │ 데이터       │
+│ Intel.   │ Fabric.  │ Growth   │ Feedback │ Question │ Tenant   │ Flywheel     │
+│ Bridge   │ Bridge   │ Bridge   │ Loop     │ Bridge   │ Supply   │              │
+│          │          │          │          │ ★NEW     │ Bridge   │              │
+│          │          │          │          │          │ ★NEW     │              │
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼───────────────┤
+│Blueprint │Template  │Gap→Mis-  │GEO↔AEPI │BSW Pull  │Hub Pool  │Industry      │
+│→Archetype│→Website  │sion Auto │Score     │Signals   │→Tenant   │Benchmark     │
+│Matching  │Build     │Bridge    │Sync      │from Hub  │Auto-Pull │Flywheel      │
+│★ENHANCED │         │          │          │★NEW      │★NEW      │              │
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼───────────────┤
+│Gap→QIS   │Design    │Polish    │Temporal  │BSW Push  │Expected  │Cross-Tenant  │
+│Predicted │Token via │Scorer    │Trend     │Predictions│Layer    │& Cross-Hub   │
+│Content   │Archetype │←L3 Feed  │←Growth   │to Hub    │Auto-Build│Learning      │
+│★ENHANCED │★ENHANCED │          │          │★NEW      │★NEW      │★ENHANCED     │
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼───────────────┤
+│Schema    │GNB/IA    │Predicted │Persona   │Hub→BSW   │Mixture   │Reference     │
+│Blueprint │Auto via  │Content   │Drift     │Feedback  │Cross-Hub │Site Pool     │
+│→JSON-LD  │Section   │Pipeline  │Alert     │Loop      │Content   │Auto-Expand   │
+│          │Registry  │←QIS+Gap  │          │★NEW      │★NEW      │              │
+│          │★ENHANCED │★ENHANCED │          │          │          │              │
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴───────────────┘
 ```
-
-**가치:** 기존 사이트의 스키마 문제를 진단한 후, 신규 사이트 구축 시 **해당 업종에서 발견된 모든 스키마 누락을 처음부터 방지**합니다.
 
 ---
 
-## 3. Axis 2: Fabrication Bridge (설계 → 구축)
+## 2. Axis 1: Intelligence Bridge (진단 → 설계) — ENHANCED
 
-> **BSW-OS의 Blueprint가 GENESIS의 웹사이트 빌드 파이프라인을 직접 구동하는 다리**
+### 2.1 Blueprint → Archetype 자동 매칭 ★NEW
 
-### 3.1 Blueprint → Template + Design Token 자동 생성
-
-**연계 흐름:**
-```
-BSW-OS IndustryBlueprint
-  ├── designPatterns.recommendations[]
-  │     → GENESIS VTDS Vec7D 초기값 결정
-  │     → 44개 YAML 테마 중 최적 매칭
-  │     → Design Token 자동 오버라이드
-  ├── techInfraStandard
-  │     → SSR/CSR 렌더링 모드 강제
-  │     → robots.txt AI 봇 허용 설정
-  │     → llms.txt 자동 생성
-  └── schemaStandard
-        → JSON-LD 필수 타입 자동 포함
-        → OG 태그 완전성 보장
-```
-
-**Design Token 매핑 예시 (스킨케어 Blueprint → VTDS):**
-
-| Blueprint 권고 | Vec7D 영향 차원 | Token 결과 |
-|---------------|---------------|----------|
-| "신뢰감 있는 의료/과학 이미지" | Calm(↑), Trust(↑) | `--color-primary: #0ea5e9`, serif heading |
-| "제품 비교 전환율 최적화" | Focus(↑), Competent(↑) | CTA 강조, 비교표 모듈 활성화 |
-| "EEAT 권위 시그널 강화" | Heritage(↑), Trust(↑) | 전문가 프로필 섹션 자동 추가 |
-
-### 3.2 GNB/IA 자동 생성 (Blueprint + Gap 기반)
-
-BSW-OS의 진단 데이터가 GENESIS의 23개 업종별 GNB 프리셋을 **동적으로 커스터마이즈**합니다.
+v1.0에서는 Blueprint → Template Profile 직접 매핑이었으나, v2.0에서는 **GENESIS의 4계층 아키타입 시스템**을 활용하여 훨씬 정밀한 매칭이 가능합니다.
 
 ```
-BSW-OS 진단 결과
-  ├── entities[].surface_type 분포 분석
-  │     → 어떤 콘텐츠 타입이 강한지/약한지 파악
-  ├── gaps[].quadrant === 'red'
-  │     → 신규 GNB 노드 추가 필요 여부 결정
-  ├── IndustryBlueprint.contentStrategy
-  │     → 콘텐츠 전략별 GNB 우선순위 조정
-  └── 결합
-        → INDUSTRY_GNB_NODES[industry] 기본 프리셋 로드
-        → RED 갭 기반 GNB 노드 추가/활성화
-        → 엔티티 분포 기반 노드 순서 최적화
-        → gnb_ia_config UCA 자동 저장
+BSW-OS AuditResult + IndustryBlueprint
+  │
+  ├── L1 techInfraScore → Archetype qualityRiskProfile 매칭
+  ├── L2 schemaQualityScore → Archetype requiredContentAssets 매칭  
+  ├── L3 contentSemanticScore → Archetype contentSeedTitles 매칭
+  ├── EEAT scores → Archetype msiDefaults 매칭
+  └── designPatterns → Archetype lookAndFeel.targetVec7d 코사인 유사도
+        │
+        ▼
+  GENESIS 4-Layer Taxonomy Resolution
+  ┌─────────────────────────────────────────────────────────────┐
+  │ Layer 1: Industry → detectIndustry() 결과 매핑              │
+  │ Layer 2: Industry Profile → 29개 세부 업종 중 최적 매칭     │
+  │ Layer 3: Archetype → 11개 아키타입 중 Vec7D 코사인 최대 매칭│
+  │ Layer 4: Surface Preset → 9-layer 디자인 토큰 번들 자동 적용│
+  └─────────────────────────────────────────────────────────────┘
 ```
+
+**매칭 알고리즘 (신규):**
+
+| BSW-OS 진단 지표 | Archetype 속성 | 매칭 로직 |
+|-----------------|---------------|---------|
+| `designPatterns.trustPriority='high'` | `lookAndFeel.targetVec7d.heritage` | heritage ≥ 0.6인 아키타입 우선 |
+| `designPatterns.conversionFocus='comparison'` | `lookAndFeel.homepageSectionPriority` | `compare_block` 포함 아키타입 우선 |
+| `eeat.overall ≥ 70` | `lookAndFeel.motionLevel` | 'subtle' 이상 허용 (신뢰 기반) |
+| `contentSemanticScore ≤ 40` | `requiredContentAssets` | 필수 자산 수 최소화 아키타입 (진입장벽 ↓) |
+| `schemaQualityScore ≥ 70` | `qualityRiskProfile.safetyGateLevel` | 'standard' 충분 (이미 양호) |
 
 **예시 (스킨케어 업종):**
-- Blueprint에서 "FAQ 스키마 필수" → GNB `faq` 노드 활성화 + `gnb_position: 'top'`
-- RED 갭에 "성분 비교 콘텐츠 부재" → `compare` 노드 추가
-- 엔티티 분포에서 `procedural`이 약함 → `routines` 노드 상위 배치
+```
+BSW-OS 진단: techInfra=45, schema=30, content=55, eeat=65
+designPatterns: trustPriority=high, conversionFocus=routine
+  → Layer 1: skincare
+  → Layer 2: skincare_indie_brand (schema 낮음 = 신생 브랜드)
+  → Layer 3: skincare_natural (Vec7D: calm=0.7, warm=0.6 → 루틴 중심)
+  → Layer 4: skincare_natural_preset (earthy tones, serif, minimal motion)
+  → 디자인 토큰 + GNB + 콘텐츠 시드 + QIS 질문 일괄 결정
+```
 
-### 3.3 Content Onboarding 자동화 (Turnkey + Blueprint)
+### 2.2 Gap → QIS Predicted Content 교차 주입 ★ENHANCED
 
-GENESIS의 **Turnkey Onboarding 2.0**이 BSW-OS 진단 데이터를 직접 소비합니다.
-
-**기존 Turnkey 6단계 파이프라인에 BSW-OS 데이터 주입:**
-
-| Turnkey Phase | BSW-OS 데이터 활용 |
-|--------------|-------------------|
-| Phase 0: File Parsing | BSW-OS `AuditResult` JSON을 추가 입력으로 수용 |
-| Phase 1: Industry Mapping | `detectIndustry()` 결과로 업종 자동 매핑 강화 |
-| Phase 2: DB Seeding | RED 갭 → 초기 UCA 드래프트 자동 시드 |
-| Phase 3: Visual & Image | Blueprint `designPatterns` → 테마 자동 컴파일 |
-| Phase 4: Derived Content | Gap 분석 → GNB IA 자동 매핑 + 5축 메타태그 |
-| Phase 5: 5-Gate Validation | BSW-OS L1/L2/L3 점수 기준으로 품질 게이트 검증 |
-
----
-
-## 4. Axis 3: Growth Bridge (구축 → 운영)
-
-> **BSW-OS의 갭 분석이 GENESIS Growth Orchestrator의 미션 카드와 콘텐츠 개선을 직접 구동하는 다리**
-
-### 4.1 Gap → Growth Orchestrator Mission Card 자동 브릿지
-
-BSW-OS의 갭 분석 결과가 Growth Orchestrator의 `findOpportunities()` 단계에 직접 주입됩니다.
+v1.0에서는 Gap → Content Seed 단순 주입이었으나, v2.0에서는 **QIS Predicted Content Pipeline**과 교차하여 더 정밀한 콘텐츠를 생성합니다.
 
 ```
 BSW-OS SurfaceGapAnalysis[]
-  ├── quadrant='red' (콘텐츠 부재)
-  │     → Growth Orchestrator opportunity type: 'bsw_content_gap'
-  │     → score: estimated_aepi_impact × 3 (최우선)
-  │     → MissionCard: 🟡 Yellow (AI 드래프트 생성 → 리뷰)
-  ├── quadrant='yellow' (미반영)
-  │     → Growth Orchestrator opportunity type: 'bsw_reflection_gap'
-  │     → score: priority_score × 2
-  │     → MissionCard: 🟡 Yellow (기존 콘텐츠 Polish 리뷰)
-  └── quadrant='white' (블루오션)
-        → Growth Orchestrator opportunity type: 'bsw_blue_ocean'
-        → score: estimated_aepi_impact × 1.5
-        → topics 테이블 시드 → 예측 콘텐츠 파이프라인
+  ├── RED 갭 (콘텐츠 부재)
+  │     ↓
+  │   QIS Cross-Mapper 교차 검증
+  │     ├── industry_only (업종에만 있고 사이트에 없는 질문)
+  │     │     → 이미 QIS가 예측한 질문과 교차?
+  │     │       YES → confidence 부스트 (+0.15) → 우선 생성
+  │     │       NO  → 신규 질문으로 QIS에 등록 + 콘텐츠 생성
+  │     └── 검증된 예측 질문
+  │           → Predicted Content Pipeline
+  │             → CMOS 자동 드래프트 (Expected Layer 준수)
+  │             → 24h 리뷰 마감 → Growth Mission Card
+  │
+  └── WHITE 갭 (블루오션)
+        → QIS Question Emergence Predictor에 시드 주입
+        → first_mover_window_days 계산
+        → 조기 선점 콘텐츠 전략
 ```
 
-**Mission Card 우선순위 캐스케이드 확장:**
-1. **Adaptive Coach missions** (기존 최우선)
-2. **BSW-OS RED Gap missions** (신규 — AEO 진단 기반 최우선)
-3. **Content Boost missions** (기존)
-4. **Growth Hub missions** (기존)
-5. **BSW-OS WHITE Opportunity missions** (신규 — 블루오션)
+**교차 검증의 가치:**
+- BSW-OS RED 갭과 QIS 예측 질문이 **동시에 가리키는 토픽**은 가장 높은 우선순위
+- BSW-OS에서만 발견된 갭은 QIS에 새 신호로 등록 → 예측 정확도 향상
+- QIS에서만 예측된 질문은 BSW-OS 진단에서 놓친 미래 기회
 
-### 4.2 Polish Scorer ← L3 Content Semantic 피드
+### 2.3 Schema Blueprint → Archetype requiredContentAssets 매핑 ★ENHANCED
 
-BSW-OS의 L3 콘텐츠 시맨틱 분석 결과가 GENESIS의 **Content Polishing Engine**에 직접 피드됩니다.
+BSW-OS의 스키마 감사 결과가 GENESIS Archetype의 `requiredContentAssets` 매트릭스와 직접 매핑됩니다.
 
-| BSW-OS L3 지표 | Polish Scorer 차원 | 연계 방식 |
-|----------------|-------------------|---------|
-| `eeatOverall` | Brand Alignment (15%) | EEAT 점수를 브랜드 정렬 점수에 가중 반영 |
-| `answerFirstAvgScore` | AEO Readiness (20%) | Answer-First 점수 → AEO 준비도 보정 |
-| `freshnessScore` | Content Richness (30%) | 신선도 저하 → 업데이트 필요 플래그 |
-| `contentSemanticScore` | 전체 Polish Score | 외부 검증 점수로 Polish Score 캘리브레이션 |
+| BSW-OS 누락 스키마 | Archetype 필수 자산 | 자동 생성 |
+|-------------------|-------------------|---------|
+| `Organization` | `about_brand` (critical) | AI 브랜드 소개 드래프트 |
+| `FAQPage` | `faq` (major) | QIS 시드 질문 기반 FAQ |
+| `Product` | `product` (critical) | 제품 카탈로그 구조화 |
+| `HowTo` | `routine` / `process_step` (major) | 루틴/프로세스 가이드 |
+| `AggregateRating` | `evidence` (major) | 리뷰 집계 근거 |
+| `Person` | `person` (critical for clinic/consulting) | 전문가 프로필 |
+| `ClaimReview` | `claim` + `evidence_source` (YMYL) | 의료/금융 주장 검증 |
 
-**Polish Planner 전략 선택 보강:**
+---
 
-| BSW-OS 이슈 | 추가 Polish 전략 |
-|------------|----------------|
-| `add_eeat_signal` | `strengthen_brand` 전략 자동 선택 |
-| `improve_heading` | `add_structure` 전략 자동 선택 |
-| `improve_internal_linking` | 내부 링크 토폴로지 개선 전략 추가 |
-| `add_author_markup` | `person` 타입 UCA 자동 생성 |
+## 3. Axis 2: Fabrication Bridge (설계 → 구축) — ENHANCED
 
-### 4.3 Predicted Content Pipeline ← QIS + Gap 교차 주입
+### 3.1 Archetype 기반 풀스택 자동 구축 ★ENHANCED
 
-BSW-OS의 QIS Cross Mapper 결과가 GENESIS의 Predicted Content Pipeline에 직접 연결됩니다.
+v1.0에서는 Blueprint → Template + Design Token이었으나, v2.0에서는 **아키타입 하나로 디자인+GNB+콘텐츠+QIS+Expected Layer 전부 결정**됩니다.
 
 ```
-BSW-OS QisCrossMapper.mapUnified()
-  ├── coverage_status='industry_only' (업종에만 있고 사이트에 없는 질문)
-  │     → GENESIS topics 테이블 시드
-  │     → predictedContentPipeline.ts → CMOS 자동 드래프트
-  └── coverage_status='site_only' (사이트에만 있는 고유 질문)
-        → GENESIS 강점 콘텐츠로 분류
-        → 보강/확장 대상으로 Growth Orchestrator에 전달
+BSW-OS AuditResult
+  → Archetype 자동 매칭 (Axis 1.1)
+    → Archetype 패키지 일괄 적용:
+      ┌─────────────────────────────────────────────────────┐
+      │  1. lookAndFeel.targetVec7d → VTDS 디자인 토큰      │
+      │  2. lookAndFeel.baseTheme → 44개 YAML 테마 선택      │
+      │  3. lookAndFeel.homepageSectionPriority              │
+      │     → Section Registry 60+ 중 선택                  │
+      │     → Industry Home Template 자동 결정               │
+      │  4. requiredContentAssets → 초기 콘텐츠 매트릭스      │
+      │  5. contentSeedTitles → AI 드래프트 제목/구조        │
+      │  6. questionCapitalSeed → QIS 초기 질문 자산         │
+      │  7. msiDefaults → MSI 온보딩 기본값                  │
+      │  8. qualityRiskProfile → Expected Layer 등급 결정    │
+      │  9. benchmarkBaseline → KPI 기준선 설정              │
+      └─────────────────────────────────────────────────────┘
+```
+
+### 3.2 GNB/IA 자동 구축 — Section Registry 통합 ★ENHANCED
+
+BSW-OS 진단 데이터가 GENESIS의 **60+ Section 타입** 중 최적 조합을 자동 결정합니다.
+
+| BSW-OS 진단 결과 | Section 자동 추가 | psychology_layer |
+|-----------------|------------------|-----------------|
+| EEAT.trustworthiness < 50 | `trust_strip` + `stats_band` | 'trust' |
+| 비교 콘텐츠 RED 갭 | `compare_block` | 'value' |
+| FAQ 스키마 누락 | `faq_accordion` | 'trust' |
+| 루틴 콘텐츠 부재 | `routine_steps` | 'value' |
+| 제품 스키마 누락 | `catalog_grid` + `product_grid` | 'action' |
+| 전문가 프로필 없음 | `doctor_profile` or `agent_showcase` | 'proof' |
+| 포트폴리오 부재 | `portfolio_preview` + `masonry_gallery` | 'attention' |
+| 지역 SEO 약함 | `map_embed` | 'action' |
+
+**5-Layer Psychology 프레임워크 적용:**
+```
+Attention (주목) → Trust (신뢰) → Value (가치) → Proof (증거) → Action (전환)
+
+BSW-OS L3 eeat.trustworthiness < 50 → Trust Layer 강화
+BSW-OS L3 answerFirstScore < 40    → Value Layer 강화  
+BSW-OS L2 orgSchemaPresent = false → Proof Layer 강화
+BSW-OS L1 techInfraScore > 70      → Action Layer에 집중 가능
+```
+
+### 3.3 Hub Content Pool 즉시 공급 ★NEW
+
+Turnkey Onboarding 시, 해당 업종 허브의 `hub_content_pool`에서 콘텐츠를 즉시 공급합니다.
+
+```
+BSW-OS 진단 → 업종 감지: wedding_sdm
+  → K-Wedding Hub hub_content_pool 조회
+    ├── 15개 direct 콘텐츠 → 즉시 active 발행
+    │   (웨딩 가이드, 예산 비교, 스타일 트렌드, 법적 절차 등)
+    ├── 10개 custom_template → [TUNE_HERE] 필드 AI 브랜드 반영
+    │   (Q&A, 브랜드 맞춤 답변 등)
+    └── 5개 draft → 테넌트 리뷰 대기
+        (업체별 고유 콘텐츠)
+
+결과: 온보딩 직후 최소 15개 고품질 콘텐츠 즉시 활성화
+      + 10개 AI 커스터마이징 → 1시간 내 25개 활성화
+      + 5개 테넌트 리뷰 → 24시간 내 30개 완성
 ```
 
 ---
 
-## 5. Axis 4: Feedback Loop (운영 → 재진단)
+## 4. Axis 3: Growth Bridge (구축 → 운영) — ENHANCED
 
-> **GENESIS의 운영 데이터가 BSW-OS의 재진단을 트리거하고, 개선 효과를 측정하는 피드백 루프**
+### 4.1 S2P Growth Bridge × BSW-OS 갭 매핑 ★ENHANCED
+
+BSW-OS의 Gap Report 10영역이 GENESIS의 **S2P → TF8 Block 매핑**과 직접 연결됩니다.
+
+```
+BSW-OS SurfaceGapAnalysis + ImprovementStrategy
+  ↓
+S2P Gap Report 10영역으로 변환:
+  ├── gnb_ia (F 블록)      ← BSW-OS gnbCorrections.missingNodes
+  ├── question_answer (K)   ← BSW-OS contentGaps.red (answer 타입)
+  ├── offer_clarity (T)     ← BSW-OS contentGaps.red (product/service 타입)
+  ├── trust_evidence (W)    ← BSW-OS eeat.trustworthiness + evidence 갭
+  ├── visual_explanation (O) ← BSW-OS L3 multimediaScore
+  ├── policy_safety (W)     ← BSW-OS L2 schemaQualityScore
+  ├── conversion (A)        ← BSW-OS designPatterns.conversionFocus
+  ├── seo_aeo_geo (S)       ← BSW-OS aepiScore + techInfraScore
+  ├── mobile_ux (F)         ← BSW-OS L1 renderingMode
+  └── operations (T)        ← BSW-OS L1 sitemapScore
+  ↓
+TF8 Block 초기 점수 설정
+  → Growth Orchestrator Week 1 자동 점화
+  → Adaptive Coach: 가장 낮은 TF8 블록 우선 코칭
+  → 5개 Welcome Mission Cards 자동 생성
+```
+
+### 4.2 Predicted Content Pipeline × BSW-OS QIS 교차 ★ENHANCED
+
+BSW-OS QIS 예측 질문이 GENESIS Predicted Content Pipeline에 직접 투입됩니다.
+
+```
+BSW-OS QIS Predictions (confidence ≥ 0.70)
+  ↓
+GENESIS predictedContentPipeline.ts
+  ├── confidence 필터 (≥ 0.70)
+  ├── coverage 필터 (none | sparse만)
+  ├── QVS 점수 정렬 (상위 5개)
+  ├── Expected Layer 준수 확인
+  │   ├── must_include[] → 드래프트에 반드시 포함
+  │   └── must_not_do[] → 드래프트에서 반드시 배제
+  ├── CMOS 자동 드래프트 생성
+  │   ├── type='answer', category='qis_predicted'
+  │   ├── Schema.org 자동 매핑:
+  │   │   recommendation → FAQPage
+  │   │   comparison → Article
+  │   │   action_seeking → HowTo
+  │   │   local_intent → LocalBusiness
+  │   └── review_deadline: 24시간
+  └── Growth Mission Card (🟡 Yellow) 자동 생성
+      → 테넌트 리뷰 → 발행 or 24h 후 자동 비활성화
+```
+
+### 4.3 Growth Orchestrator 확장 — BSW 소스 3중 통합 ★ENHANCED
+
+Growth Orchestrator의 `findOpportunities()` Step 5에 3개 BSW-OS 소스가 통합됩니다.
+
+| 소스 | 타입 | 가중치 | 미션 색상 |
+|------|------|--------|---------|
+| GEO 실패 항목 | `geo_gap` | ×2 | 🟡 Yellow |
+| QIS 예측 질문 | `qis_question` | ×1 (QVS 기반) | 🟡 Yellow |
+| **BSW-OS RED 갭** | `bsw_content_gap` | **×3** (최우선) | 🟡 Yellow |
+| **BSW-OS YELLOW 갭** | `bsw_reflection_gap` | **×2** | 🟡 Yellow (Polish) |
+| **BSW-OS WHITE 갭** | `bsw_blue_ocean` | **×1.5** | 🟡 Yellow (예측) |
+
+**Mission Card 우선순위 캐스케이드 (v2.0):**
+1. Adaptive Coach missions (TF8 블록 코칭)
+2. **BSW-OS RED Gap missions** ★NEW (AEO 진단 기반)
+3. Content Boost missions (아키타입 콜드스타트)
+4. **BSW-OS QIS Predicted Content** ★NEW (예측 질문 기반)
+5. Growth Hub missions (GEO + QIS 표준)
+6. **BSW-OS WHITE Opportunity missions** ★NEW (블루오션)
+
+---
+
+## 5. Axis 4: Feedback Loop (운영 → 재진단) — 기존 유지 + 보강
 
 ### 5.1 GEO Score ↔ AEPI Score 교차 검증
 
-| GENESIS 지표 | BSW-OS 지표 | 교차 검증 |
-|-------------|------------|---------|
-| GEO Score (0-250, 25항목) | AEPI Score (0-100, 7차원) | 두 점수의 상관관계 추적 → 진단 정확도 검증 |
-| GEO Grade (A-F) | Overall Tier (S-F) | 등급 일치도 모니터링 |
-| GEO failing_checks | SurfaceGapAnalysis[] | 실패 항목 ↔ 갭 항목 매핑 → 개선 효과 측정 |
+(v1.0과 동일, 추가 보강:)
 
-### 5.2 Temporal Trend ← Growth Mission 데이터
-
-GENESIS의 `growth_missions` 테이블 주간 스냅샷이 BSW-OS의 `TemporalTracker`에 피드됩니다.
+**BAIR Score 통합 ★NEW:**
+Hub QIS Benchmark 시스템의 **BAIR(Brand AI Readiness) Score**가 추가 교차 검증 지표로 활용됩니다.
 
 ```
-GENESIS growth_missions (weekly)
-  ├── geoScore.current → BSW-OS TemporalTrend.aepi_score (외부 검증용)
-  ├── missions[].completed → 완료된 개선 항목 수 추적
-  └── autoCompleted[] → 자동 완료된 항목의 AEPI 영향 측정
+BAIR = 0.4 × AAS (AI Answer Share)
+     + 0.3 × OCR (Official Citation Rate)  
+     + 0.3 × BSF (Brand Semantic Fidelity)
 
-BSW-OS TemporalTracker (monthly re-audit)
-  ├── AEPI δ 계산 → 개선 전/후 비교
-  ├── ERR 차원별 변화 → 어떤 엔티티 타입이 개선되었는지
-  └── RelativePosition 변화 → 업종 내 순위 변동 추적
+BSW-OS AEPI ↔ GENESIS GEO ↔ Hub BAIR
+  → 3중 교차 검증
+  → 가장 정확한 AI 가시성 지표 도출
 ```
 
-### 5.3 Persona Drift Alert ← Growth Orchestrator
-
-GENESIS의 주간 콘텐츠 변경이 BSW-OS의 브랜드 페르소나에 영향을 미치는지 감시합니다.
-
-```
-GENESIS Growth Orchestrator (주간 콘텐츠 변경)
-  → BSW-OS PersonaReverseEngineer (월간 재측정)
-    → 페르소나 톤 벡터 변화 감지
-      → 15% 이상 괴리 시 Drift Alert 발생
-        → Growth Orchestrator에 🔴 Red Mission 주입
-          → "브랜드 톤 일관성 점검 필요"
-```
-
-### 5.4 자동 재진단 트리거
+### 5.2 자동 재진단 트리거 (v2.0 확장)
 
 | 트리거 조건 | 재진단 범위 | 주기 |
 |-----------|-----------|------|
 | Growth Orchestrator 4주차 완료 | Quick Audit (L1/L2/L3) | 월 1회 |
 | GEO Score 20점 이상 하락 | Full Audit (14단계) | 이벤트 기반 |
-| 콘텐츠 10건 이상 변경 누적 | Quick Audit + 포지셔닝 갱신 | 이벤트 기반 |
+| 콘텐츠 10건 이상 변경 누적 | Quick Audit + 포지셔닝 | 이벤트 기반 |
 | 분기 리뷰 | Full Audit + 업종 벤치마크 재실행 | 분기 1회 |
+| **QIS 예측 정확도 < 60%** ★NEW | **QIS 재캘리브레이션 + Quick Audit** | 이벤트 기반 |
+| **BAIR Score 0.1 이상 하락** ★NEW | **Full Audit + Hub 벤치마크** | 이벤트 기반 |
+| **Expected Layer 위반 감지** ★NEW | **Content Polish 강제 실행** | 이벤트 기반 |
 
 ---
 
-## 6. Axis 5: Data Flywheel (데이터 플라이휠)
+## 6. Axis 5: QIS Question Bridge (양방향 질문 자산 교환) ★NEW
 
-> **두 시스템의 데이터가 상호 강화되어 점점 더 정확한 진단과 더 나은 웹사이트를 만드는 선순환**
+> **BSW-OS의 질문 예측 엔진과 GENESIS Hub의 1차 데이터가 양방향으로 질문 자산을 교환하는 새로운 축**
 
-### 6.1 Industry Benchmark Flywheel
-
-```
-                    ┌──────────────────┐
-                    │  BSW-OS 업종     │
-                    │  벤치마크 실행    │
-                    └───────┬──────────┘
-                            │ Blueprint + Profile
-                            ▼
-                    ┌──────────────────┐
-                    │  GENESIS 신규    │
-                    │  사이트 구축     │
-                    └───────┬──────────┘
-                            │ 운영 중 GEO/UGS 데이터
-                            ▼
-                    ┌──────────────────┐
-                    │  BSW-OS 재진단   │
-                    │  → 새 데이터 수집 │
-                    └───────┬──────────┘
-                            │ 기존 벤치마크에 추가
-                            ▼
-                    ┌──────────────────┐
-                    │  벤치마크 프로필  │
-                    │  정확도 향상     │◄──── 사이트 수 ↑ = 통계 유의성 ↑
-                    └───────┬──────────┘
-                            │ 더 정확한 Blueprint
-                            ▼
-                    ┌──────────────────┐
-                    │  다음 신규 사이트 │
-                    │  더 높은 품질    │
-                    └──────────────────┘
-```
-
-### 6.2 Cross-Tenant Learning
-
-동일 업종의 여러 테넌트에서 수집된 데이터를 익명화하여 업종 지식을 강화합니다.
-
-| 데이터 소스 | 학습 내용 | 적용 대상 |
-|-----------|---------|---------|
-| GENESIS 테넌트 A의 GEO 점수 변화 | 어떤 콘텐츠 변경이 GEO를 올렸는지 | 동일 업종 테넌트 B의 Growth 미션 |
-| BSW-OS 테넌트 A의 AEPI 변화 | 어떤 스키마 추가가 AEPI를 올렸는지 | 업종 Blueprint 권고사항 강화 |
-| GENESIS Polish Score 변화 추적 | 어떤 Polish 전략이 가장 효과적인지 | Polish Planner 우선순위 최적화 |
-
-### 6.3 Reference Site Pool 자동 확장
-
-GENESIS에서 운영 중인 테넌트 사이트가 일정 품질 이상이 되면, BSW-OS의 레퍼런스 사이트 풀에 자동으로 추가됩니다.
+### 6.1 BSW → Hub: 예측 질문 Push
 
 ```
-GENESIS 테넌트 사이트
-  → BSW-OS Quick Audit (월간)
-    → AEPI ≥ 70 & GEO Grade ≥ B
-      → reference_sites 테이블에 tier='excellent' 자동 등록
-      → 업종 벤치마크 정확도 자동 향상
+BSW-OS S-OGDE v2.0 Pipeline
+  Meta-Q → Explore → Deepen → Dedup → Evaluate → Predict
+  ↓
+  예측 질문 (confidence ≥ 0.70)
+  ↓
+  POST /api/v1/qis/questions → GENESIS Hub
+  ↓
+  Hub 측:
+  ├── qis_predicted_questions_cache 저장
+  ├── QIS Insights Dashboard 표시
+  ├── Growth Orchestrator findOpportunities()에 주입
+  └── Predicted Content Pipeline → 자동 드래프트 생성
 ```
 
----
+**BSW 예측 질문의 Hub 활용 경로:**
 
-## 7. End-to-End 고객 여정 (As-Is → To-Be)
+| Hub 모듈 | 활용 방식 |
+|---------|---------|
+| 아고라 Q&A | 예측 질문을 FAQ 시드로 게시 → 전문가 답변 유도 |
+| 100문 100답 | canonical_question으로 등록 → 업종 표준 FAQ |
+| Deal Room | 가격/비교 관련 예측 → 거래 인사이트 |
+| Growth Orchestrator | 🟡 Yellow 미션 카드로 변환 |
+| Content Pipeline | CMOS 자동 드래프트 → 24h 리뷰 |
 
-### 7.1 As-Is (현재, 분리된 시스템)
-
-```
-고객: "우리 웹사이트 AEO 좀 봐주세요"
-  → BSW-OS Quick Audit → 리포트 PDF 출력
-  → 고객: "그래서 어떻게 고쳐요?"
-  → 수동 컨설팅 → 수동 웹사이트 개편 → 수개월 소요
-  → 효과 측정 어려움
-```
-
-### 7.2 To-Be (연계된 시스템)
+### 6.2 Hub → BSW: 신호/메트릭/기대레이어 Pull
 
 ```
-고객: "우리 웹사이트 AEO 좀 봐주세요"
-  → BSW-OS Quick Audit (5초)
-    → 3-Layer 진단 + 업종 포지셔닝 + 개선 전략
-    → "현재 C등급 (업종 평균 이하). 즉시 A등급 사이트를 구축할 수 있습니다."
+GENESIS Hub Feature Modules
+  ├── CAFE 아고라 Q&A → community_question 신호
+  ├── 영수증 안심 후기 → verified_review 신호
+  ├── 실거래가 제보 → price_report 신호
+  ├── WeddyCare 마음 케어 → stress_pattern 신호
+  ├── Deal Room 비딩 → deal_room_contract 신호
+  └── Style DNA 매칭 → preference_pattern 신호
+  ↓
+  BSW-OS Cron (매일 3AM)
+  ├── KWeddingHubCollector.pullSignals() → bsw_received_signals
+  ├── hubClient.pullMetrics() → QVS 재계산
+  │   (question_frequency, conversion_rate, avg_transaction 등)
+  └── hubClient.pullExpectedLayers() → 5-tier 기대 레이어
+      (must_include → strongly_recommended → should_include → caution → must_not_do)
+```
 
-  → [구축 버튼 클릭] (1일)
-    → GENESIS Turnkey Onboarding
-      → Blueprint 기반 템플릿 자동 선택
-      → VTDS 디자인 토큰 자동 생성
-      → GNB/IA 자동 구축 (업종 프리셋 + 갭 보정)
-      → 초기 콘텐츠 30건 자동 생성 (RED 갭 우선)
-      → 필수 Schema.org 자동 포함
-      → llms.txt, robots.txt 최적 설정
+**QVS 정확도 개선 효과:**
+```
+QVS = Volume × Conversion × ARPU × First-Mover × (1 - Competition)
 
-  → [운영 자동화] (주간)
-    → Growth Orchestrator 자동 실행
-      → BSW-OS 갭 기반 미션 카드 자동 생성
-      → AI 드래프트 → 테넌트 리뷰 → 발행
-      → Content Polishing Engine → 5차원 품질 자동 개선
+Hub 실데이터 반영 전: 추정 기반 → ±40% 오차
+Hub 실데이터 반영 후: 실거래가 + 실전환율 → ±10% 오차
 
-  → [효과 측정] (월간)
-    → BSW-OS 자동 재진단
-      → AEPI δ: +15pt (C→B 상승)
-      → 업종 포지셔닝: 40%ile → 65%ile
-      → "4주 만에 업종 상위권 진입. 다음 목표: A등급"
+Volume      ← Hub question_frequency (실제 질문 빈도)
+Conversion  ← Hub conversion_rate (실제 전환율)
+ARPU        ← Hub average_transaction (실제 객단가)
+```
+
+### 6.3 Hub → BSW: 피드백 루프
+
+```
+Hub 운영 중 질문 출현 관측
+  → POST BSW/api/v1/qis/feedback
+    { bsw_question_id, emerged: true, emerged_at, actual_frequency }
+  → BSW PredictionAccuracyTracker.verifyPrediction()
+  → 신호 가중치 재캘리브레이션
+  → 다음 예측 주기의 정확도 향상
+```
+
+**학습 주기 단축 효과:**
+- Hub 연동 전: 7-14일 (외부 관측 기반)
+- Hub 연동 후: **1일** (커뮤니티 직접 검증)
+
+### 6.4 QIS × 역설계 교차 시너지
+
+```
+BSW-OS 역설계 (기존 사이트 분석)
+  ├── 어떤 질문에 답하고 있는가? → site_only 질문
+  ├── 어떤 질문에 답하지 못하는가? → RED 갭
+  └── 어떤 질문이 업종에서 중요한가? → industry_only 질문
+
+QIS 질문 예측 (미래 질문 발굴)
+  ├── 어떤 질문이 떠오를 것인가? → predicted_question
+  ├── 언제 떠오를 것인가? → first_mover_window_days
+  └── 얼마나 가치 있는가? → QVS composite score
+
+교차: 역설계 RED 갭 ∩ QIS 예측 질문
+  = 현재 답하지 못하는 + 앞으로 중요해질 질문
+  = 최우선 콘텐츠 생성 대상 (confidence boost + AEPI impact)
 ```
 
 ---
 
-## 8. 비즈니스 가치 매트릭스
+## 7. Axis 6: Hub → Tenant Supply Bridge ★NEW
 
-### 8.1 고객 가치
+> **업종 허브의 큐레이션된 콘텐츠, 기대 레이어, 아키타입이 테넌트에 자동 공급되는 새로운 축**
 
-| 가치 | 설명 | 정량 지표 |
-|------|------|---------|
-| **Time-to-Value 단축** | 진단~사이트 개설까지 수개월 → 1일 | TTL: 90일 → 1일 |
-| **품질 보장** | 업종 Top 25% 수준의 사이트로 시작 | 초기 AEPI: 0 → 70+ |
-| **자동 성장** | 수동 컨설팅 → 자동 미션 카드 | 월간 콘텐츠 생산: 0 → 4-8건 |
-| **효과 측정** | "개선되었나?" → 정량 답변 | AEPI δ, 업종 백분위 변화 |
-| **지속 개선** | 일회성 → 매주 자동 루프 | GEO Score 주간 추적 |
+### 7.1 Hub Content Pool 3-모드 자동 공급
 
-### 8.2 플랫폼 가치
+| 공급 모드 | 설명 | BSW-OS 연계 | 예시 |
+|---------|------|-----------|------|
+| `direct` | 즉시 active 발행 | RED 갭에 해당하는 Hub 콘텐츠 우선 공급 | 웨딩 예산 가이드 |
+| `custom_template` | `[TUNE_HERE]` → AI 브랜드 반영 | BSW BrandContext + 갭 데이터로 커스터마이징 | 브랜드 맞춤 Q&A |
+| `draft` | 테넌트 리뷰 대기 | Growth Orchestrator 🟡 미션으로 전달 | 업체별 고유 콘텐츠 |
 
-| 가치 | 설명 |
-|------|------|
-| **네트워크 효과** | 테넌트 수 ↑ → 업종 벤치마크 정확도 ↑ → 신규 테넌트 품질 ↑ |
-| **데이터 모트** | 업종별 L1/L2/L3 벤치마크 데이터 축적 → 경쟁 우위 |
-| **업셀 경로** | Free 진단 → Tier 1 구축 → Tier 2 운영 → Enterprise 전환 |
-| **LTV 증가** | 자동 성장 루프가 이탈 방지 + 지속 가치 제공 |
+**BSW-OS 갭 기반 지능형 공급:**
+```
+BSW-OS contentGaps.red
+  → Hub Content Pool 매칭 쿼리
+    WHERE industry_type = detected_industry
+    AND asset_type IN (gap.suggestedUcaType)
+    AND is_active = true
+  → 매칭된 Hub 콘텐츠 → direct/custom 모드로 즉시 공급
+  → 매칭 안 된 갭 → AI 드래프트 생성 (기존 로직)
+```
+
+### 7.2 Expected Layer 자동 적용
+
+Hub에서 수집된 **5-tier Expected Layer**가 테넌트 콘텐츠 생성/폴리싱에 자동 적용됩니다.
+
+```
+Hub Expected Layer (from reviews/prices/contracts)
+  ├── must_include: "촬영 시간 2시간 기준 명시"
+  ├── strongly_recommended: "보정본 전달 기간 명시"
+  ├── should_include: "추가 촬영 비용 안내"
+  ├── caution: "타 업체 비교 시 객관적 데이터 사용"
+  └── must_not_do: "근거 없는 '최저가' 주장 금지"
+  ↓
+  GENESIS Content Polishing Engine
+  ├── polish-executor.ts: must_include → 콘텐츠에 삽입
+  ├── polish-executor.ts: must_not_do → ComplianceSanitizer 규칙
+  └── Growth Mission: caution 위반 시 🔴 Red Card 발행
+```
+
+### 7.3 Mixture Cross-Hub 콘텐츠 ★NEW
+
+여러 허브의 콘텐츠를 자동 조합하여 크로스 도메인 콘텐츠를 생성합니다.
+
+```
+BSW-OS 진단: "스킨케어 + 한방" 혼합 업종 감지
+  → K-Beauty Hub + K-Hanbang Hub 크로스 매칭
+    → Mixture Config: type='theme', auto_compose_rule
+      → 통합 Q&A: "한방 성분 스킨케어 루틴" 자동 생성
+      → 비교표: "서양 vs 한방 성분 비교" 자동 생성
+      → unified_qa: 양쪽 Hub의 canonical_question 통합
+```
 
 ---
 
-## 9. 기술적 연계 포인트 요약
+## 8. Axis 7: Data Flywheel — ENHANCED
 
-### 9.1 데이터 흐름 방향
+### 8.1 3중 플라이휠 (v2.0)
 
 ```
-BSW-OS → GENESIS (진단 → 구축)
-──────────────────────────────
-AuditResult             → Turnkey Onboarding 입력
-IndustryBlueprint       → Template Profile 매핑
-SurfaceGapAnalysis[]    → Content Seed + Mission Card
-SchemaQualityAuditResult→ JSON-LD 자동 생성 목록
-RelativePosition        → Design Tier 결정
-ImprovementStrategy     → Growth Orchestrator 초기 미션
-
-GENESIS → BSW-OS (운영 → 재진단)
-──────────────────────────────
-GEO Score (주간)         → AEPI 교차 검증
-growth_missions (주간)   → Temporal Trend 피드
-Polish Score (자산별)    → L3 Content Semantic 보정
-UGS (통합)              → 티어 업그레이드 판단 보조
-운영 사이트 URL          → Reference Site Pool 확장
+┌──────────────────────────────────────────────────────┐
+│  Flywheel 1: 벤치마크 정확도 향상                       │
+│  테넌트 ↑ → 벤치마크 데이터 ↑ → Blueprint 정확도 ↑      │
+│  → 신규 사이트 품질 ↑ → 테넌트 ↑ (반복)                │
+├──────────────────────────────────────────────────────┤
+│  Flywheel 2: QIS 예측 정확도 향상 ★NEW                 │
+│  Hub 신호 ↑ → QVS 정확도 ↑ → 콘텐츠 ROI ↑             │
+│  → 테넌트 성장 ↑ → Hub 활동 ↑ → Hub 신호 ↑ (반복)     │
+├──────────────────────────────────────────────────────┤
+│  Flywheel 3: Cross-Hub 네트워크 효과 ★NEW              │
+│  Hub A 데이터 → Hub B 인사이트 → Mixture 콘텐츠 ↑       │
+│  → 크로스 도메인 가시성 ↑ → 양쪽 Hub 가치 ↑ (반복)     │
+└──────────────────────────────────────────────────────┘
 ```
 
-### 9.2 공유 데이터 엔티티
+### 8.2 Hub Probe Panel ↔ BSW-OS Probe Generator 교차 학습
 
-| 엔티티 | BSW-OS | GENESIS | 동기화 방향 |
-|--------|--------|---------|-----------|
-| 업종 분류 | `IndustryTaxonomy` (11카테고리) | `IndustryIgnition` (14카테고리) | 양방향 통합 필요 |
-| 브랜드 컨텍스트 | `AuditResult.brandName` | `BrandContext` (TAAW) | BSW→GENESIS |
-| 콘텐츠 갭 | `SurfaceGapAnalysis` | `GrowthOpportunity` | BSW→GENESIS |
-| 스키마 요구사항 | `SchemaQualityAuditResult` | JSON-LD Generator | BSW→GENESIS |
-| 품질 점수 | `AEPI` + `L1/L2/L3 Score` | `GEO Score` + `Polish Score` | 양방향 |
-| QIS 질문 | `CanonicalQuestion` + `QisScene` | `topics` + `answer_cards` | 양방향 |
+```
+Hub Probe Panel (20개 표준 질문/허브)
+  ├── BAIR Score 측정용 (AAS + OCR + BSF)
+  └── 업종별 AI 가시성 벤치마크
+
+BSW-OS Probe Generator (사이트별 동적 질문)
+  ├── 엔티티 기반 프로브 생성
+  └── 비교/심층/상황별 변형
+
+교차 학습:
+  Hub Probe 결과 → BSW-OS 프로브 품질 개선
+  BSW-OS 엔티티 프로브 → Hub Probe Panel 확장
+  → 점점 더 정밀한 AI 가시성 측정
+```
 
 ---
 
-## 10. 위험 및 완화 전략
+## 9. End-to-End 고객 여정 v2.0
 
-| 위험 | 영향 | 완화 |
+### To-Be (완전 연계 시스템)
+
+```
+Step 1: AEO 진단 (5초)
+━━━━━━━━━━━━━━━━━━━━
+고객: "우리 웹사이트 AEO 봐주세요"
+  → BSW-OS Quick Audit
+    → 3-Layer 진단 + 업종 포지셔닝 + 갭 분석
+    → QIS Cross-Mapper: 업종 vs 사이트 질문 교차 매핑
+    → "현재 C등급 (40%ile). 23개 콘텐츠 갭, 8개 QIS 기회 발견."
+
+Step 2: Archetype 매칭 + 즉시 구축 (수 분)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[구축 버튼 클릭]
+  → 핸드오프 패키지 생성 (Blueprint + Gap + QIS + Schema)
+  → GENESIS Archetype 자동 매칭: skincare_natural
+  → 풀스택 자동 구축:
+    ├── VTDS 디자인 토큰: earthy tones, serif, calm motion
+    ├── GNB/IA: solutions, routines, faq, experts, compare
+    ├── Section: hero_qa_focus, faq_accordion, routine_steps, trust_strip
+    ├── Hub Content Pool: 15개 direct + 10개 custom → 25개 즉시 활성화
+    ├── AI 드래프트: RED 갭 8개 → 8개 answer/faq/evidence 생성
+    ├── Schema.org: Organization, FAQPage, Product, HowTo 자동 포함
+    └── QIS 시드: 5개 업종 표준 질문 + 8개 BSW 예측 질문 등록
+
+Step 3: 자동 성장 (매주)
+━━━━━━━━━━━━━━━━━━━━
+Growth Orchestrator 자동 실행 (매주 월요일)
+  → BSW-OS 갭 기반 미션: 🟡 "FAQ 스키마 콘텐츠 생성" (2분)
+  → QIS 예측 기반 미션: 🟡 "레티놀 부작용 답변 생성" (2분)
+  → Hub 자동 공급: 🟢 "성분 비교 가이드" 자동 활성화
+  → Polish Engine: 기존 콘텐츠 5건 자동 보강
+  → Expected Layer 준수 확인: must_include 검증 통과
+
+Step 4: QIS 양방향 연동 (매일)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BSW Cron (3AM):
+  → Hub 커뮤니티 Q&A → 신규 신호 수집 → QVS 재계산
+  → 예측 질문 2건 Push → Hub Growth 미션에 주입
+  → Hub 피드백: "레티놀 부작용" 실제 출현 확인 → 정확도 ↑
+
+Step 5: 효과 측정 (월간)
+━━━━━━━━━━━━━━━━━━━━━
+BSW-OS 자동 재진단 (4주 후):
+  → AEPI δ: +18pt (C→B 상승)
+  → 업종 포지셔닝: 40%ile → 68%ile
+  → GEO Score: 120 → 185 (D→B)
+  → BAIR Score: 0.35 → 0.62
+  → "4주 만에 업종 상위권 진입. A등급까지 Quick Win 3개 남음."
+```
+
+---
+
+## 10. 추가 고도화 아이디어 (다이아몬드 사고)
+
+### 10.1 💎 Archetype Elo 캘리브레이션 × BSW-OS 실측
+
+GENESIS의 `archetypeEloCalibrator.ts`가 BSW-OS 재진단 AEPI δ를 Elo 점수에 반영합니다.
+
+```
+Archetype A (skincare_natural) 적용 → 4주 후 BSW-OS AEPI +18pt
+Archetype B (skincare_clinical) 적용 → 4주 후 BSW-OS AEPI +12pt
+  → Archetype A의 Elo Rating ↑, Archetype B ↓
+  → 다음 매칭 시 Archetype A 우선 추천
+  → 업종별 "가장 효과적인 아키타입" 자동 학습
+```
+
+### 10.2 💎 Hub Probe Panel → BSW-OS 벤치마크 자동 생성
+
+Hub QIS Benchmark의 20개 Probe Panel이 BSW-OS의 업종 벤치마크에 자동 피드됩니다.
+
+```
+Hub hub_probe_panels (20 questions/hub)
+  + Hub hub_qis_benchmarks (BAIR snapshots)
+  → BSW-OS reference_sites에 Hub 테넌트 자동 등록
+  → BSW-OS 업종 벤치마크 자동 갱신
+  → 별도의 관리자 배치 감사 없이 벤치마크 정확도 유지
+```
+
+### 10.3 💎 Expected Layer ↔ BSW-OS L3 콘텐츠 시맨틱 교차 검증
+
+```
+Hub Expected Layer (데이터 기반, 실제 고객 기대)
+  × BSW-OS L3 Content Semantic (사이트 콘텐츠 실측)
+  = "고객이 기대하는 정보 vs 사이트가 제공하는 정보" 매트릭스
+  → 가장 치명적인 정보 공백 식별
+  → 우선 생성 콘텐츠 정밀 타겟팅
+```
+
+### 10.4 💎 Vortex DAO × BSW-OS 품질 거버넌스
+
+GENESIS의 Vortex DAO 시스템이 BSW-OS 진단 결과를 거버넌스 지표로 활용합니다.
+
+```
+BSW-OS AEPI ≥ 70 & GEO Grade ≥ B
+  → Vortex DAO 자격 조건 충족
+  → 품질 높은 테넌트만 DAO 참여 가능
+  → DAO 참여 테넌트의 콘텐츠가 Hub에 기여
+  → Hub 품질 ↑ → 전체 플랫폼 품질 ↑
+```
+
+### 10.5 💎 AI Core ProvenanceLedger × BSW-OS 출처 추적
+
+GENESIS `ai-core` 패키지의 `ProvenanceLedger`가 BSW-OS 진단 기반으로 생성된 콘텐츠의 출처를 완전 추적합니다.
+
+```
+ProvenanceLedger Entry:
+  promptId: 'bsw_gap_content_v1'
+  promptVersion: '2.0'
+  modelUsed: 'gemini-2.5-flash'
+  ragAssetsUsed: ['bsw_audit_session_xxx', 'hub_content_pool_yyy']
+  bswGapId: 'gap_123'
+  bswPrescriptionType: 'create_content'
+  bswAepiImpact: 8.5
+  → 콘텐츠 효과를 원래 진단 갭까지 역추적 가능
+```
+
+### 10.6 💎 S2P 자동 견적 × BSW-OS 갭 수량화
+
+BSW-OS의 갭 개수와 심각도가 GENESIS S2P의 자동 견적에 직접 반영됩니다.
+
+```
+BSW-OS 진단 결과:
+  RED 갭 15개, YELLOW 갭 8개, WHITE 기회 5개
+  Schema 누락 4종, Expected Layer 위반 3건
+  ↓
+S2P Pricing Engine:
+  base_package: 'standard' (₩1.5M)
+  + additional_qa: 15 × ₩50K = ₩750K (RED 갭 콘텐츠)
+  + schema_setup: 4 × ₩100K = ₩400K (스키마 구축)
+  + expected_layer_compliance: ₩200K (YMYL 준수)
+  = 총 견적: ₩2.85M (자동 산출, 근거 명확)
+```
+
+### 10.7 💎 멀티 허브 통합 벤치마크
+
+```
+K-Wedding Hub + K-Beauty Hub + K-Hanbang Hub
+  → 3개 허브의 BAIR Score 통합 분석
+  → BSW-OS에서 "뷰티 도메인" 통합 벤치마크 생성
+  → 크로스 도메인 인사이트: "스킨케어 브랜드가 한방 콘텐츠를 추가하면 AEPI +5pt"
+```
+
+### 10.8 💎 UGS(Unified Growth Score) × AEPI 통합 지표
+
+```
+GENESIS UGS (0-1000, 5개 축)
+  ├── tf-studio learning (200pt)
+  ├── Onboarding readiness (200pt)
+  ├── GEO search visibility (300pt)  ← BSW-OS AEPI 교차 검증
+  ├── BSA brand authority (200pt)
+  └── Factbox activity (100pt)
+
+통합 지표: UGSA (Unified Growth-AEPI Score)
+  = UGS × 0.6 + (AEPI × 10) × 0.4
+  → 성장 + AEO 가시성 통합 측정
+  → 티어 업그레이드 판단에 AEPI 반영
+```
+
+---
+
+## 11. 비즈니스 가치 매트릭스 v2.0
+
+### 고객 가치
+
+| 가치 | v1.0 | v2.0 (Hub+QIS 통합) |
+|------|------|-------------------|
+| Time-to-Value | 90일 → 1일 | 90일 → **수 시간** (Hub 콘텐츠 즉시 공급) |
+| 초기 콘텐츠 수 | 0 → 30개 (AI 생성) | 0 → **45개+** (Hub 25 + AI 20) |
+| QIS 질문 자산 | 0 → 5개 (시드) | 0 → **25+** (시드 5 + 예측 8 + Hub 표준 12) |
+| 콘텐츠 품질 | AI 추정 | **Expected Layer 데이터 검증** |
+| QVS 정확도 | ±40% | **±10%** (실거래 데이터) |
+| 학습 주기 | 7-14일 | **1일** (Hub 피드백) |
+
+### 플랫폼 가치
+
+| 가치 | v1.0 | v2.0 |
 |------|------|------|
-| 업종 분류 체계 불일치 | 매핑 오류 | 통합 Taxonomy 구축, 양방향 키 매핑 테이블 |
-| 과도한 자동화로 브랜드 톤 훼손 | 고객 불만 | Persona Drift Alert + HITL 리뷰 게이트 |
-| 벤치마크 데이터 부족 (신규 업종) | 부정확한 Blueprint | 최소 9개 사이트 시드 의무화 + 데이터 부족 경고 |
-| 두 시스템 간 API 지연 | 사용자 경험 저하 | 비동기 처리 + 캐싱 + 진행 표시 |
-| 순환 의존성 | 데이터 일관성 | 이벤트 기반 느슨한 결합 + 최종 일관성 모델 |
+| 네트워크 효과 | 테넌트 간 | 테넌트 × **Hub × Cross-Hub** |
+| 데이터 모트 | 업종 벤치마크 | 벤치마크 + **QIS 신호 + Hub 실데이터** |
+| 업셀 경로 | Free→Tier3 | Free→Tier3 + **Hub 참여 + DAO** |
+| 크로스셀 | 없음 | **크로스 허브 Mixture 콘텐츠** |
 
 ---
 
-> **결론:** BSW-OS와 GENESIS AI홈피의 연계는 단순한 기능 통합이 아닌, **"진단 → 설계 → 구축 → 운영 → 재진단"의 자기 강화형 폐루프**를 형성합니다. 이를 통해 **AEO 진단 후 1일 이내에 업종 최상위 수준의 웹사이트 개설**이 가능하며, 이후 **매주 자동으로 콘텐츠가 개선**되고, **매월 효과가 정량 측정**되는 완전한 AEO 자동화 플랫폼을 실현합니다.
+> **결론 (v2.0):** QIS 양방향 연동과 Hub Platform 통합으로, BSW-OS × GENESIS 시너지는 단순한 "진단→구축" 파이프라인을 넘어 **"질문 발굴 → 가치 측정 → 콘텐츠 자동 생성 → 실측 피드백 → 자기 강화"의 7-Axis 자기 진화 생태계**로 확장됩니다. Hub의 1차 데이터(커뮤니티 Q&A, 실거래가, 검증 리뷰)가 QIS 예측 정확도를 4배 향상시키고, 이것이 다시 테넌트 콘텐츠 품질을 높이는 **3중 플라이휠**이 작동합니다.

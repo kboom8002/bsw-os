@@ -1,1009 +1,908 @@
-# BSW-OS × GENESIS AI홈피 — 연계 구현 명세서
+# BSW-OS × GENESIS AI홈피 — 연계 구현 명세서 v2.0
 
-> **Version:** 1.0 (2026-06-24)
-> **Scope:** AEO 진단 → 즉시 웹사이트 구축 → 자동 성장 파이프라인의 구체적 구현 설계
-> **전제:** 전략 문서 `SYNERGY_STRATEGY_bsw_genesis_integration.md`의 5개 Axis를 구현
+> **Version:** 2.0 (2026-06-24) — QIS 양방향 연동 + Hub Platform + Archetype 시스템 통합
+> **Scope:** 전략 문서 v2.0의 7개 Axis를 구현하기 위한 구체적 기술 명세
+> **신규 범위:** QIS Pull/Push API, Hub Content Pool 매칭, Archetype 자동 매칭, Expected Layer 피드, BAIR 교차 검증
 
 ---
 
-## 1. 통합 아키텍처
+## 1. 통합 아키텍처 v2.0
 
-### 1.1 시스템 경계
+### 1.1 시스템 토폴로지
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                    BSW-OS (bsw-os.vercel.app)                        │
-│  ┌────────────┐  ┌───────────┐  ┌────────────┐  ┌───────────────┐  │
-│  │Quick/Full  │  │Industry   │  │Relative    │  │Strategy      │  │
-│  │Audit       │  │Benchmark  │  │Positioner  │  │Generator     │  │
-│  │Engine      │  │Engine     │  │            │  │              │  │
-│  └─────┬──────┘  └─────┬─────┘  └─────┬──────┘  └──────┬───────┘  │
-│        │               │               │               │          │
-│  ┌─────▼───────────────▼───────────────▼───────────────▼──────┐   │
-│  │              Synergy Bridge API (신규)                       │   │
-│  │  /api/synergy/handoff    — 구축 핸드오프 패키지 생성         │   │
-│  │  /api/synergy/feedback   — GENESIS → BSW-OS 피드백 수신     │   │
-│  │  /api/synergy/re-audit   — 자동 재진단 트리거               │   │
-│  └─────────────────────────┬──────────────────────────────────┘   │
-└────────────────────────────┼─────────────────────────────────────┘
-                             │  Handoff Package (JSON)
-                             ▼
-┌────────────────────────────┼─────────────────────────────────────┐
-│  ┌─────────────────────────▼──────────────────────────────────┐  │
-│  │              Synergy Receiver API (신규)                     │  │
-│  │  /api/v1/synergy/onboard  — BSW-OS 핸드오프 수신 + 빌드     │  │
-│  │  /api/v1/synergy/growth-seed — 갭 데이터 → Growth 주입      │  │
-│  │  /api/v1/synergy/report   — 운영 데이터 → BSW-OS 전송       │  │
-│  └──────┬──────────────┬────────────────┬─────────────────────┘  │
-│         │              │                │                         │
-│  ┌──────▼──────┐ ┌─────▼──────┐ ┌──────▼───────┐                │
-│  │Turnkey      │ │Growth      │ │Content       │                │
-│  │Onboarding   │ │Orchestrator│ │Polishing     │                │
-│  │Engine       │ │(9-step)    │ │Engine        │                │
-│  └─────────────┘ └────────────┘ └──────────────┘                │
-│                    GENESIS AI홈피 (aihompyhub)                    │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────── BSW-OS ──────────────────┐
+│                                              │
+│  ┌──────────┐  ┌────────────┐  ┌──────────┐ │
+│  │Surface   │  │QIS Engine  │  │Industry  │ │
+│  │Reverse   │  │S-OGDE v2.0 │  │Benchmark │ │
+│  │Engineer  │  │            │  │          │ │
+│  └────┬─────┘  └─────┬──────┘  └────┬─────┘ │
+│       │               │              │       │
+│  ┌────▼───────────────▼──────────────▼────┐  │
+│  │         Synergy Bridge API v2          │  │
+│  │  /api/synergy/handoff-v2  (Axis 1-2)  │  │
+│  │  /api/synergy/feedback    (Axis 4)    │  │
+│  │  /api/synergy/re-audit    (Axis 4)    │  │
+│  │  /api/v1/qis/predictions  (Axis 5)   │  │
+│  │  /api/v1/qis/feedback     (Axis 5)   │  │
+│  └──────────────────┬────────────────────┘  │
+└─────────────────────┼───────────────────────┘
+                      │
+          ┌───────────┼───────────┐
+          │  Handoff   │  QIS      │
+          │  Package   │  Signals/ │
+          │  v2        │  Metrics  │
+          │           │  Predict  │
+          ▼           ▼           ▼
+┌─────────────────── GENESIS AI홈피 ──────────────────────┐
+│                                                          │
+│  ┌─────────────────────────────────────────────────────┐ │
+│  │           Synergy Receiver API v2                    │ │
+│  │  /api/v1/synergy/onboard-v2     (Axis 1-2-6)       │ │
+│  │  /api/v1/synergy/growth-seed    (Axis 3)           │ │
+│  │  /api/v1/synergy/report         (Axis 4)           │ │
+│  │  /api/v1/qis/signals            (Axis 5) ★existing │ │
+│  │  /api/v1/qis/metrics            (Axis 5) ★existing │ │
+│  │  /api/v1/qis/layers             (Axis 5) ★existing │ │
+│  │  /api/v1/qis/questions          (Axis 5) ★existing │ │
+│  └──────┬─────────────┬───────────────┬────────────────┘ │
+│         │             │               │                   │
+│  ┌──────▼─────┐ ┌─────▼─────┐ ┌──────▼───────┐          │
+│  │Turnkey     │ │Growth     │ │Hub Content   │          │
+│  │+ Archetype │ │Orchestrat.│ │Pool + QIS    │          │
+│  │Matcher     │ │+ Predicted│ │+ Expected    │          │
+│  │            │ │Content    │ │Layer         │          │
+│  └────────────┘ └───────────┘ └──────────────┘          │
+│                  GENESIS AI홈피                           │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Handoff Package 명세
+### 1.2 Handoff Package v2 명세
 
-BSW-OS에서 GENESIS로 전달하는 핵심 데이터 패키지입니다.
+v1.0 대비 **추가된 필드** (★ 표시):
 
 ```typescript
-/**
- * BSW-OS → GENESIS 핸드오프 패키지
- * /api/synergy/handoff 에서 생성
- */
-interface SynergyHandoffPackage {
-  // ── 메타 ──
-  version: '1.0';
-  generatedAt: string;              // ISO 8601
-  sourceAuditSessionId: string;     // BSW-OS audit_sessions.id
-  
-  // ── 브랜드 정보 ──
-  brand: {
-    name: string;
-    websiteUrl: string;
-    detectedIndustry: string;       // BSW-OS detectIndustry() 결과
-    genesisIndustryKey: string;     // GENESIS IndustryIgnition 키로 변환
+interface SynergyHandoffPackageV2 extends SynergyHandoffPackageV1 {
+  version: '2.0';
+
+  // ★ QIS 질문 자산 (확장)
+  qisAssets: {
+    // v1.0 questionSeeds 확장
+    industryOnlyQuestions: QisPredictedQuestion[];   // BSW 예측 질문 전체
+    siteOnlyQuestions: { question: string; surfaceType: string }[];
+    crossMapCoverage: {
+      totalIndustryQuestions: number;
+      totalSiteProbes: number;
+      bothCount: number;
+      industryOnlyCount: number;
+      siteOnlyCount: number;
+      goldilocksCoverage: number;   // 0-1
+    };
+    // ★ Hub Probe Panel 연계
+    hubProbeResults?: {
+      hubSlug: string;
+      bairScore: number;  // 0-1
+      aasScore: number;   // AI Answer Share
+      ocrScore: number;   // Official Citation Rate
+      bsfScore: number;   // Brand Semantic Fidelity
+      probeDetails: { question: string; cited: boolean; rank: number }[];
+    };
   };
 
-  // ── L1/L2/L3 진단 결과 요약 ──
-  auditSummary: {
-    techInfraScore: number;
-    schemaQualityScore: number;
-    contentSemanticScore: number;
-    aepiScore: number;
-    overallGrade: 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
-    overallPercentile: number;
-    auditMode: 'estimated' | 'measured' | 'partial';
+  // ★ Archetype 매칭 힌트
+  archetypeHints: {
+    suggestedArchetypeId: string;        // 'skincare_natural'
+    suggestedProfileId: string;          // 'skincare_indie_brand'
+    matchConfidence: number;             // 0-1
+    vec7dProjection: {                   // BSW 진단 → Vec7D 변환값
+      warmth: number; energy: number; polish: number;
+      authentic: number; heritage: number; futuristic: number; playful: number;
+    };
+    sectionPriority: string[];           // Section Registry 타입 우선순위
+    psychologyLayerWeights: {            // 5-Layer 심리 가중치
+      attention: number; trust: number; value: number; proof: number; action: number;
+    };
   };
 
-  // ── 업종 포지셔닝 ──
-  positioning: {
-    subIndustryKey: string;
-    overallPercentile: number;
-    overallTier: string;
-    strengths: { metricKey: string; percentileRank: number }[];
-    weaknesses: { metricKey: string; percentileRank: number }[];
-  } | null;
-
-  // ── 개선 전략 ──
-  strategy: {
-    overallGrade: string;
-    targetGrade: string;
-    quickWins: StrategyItemSummary[];
-    prioritizedStrategies: StrategyItemSummary[];
-  } | null;
-
-  // ── 콘텐츠 갭 (구축 시 우선 생성 대상) ──
-  contentGaps: {
-    red: ContentGapItem[];    // 신규 생성 필요
-    yellow: ContentGapItem[]; // 기존 콘텐츠 개선 필요
-    white: ContentGapItem[];  // 블루오션 기회
+  // ★ S2P Gap Report 변환 (10영역)
+  s2pGapMapping: {
+    gnbIa: number;          // 0-100
+    questionAnswer: number;
+    offerClarity: number;
+    trustEvidence: number;
+    visualExplanation: number;
+    policySafety: number;
+    conversion: number;
+    seoAeoGeo: number;
+    mobileUx: number;
+    operations: number;
+    tf8BlockScores: Record<string, number>;  // TF8 초기 점수
   };
 
-  // ── 스키마 요구사항 ──
-  schemaRequirements: {
-    missingTypes: string[];           // ['FAQPage', 'HowTo', 'Product']
-    orgSchemaPresent: boolean;
-    orgSameAsProfiles: string[];
-    requiredSchemaTypes: string[];    // Blueprint에서 도출
+  // ★ Hub Content Pool 매칭 요청
+  hubContentRequest: {
+    hubSlug: string;                     // 'k-wedding', 'k-skincare'
+    gapMatchedAssets: {                  // 갭에 매칭된 Hub 콘텐츠
+      hubAssetId: string;
+      gapEntityName: string;
+      supplyMode: 'direct' | 'custom_template' | 'draft';
+    }[];
+    totalDirectAvailable: number;
+    totalCustomAvailable: number;
+    totalDraftAvailable: number;
   };
 
-  // ── 기술 인프라 요구사항 ──
-  techRequirements: {
-    mustAllowAiBots: string[];        // ['GPTBot', 'Google-Extended', ...]
-    requireLlmsTxt: boolean;
-    requireSsr: boolean;
-    targetTtfbMs: number;
-    requireHttps: boolean;
-  };
-
-  // ── Blueprint 기반 디자인 힌트 ──
-  designHints: {
-    blueprintDesignPatterns: BlueprintRecommendation[];
-    suggestedVtdsArchetype: string;   // 'Calm-Care' | 'Focus-Competent' | etc.
-    trustSignalPriority: 'high' | 'medium' | 'low';
-    conversionFocus: 'comparison' | 'routine' | 'product' | 'expertise';
-  };
-
-  // ── GNB/IA 보정 데이터 ──
-  gnbCorrections: {
-    missingNodes: { id: string; reason: string }[];
-    priorityNodes: { id: string; weight: number }[];
-    entityDistribution: Record<string, number>;  // surface_type → count
-  };
-
-  // ── QIS 질문 시드 ──
-  questionSeeds: {
-    industryOnly: { question: string; layer: string; score: number }[];
-    siteOnly: { question: string; layer: string }[];
+  // ★ Expected Layer 요구사항
+  expectedLayerRequirements: {
+    mustInclude: string[];
+    stronglyRecommended: string[];
+    shouldInclude: string[];
+    caution: string[];
+    mustNotDo: string[];
+    safetyGateLevel: 'standard' | 'medical' | 'financial';
+    ymylGrade: 'none' | 'low' | 'medium' | 'high';
   };
 }
+```
 
-interface StrategyItemSummary {
-  rank: number;
-  title: string;
-  category: string;
-  effort: 'easy' | 'moderate' | 'hard';
-  impact: 'high' | 'medium' | 'low';
-  currentValue: number;
-  industryAvg: number;
-  industryTop: number;
-  actionItems: string[];
+**QisPredictedQuestion 상세 타입:**
+
+```typescript
+interface QisPredictedQuestion {
+  bswQuestionId: string;
+  questionText: string;
+  predictedIntent: QisIntentType;      // 12종
+  predictedVolume: 'low' | 'medium' | 'high';
+  confidence: number;                   // 0-1
+  firstMoverWindowDays: number;
+  currentAiCoverage: 'none' | 'sparse' | 'moderate' | 'saturated';
+  qvsComposite: number;
+  autoMustInclude: string[];
+  autoMustNotDo: string[];
 }
 
-interface ContentGapItem {
-  entityName: string;
-  entityType: string;
-  prescriptionType: string;
-  prescriptionDetail: string | null;
-  estimatedAepiImpact: number;
-  priorityScore: number;
-  suggestedUcaType: string;         // GENESIS UCA type으로 매핑
-  suggestedContentBrief: string;    // AI 드래프트 생성용 브리프
-}
-
-interface BlueprintRecommendation {
-  metric: string;
-  targetScore: number;
-  currentIndustryAvg: number;
-  recommendation: string;
-  priority: number;
-}
+type QisIntentType =
+  | 'recommendation' | 'informational' | 'risk_boundary'
+  | 'comparison' | 'trust_verification' | 'source_seeking'
+  | 'contract_check' | 'price_package' | 'action_seeking'
+  | 'routine_guidance' | 'product_fit' | 'local_intent';
 ```
 
 ---
 
-## 2. BSW-OS 측 구현 명세
+## 2. BSW-OS 측 구현 명세 v2.0
 
-### 2.1 Synergy Bridge API
+### 2.1 Archetype 자동 매칭 모듈
 
-#### `POST /api/synergy/handoff`
-
-**목적:** BSW-OS 진단 결과를 GENESIS 호환 핸드오프 패키지로 변환
-
-**신규 파일:** `app/api/synergy/handoff/route.ts`
+**신규 파일:** `lib/industry/archetype-matcher.ts`
 
 ```typescript
-// 입력
-interface HandoffRequest {
-  auditSessionId: string;      // 진단 세션 ID
-  targetGenesisUrl?: string;   // GENESIS 인스턴스 URL (기본: 환경변수)
-}
-
-// 처리 흐름
-// 1. audit_sessions에서 result_data 조회
-// 2. industry_benchmark_profiles에서 Blueprint 조회
-// 3. AuditResult → SynergyHandoffPackage 변환
-//    - detectIndustry() 결과를 GENESIS IndustryIgnition 키로 매핑
-//    - SurfaceGapAnalysis[] → ContentGapItem[] 변환 (UCA 타입 매핑 포함)
-//    - SchemaQualityAuditResult → schemaRequirements 변환
-//    - ImprovementStrategy → strategy 요약 변환
-//    - 엔티티 분포 분석 → gnbCorrections 생성
-// 4. SynergyHandoffPackage JSON 반환
-
-// 출력
-{ handoffPackage: SynergyHandoffPackage }
-```
-
-#### `POST /api/synergy/feedback`
-
-**목적:** GENESIS 운영 데이터를 수신하여 BSW-OS 시계열에 기록
-
-**신규 파일:** `app/api/synergy/feedback/route.ts`
-
-```typescript
-// 입력
-interface FeedbackPayload {
-  tenantId: string;
-  websiteUrl: string;
-  geoScore: { current: number; grade: string; failingChecks: string[] };
-  polishScores: { assetId: string; score: number; grade: string }[];
-  missionsCompleted: number;
-  contentChanges: number;
-  weekNumber: number;
-}
-
-// 처리 흐름
-// 1. websiteUrl로 기존 audit_sessions 조회
-// 2. GEO Score → TemporalTrend에 추가 기록
-// 3. contentChanges ≥ 10 → 자동 재진단 트리거 (Quick)
-// 4. geoScore.current 20점 이상 하락 → 알림 생성
-```
-
-#### `POST /api/synergy/re-audit`
-
-**목적:** 자동 재진단 트리거
-
-**신규 파일:** `app/api/synergy/re-audit/route.ts`
-
-```typescript
-// 입력
-interface ReAuditRequest {
-  websiteUrl: string;
-  brandName: string;
-  industry: string;
-  triggerReason: 'monthly_review' | 'geo_drop' | 'content_threshold' | 'quarterly';
-  auditMode: 'quick' | 'full';
-}
-
-// 처리 흐름
-// 1. runQuickSiteAudit() 또는 startAuditSession() 호출
-// 2. 이전 세션과 AEPI δ 계산
-// 3. RelativePosition 변화 추적
-// 4. 결과를 GENESIS로 콜백 전송
-```
-
-### 2.2 업종 분류 매핑 테이블
-
-BSW-OS와 GENESIS의 업종 키를 통합하는 매핑 모듈입니다.
-
-**신규 파일:** `lib/industry/genesis-industry-mapper.ts`
-
-```typescript
-/**
- * BSW-OS IndustryTaxonomy ↔ GENESIS IndustryIgnition 매핑
- */
-const INDUSTRY_MAPPING: Record<string, string> = {
-  // BSW-OS key → GENESIS key
-  'skincare': 'skincare',
-  'beauty': 'haircare',           // BSW beauty → GENESIS haircare
-  'wedding_studio': 'wedding_sdm',
-  'clinic': 'clinic',
-  'restaurant': 'korean_food',    // 가장 근접한 매핑
-  'real_estate': 'real_estate',
-  'education': 'consulting',      // 교육 → 컨설팅 (가장 근접)
-  'travel': 'hotel_hospitality',
-  'pet': 'place',                 // 반려동물 → 장소형 (가장 근접)
-  'fashion_ecommerce': 'skincare_premium', // 이커머스 → 프리미엄 (근접)
-  'it_software': 'startup',
-  'food_beverage': 'korean_food',
-  'convenience_retail': 'place',
-  // 역방향 (GENESIS에만 있는 키)
-  'hanbang': 'skincare',          // 한방 → 스킨케어 역매핑
-  'photography': 'wedding_studio',
-  'k_experience': 'travel',
-};
-
-export function mapBswToGenesis(bswKey: string): string;
-export function mapGenesisToBsw(genesisKey: string): string;
-```
-
-### 2.3 Gap → UCA Type 매핑 모듈
-
-**신규 파일:** `lib/industry/gap-to-uca-mapper.ts`
-
-```typescript
-/**
- * BSW-OS prescription_type + surface_type → GENESIS UCA content type
- */
-interface UcaMapping {
-  ucaType: string;
-  contentLayer: 'catalog' | 'authority' | 'editorial' | 'community' | 'visual';
-  draftStrategy: 'ai_generate' | 'template_fill' | 'manual_request';
-  briefTemplate: string;
-}
-
-const PRESCRIPTION_TO_UCA: Record<string, UcaMapping> = {
-  'create_content': {
-    ucaType: 'answer',
-    contentLayer: 'editorial',
-    draftStrategy: 'ai_generate',
-    briefTemplate: '{{entity_name}}에 대한 전문적인 답변 콘텐츠를 생성하세요. {{prescription_detail}}'
-  },
-  'add_faq_markup': {
-    ucaType: 'faq',
-    contentLayer: 'authority',
-    draftStrategy: 'ai_generate',
-    briefTemplate: '{{entity_name}} 관련 자주 묻는 질문 5개와 답변을 생성하세요.'
-  },
-  'add_eeat_signal': {
-    ucaType: 'evidence',
-    contentLayer: 'authority',
-    draftStrategy: 'ai_generate',
-    briefTemplate: '{{entity_name}}의 전문성/신뢰성을 증명하는 근거 콘텐츠를 생성하세요.'
-  },
-  'add_author_markup': {
-    ucaType: 'person',
-    contentLayer: 'authority',
-    draftStrategy: 'template_fill',
-    briefTemplate: '전문가 프로필 템플릿: 이름, 자격, 경력, 전문 분야를 입력하세요.'
-  },
-  'add_schema': {
-    ucaType: 'product',
-    contentLayer: 'catalog',
-    draftStrategy: 'ai_generate',
-    briefTemplate: '{{entity_name}} 제품/서비스 정보를 구조화된 형식으로 생성하세요.'
-  },
-  'opportunity_content': {
-    ucaType: 'article',
-    contentLayer: 'editorial',
-    draftStrategy: 'ai_generate',
-    briefTemplate: '[블루오션] {{entity_name}}에 대한 심층 아티클을 생성하세요. 경쟁사가 다루지 않는 관점을 포함.'
-  },
-  'improve_heading': {
-    ucaType: 'solution',
-    contentLayer: 'catalog',
-    draftStrategy: 'ai_generate',
-    briefTemplate: '{{entity_name}} 솔루션 페이지를 Answer-First 문체로 구조화하세요.'
-  },
-  'improve_internal_linking': {
-    ucaType: 'routine',
-    contentLayer: 'editorial',
-    draftStrategy: 'ai_generate',
-    briefTemplate: '{{entity_name}} 관련 루틴/프로세스를 내부 링크 중심으로 구성하세요.'
-  },
-};
+import { Vec7D } from './genesis-types';
 
 /**
- * surface_type 기반 보조 매핑 (prescription이 없는 RED 갭용)
+ * BSW-OS 진단 결과 → GENESIS Archetype Vec7D 변환
+ * Blueprint designPatterns + EEAT + L3 분석 결과를 7차원 감성 벡터로 투영
  */
-const SURFACE_TYPE_TO_UCA: Record<string, string> = {
-  'factoid': 'answer',
-  'procedural': 'routine',
-  'comparative': 'compare',
-  'authority': 'evidence',
-  'schema_org': 'product',
-  'topical_cluster': 'article',
-  'local_geo': 'contact_info',
-  'brand_identity': 'about_brand',
-  'product_catalog': 'product',
-  'person_expertise': 'person',
-  'temporal_event': 'campaign',
-  'media_asset': 'gallery',
-};
-```
-
----
-
-## 3. GENESIS 측 구현 명세
-
-### 3.1 Synergy Receiver API
-
-#### `POST /api/v1/synergy/onboard`
-
-**목적:** BSW-OS 핸드오프 패키지를 수신하여 Turnkey Onboarding 파이프라인 실행
-
-**신규 파일:** `apps/web/app/api/v1/synergy/onboard/route.ts`
-
-```typescript
-// 입력: SynergyHandoffPackage (from BSW-OS)
-
-// 6-Phase 확장 파이프라인
-async function handleSynergyOnboard(pkg: SynergyHandoffPackage) {
-  // Phase 0: BSW-OS 데이터 검증 + 업종 매핑
-  const industryConfig = getIndustryIgnition(pkg.brand.genesisIndustryKey);
+export function auditResultToVec7d(
+  audit: AuditResult,
+  blueprint: IndustryBlueprint | null
+): Vec7D {
+  const eeat = audit.contentSemanticResult?.eeat ?? { overall: 50 };
+  const techScore = audit.techInfraResult?.techInfraScore ?? 50;
+  const contentScore = audit.contentSemanticResult?.contentSemanticScore ?? 50;
   
-  // Phase 1: 디자인 시스템 자동 결정
-  const designConfig = await resolveDesignFromBlueprint(pkg.designHints);
-  //   - suggestedVtdsArchetype → VTDS Vec7D 초기값
-  //   - trustSignalPriority → Trust Template Layer 가중치
-  //   - conversionFocus → Conversion Template Layer 선택
-  //   - YAML 테마 자동 선택 (44개 중 최적 매칭)
+  // 기본 매핑 로직
+  const trustSignal = (eeat.trustworthiness ?? 50) / 100;
+  const expertiseSignal = (eeat.expertise ?? 50) / 100;
+  const freshness = (audit.contentSemanticResult?.freshnessScore ?? 50) / 100;
   
-  // Phase 2: GNB/IA 자동 구축
-  const gnbConfig = await buildGnbFromBlueprint(
-    pkg.brand.genesisIndustryKey,  // 업종 프리셋 로드
-    pkg.gnbCorrections,            // BSW-OS 갭 기반 보정
-    pkg.contentGaps                // RED 갭 → 추가 노드
-  );
-  
-  // Phase 3: 초기 콘텐츠 시드 생성 (RED 갭 우선)
-  const contentSeeds = await generateContentSeeds(
-    pkg.contentGaps.red,           // RED 갭 → AI 드래프트 (최우선)
-    pkg.contentGaps.white,         // WHITE 기회 → 토픽 시드
-    pkg.questionSeeds,             // QIS 질문 → answer UCA
-    pkg.brand,
-    industryConfig
-  );
-  
-  // Phase 4: 스키마 & 기술 설정
-  const techConfig = {
-    requiredSchemas: pkg.schemaRequirements.requiredSchemaTypes,
-    aiBotsAllowed: pkg.techRequirements.mustAllowAiBots,
-    llmsTxtEnabled: pkg.techRequirements.requireLlmsTxt,
-    renderingMode: pkg.techRequirements.requireSsr ? 'ssr' : 'hybrid',
+  return {
+    warmth: clamp(0.3 + trustSignal * 0.4, 0, 1),
+    energy: clamp(freshness * 0.6 + (1 - techScore / 100) * 0.2, 0, 1),
+    polish: clamp(techScore / 100 * 0.7, 0, 1),
+    authentic: clamp(0.3 + (eeat.experience ?? 50) / 100 * 0.5, 0, 1),
+    heritage: clamp(expertiseSignal * 0.6 + (blueprint?.designPatterns?.trustPriority === 'high' ? 0.3 : 0), 0, 1),
+    futuristic: clamp((1 - expertiseSignal) * 0.3 + freshness * 0.3, 0, 1),
+    playful: clamp((1 - trustSignal) * 0.3 + (contentScore < 40 ? 0.2 : 0), 0, 1),
   };
-  
-  // Phase 5: DB 시딩 (Turnkey Engine 호출)
-  await turnkeyEngine.seed({
-    tenant: { slug: slugify(pkg.brand.name), industry_type: pkg.brand.genesisIndustryKey },
-    brandProfile: { brand_name: pkg.brand.name, website_url: pkg.brand.websiteUrl },
-    designConfig,
-    gnbConfig,
-    contentAssets: contentSeeds,
-    techConfig,
-  });
-  
-  // Phase 6: Growth Orchestrator 초기화
-  await initGrowthWithBswData(tenantId, pkg);
 }
-```
 
-#### `POST /api/v1/synergy/growth-seed`
-
-**목적:** BSW-OS 갭 데이터를 Growth Orchestrator에 주입
-
-**신규 파일:** `apps/web/app/api/v1/synergy/growth-seed/route.ts`
-
-```typescript
-async function seedGrowthFromBsw(tenantId: string, pkg: SynergyHandoffPackage) {
-  // 1. RED 갭 → growth_missions에 초기 미션 삽입
-  const initialMissions = pkg.contentGaps.red.map(gap => ({
-    priority: 'yellow' as const,
-    action_type: 'review_needed' as const,
-    title: `[AEO 갭] ${gap.entityName}`,
-    description: gap.suggestedContentBrief,
-    source: 'bsw_audit' as const,
-    estimated_minutes: gap.draftStrategy === 'ai_generate' ? 2 : 10,
-    impact_score: gap.estimatedAepiImpact,
-  }));
-
-  // 2. WHITE 기회 → topics 테이블 시드
-  for (const opp of pkg.contentGaps.white) {
-    await supabase.from('topics').insert({
-      tenant_id: tenantId,
-      title: opp.entityName,
-      source: 'bsw_blue_ocean',
-      qvs_score: opp.priorityScore,
-      status: 'predicted',
-    });
+/**
+ * Vec7D 코사인 유사도 기반 최적 아키타입 매칭
+ */
+export function matchArchetype(
+  projectedVec7d: Vec7D,
+  industryKey: string,
+  archetypeRegistry: ArchetypeMaster[]
+): { archetypeId: string; confidence: number; profileId: string } {
+  const candidates = archetypeRegistry.filter(a => a.industryType === industryKey);
+  
+  let bestMatch = { archetypeId: '', confidence: 0, profileId: '' };
+  
+  for (const arch of candidates) {
+    const similarity = cosineSimilarity(
+      Object.values(projectedVec7d),
+      Object.values(arch.lookAndFeel.targetVec7d)
+    );
+    if (similarity > bestMatch.confidence) {
+      bestMatch = {
+        archetypeId: arch.archetypeId,
+        confidence: similarity,
+        profileId: arch.profileId,
+      };
+    }
   }
+  
+  return bestMatch;
+}
 
-  // 3. QIS 질문 → answer_cards 시드
-  for (const q of pkg.questionSeeds.industryOnly) {
-    await supabase.from('answer_cards').insert({
-      tenant_id: tenantId,
-      question: q.question,
-      source: 'bsw_qis',
-      priority: q.score,
-      status: 'draft',
-    });
+/**
+ * BSW-OS 진단 결과 → 5-Layer Psychology 가중치 변환
+ */
+export function auditToPsychologyWeights(audit: AuditResult): PsychologyLayerWeights {
+  const eeat = audit.contentSemanticResult?.eeat ?? { overall: 50, trustworthiness: 50 };
+  const schema = audit.schemaQualityResult?.schemaQualityScore ?? 50;
+  const tech = audit.techInfraResult?.techInfraScore ?? 50;
+  
+  // 약한 영역의 가중치를 높임
+  const trustWeight = eeat.trustworthiness < 50 ? 0.3 : 0.15;
+  const proofWeight = schema < 50 ? 0.25 : 0.15;
+  const actionWeight = tech > 70 ? 0.25 : 0.15;
+  const valueWeight = 0.25;
+  const attentionWeight = 1 - trustWeight - proofWeight - actionWeight - valueWeight;
+  
+  return { attention: attentionWeight, trust: trustWeight, value: valueWeight, proof: proofWeight, action: actionWeight };
+}
+
+/**
+ * BSW-OS Section 우선순위 도출 (60+ Section 중 선택)
+ */
+export function deriveSectionPriority(audit: AuditResult, gaps: SurfaceGapAnalysis[]): string[] {
+  const sections: string[] = ['hero_qa_focus']; // 기본 히어로
+  
+  if ((audit.contentSemanticResult?.eeat?.trustworthiness ?? 100) < 50) {
+    sections.push('trust_strip', 'stats_band');
   }
+  if (gaps.some(g => g.prescriptionType === 'add_faq_markup')) {
+    sections.push('faq_accordion');
+  }
+  if (gaps.some(g => g.entityType === 'comparative')) {
+    sections.push('compare_block');
+  }
+  if (gaps.some(g => g.entityType === 'procedural')) {
+    sections.push('routine_steps');
+  }
+  if (gaps.some(g => g.prescriptionType === 'add_author_markup')) {
+    sections.push('doctor_profile');
+  }
+  if ((audit.schemaQualityResult?.schemaQualityScore ?? 100) < 40) {
+    sections.push('catalog_grid');
+  }
+  if ((audit.contentSemanticResult?.multimediaScore ?? 100) < 30) {
+    sections.push('masonry_gallery');
+  }
+  
+  sections.push('cta_banner', 'semantic_search');
+  return sections;
+}
+```
 
-  // 4. Strategy Quick Wins → 첫 주 미션으로 변환
-  if (pkg.strategy?.quickWins) {
-    for (const qw of pkg.strategy.quickWins.slice(0, 3)) {
-      initialMissions.push({
-        priority: 'yellow',
-        action_type: 'review_needed',
-        title: `[Quick Win] ${qw.title}`,
-        description: qw.actionItems.join('\n'),
-        source: 'bsw_strategy',
-        estimated_minutes: qw.effort === 'easy' ? 5 : 15,
-        impact_score: qw.impact === 'high' ? 90 : 60,
+### 2.2 S2P Gap Mapping 모듈
+
+**신규 파일:** `lib/industry/s2p-gap-mapper.ts`
+
+```typescript
+/**
+ * BSW-OS 진단 결과 → GENESIS S2P Gap Report 10영역으로 변환
+ * s2pGrowthBridge.ts의 GAP_TO_TF8_MAP과 호환
+ */
+export function auditToS2PGap(audit: AuditResult, gaps: SurfaceGapAnalysis[]): S2PGapMapping {
+  const gnbGaps = gaps.filter(g => g.prescriptionType === 'create_content').length;
+  const qaGaps = gaps.filter(g => ['factoid', 'procedural'].includes(g.entityType)).length;
+  const trustGaps = gaps.filter(g => g.prescriptionType === 'add_eeat_signal').length;
+  
+  return {
+    gnbIa: Math.max(0, 100 - gnbGaps * 10),
+    questionAnswer: Math.max(0, 100 - qaGaps * 8),
+    offerClarity: audit.schemaQualityResult?.schemaQualityScore ?? 50,
+    trustEvidence: Math.min(100, (audit.contentSemanticResult?.eeat?.trustworthiness ?? 50)),
+    visualExplanation: audit.contentSemanticResult?.multimediaScore ?? 30,
+    policySafety: audit.schemaQualityResult?.schemaQualityScore ?? 50,
+    conversion: audit.techInfraResult?.techInfraScore ?? 50,
+    seoAeoGeo: audit.aepiScore ?? 50,
+    mobileUx: audit.techInfraResult?.renderingMode === 'ssr' ? 80 : 50,
+    operations: audit.techInfraResult?.sitemapScore ?? 30,
+    tf8BlockScores: mapToTf8({/*... derived from above ...*/}),
+  };
+}
+
+const GAP_TO_TF8_MAP: Record<string, string> = {
+  gnbIa: 'F', questionAnswer: 'K', offerClarity: 'T',
+  trustEvidence: 'W', visualExplanation: 'O', policySafety: 'W',
+  conversion: 'A', seoAeoGeo: 'S', mobileUx: 'F', operations: 'T',
+};
+```
+
+### 2.3 Hub Content Pool 매칭 모듈
+
+**신규 파일:** `lib/industry/hub-content-matcher.ts`
+
+```typescript
+/**
+ * BSW-OS 갭 → GENESIS Hub Content Pool 매칭
+ * 갭에 해당하는 Hub 콘텐츠가 있으면 AI 생성 대신 Hub에서 공급
+ */
+export async function matchHubContent(
+  gaps: SurfaceGapAnalysis[],
+  hubSlug: string,
+  genesisApiUrl: string
+): Promise<HubContentMatchResult> {
+  // GENESIS Hub Content Pool 조회
+  const hubAssets = await fetch(
+    `${genesisApiUrl}/api/v1/studio/hub-supply?hub_slug=${hubSlug}&is_active=true`
+  ).then(r => r.json());
+  
+  const matches: HubContentMatch[] = [];
+  
+  for (const gap of gaps.filter(g => g.quadrant === 'red')) {
+    const ucaType = mapPrescriptionToUcaType(gap.prescriptionType, gap.entityType);
+    const hubMatch = hubAssets.find((ha: any) => 
+      ha.asset_type === ucaType && 
+      textSimilarity(ha.title, gap.entityName) > 0.3
+    );
+    
+    if (hubMatch) {
+      matches.push({
+        hubAssetId: hubMatch.id,
+        gapEntityName: gap.entityName,
+        supplyMode: hubMatch.supply_mode,
+        assetType: hubMatch.asset_type,
+        title: hubMatch.title,
       });
     }
   }
-
-  // 5. 첫 주 growth_missions 저장
-  await saveInitialMissions(tenantId, initialMissions);
+  
+  return {
+    hubSlug,
+    gapMatchedAssets: matches,
+    totalDirectAvailable: hubAssets.filter((a: any) => a.supply_mode === 'direct').length,
+    totalCustomAvailable: hubAssets.filter((a: any) => a.supply_mode === 'custom_template').length,
+    totalDraftAvailable: hubAssets.filter((a: any) => a.supply_mode === 'draft').length,
+    unmatchedGaps: gaps.filter(g => !matches.find(m => m.gapEntityName === g.entityName)),
+  };
 }
 ```
 
-#### `POST /api/v1/synergy/report`
+### 2.4 Handoff v2 생성 API
 
-**목적:** 주간 운영 데이터를 BSW-OS에 전송
-
-**신규 파일:** `apps/web/app/api/v1/synergy/report/route.ts`
+**수정 파일:** `app/api/synergy/handoff/route.ts` (v2 확장)
 
 ```typescript
-// Growth Orchestrator Step 9 (saveMission) 후 자동 호출
-async function reportToBsw(tenantId: string, weeklyResult: WeeklyGrowthResult) {
-  const bswApiUrl = process.env.BSW_OS_API_URL;
+// v2 추가 단계:
+async function generateHandoffV2(auditSessionId: string): Promise<SynergyHandoffPackageV2> {
+  const v1 = await generateHandoffV1(auditSessionId); // 기존 로직
   
-  await fetch(`${bswApiUrl}/api/synergy/feedback`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-API-Key': process.env.BSW_SYNERGY_KEY },
-    body: JSON.stringify({
-      tenantId,
-      websiteUrl: tenant.website_url,
-      geoScore: weeklyResult.geoScore,
-      polishScores: await getRecentPolishScores(tenantId),
-      missionsCompleted: weeklyResult.missions.filter(m => m.completed).length,
-      contentChanges: weeklyResult.autoCompleted.length,
-      weekNumber: getIsoWeekNumber(),
-    }),
-  });
+  // ★ QIS 자산 추가
+  const qisCrossMap = await crossMapQis(v1.brand.detectedIndustry, audit.entities);
+  const bswPredictions = await getPredictions(auditSessionId);
+  
+  // ★ Archetype 매칭
+  const vec7d = auditResultToVec7d(audit, blueprint);
+  const archetypeMatch = matchArchetype(vec7d, v1.brand.genesisIndustryKey, archetypeRegistry);
+  const sectionPriority = deriveSectionPriority(audit, gaps);
+  const psychologyWeights = auditToPsychologyWeights(audit);
+  
+  // ★ S2P Gap 매핑
+  const s2pGap = auditToS2PGap(audit, gaps);
+  
+  // ★ Hub Content 매칭
+  const hubSlug = mapIndustryToHubSlug(v1.brand.genesisIndustryKey);
+  const hubMatch = await matchHubContent(gaps, hubSlug, GENESIS_API_URL);
+  
+  // ★ Expected Layer
+  const expectedLayer = await pullExpectedLayer(hubSlug);
+  
+  return {
+    ...v1,
+    version: '2.0',
+    qisAssets: {
+      industryOnlyQuestions: bswPredictions,
+      siteOnlyQuestions: qisCrossMap.siteOnly,
+      crossMapCoverage: qisCrossMap.coverage,
+      hubProbeResults: await getHubBairScore(hubSlug),
+    },
+    archetypeHints: {
+      suggestedArchetypeId: archetypeMatch.archetypeId,
+      suggestedProfileId: archetypeMatch.profileId,
+      matchConfidence: archetypeMatch.confidence,
+      vec7dProjection: vec7d,
+      sectionPriority,
+      psychologyLayerWeights: psychologyWeights,
+    },
+    s2pGapMapping: s2pGap,
+    hubContentRequest: hubMatch,
+    expectedLayerRequirements: expectedLayer,
+  };
 }
 ```
 
-### 3.2 Growth Orchestrator 확장
+---
+
+## 3. GENESIS 측 구현 명세 v2.0
+
+### 3.1 Synergy Onboard v2 (Archetype + Hub + QIS 통합)
+
+**수정 파일:** `apps/web/app/api/v1/synergy/onboard/route.ts` (v2)
+
+```typescript
+async function handleSynergyOnboardV2(pkg: SynergyHandoffPackageV2) {
+  // Phase 0: 업종 + Archetype 결정
+  const archetype = pkg.archetypeHints.suggestedArchetypeId
+    ? await loadArchetype(pkg.archetypeHints.suggestedArchetypeId)
+    : await detectArchetype(pkg.brand.genesisIndustryKey);
+  
+  // Phase 1: Archetype 기반 풀스택 설정
+  const designConfig = {
+    // Archetype Vec7D → VTDS 토큰
+    vec7d: pkg.archetypeHints.vec7dProjection,
+    baseTheme: archetype.lookAndFeel.baseTheme,
+    motionLevel: archetype.lookAndFeel.motionLevel,
+    // Section Registry에서 Psychology Layer 기반 선택
+    homeSections: buildHomeSections(
+      pkg.archetypeHints.sectionPriority,
+      pkg.archetypeHints.psychologyLayerWeights
+    ),
+  };
+  
+  // Phase 2: GNB/IA — Archetype + 갭 보정 + Hub GNB
+  const gnbConfig = {
+    tenantGnb: buildGnbFromBlueprint(
+      pkg.brand.genesisIndustryKey,
+      pkg.gnbCorrections,
+      pkg.contentGaps
+    ),
+    hubGnb: loadHubGnbPreset(pkg.hubContentRequest.hubSlug),
+  };
+  
+  // Phase 3: 콘텐츠 시드 — Hub Pool + AI 생성 + QIS
+  const contentSeeds = [];
+  
+  // 3a: Hub Content Pool에서 매칭된 콘텐츠 즉시 공급
+  for (const match of pkg.hubContentRequest.gapMatchedAssets) {
+    const hubAsset = await pullHubAsset(match.hubAssetId, match.supplyMode);
+    if (match.supplyMode === 'direct') {
+      contentSeeds.push({ ...hubAsset, status: 'active' });
+    } else if (match.supplyMode === 'custom_template') {
+      const customized = await customizeWithBrand(hubAsset, pkg.brand);
+      contentSeeds.push({ ...customized, status: 'active' });
+    } else {
+      contentSeeds.push({ ...hubAsset, status: 'draft', review_status: 'pending' });
+    }
+  }
+  
+  // 3b: Hub에서 매칭 안 된 갭 → AI 드래프트
+  for (const gap of pkg.hubContentRequest.unmatchedGaps) {
+    const draft = await generateAiDraft(gap, pkg.brand, pkg.expectedLayerRequirements);
+    contentSeeds.push({ ...draft, status: 'draft', review_status: 'pending' });
+  }
+  
+  // 3c: QIS 예측 질문 → answer UCA
+  for (const q of pkg.qisAssets.industryOnlyQuestions.slice(0, 10)) {
+    if (q.confidence >= 0.70 && q.currentAiCoverage !== 'saturated') {
+      const answerDraft = await generatePredictedAnswer(q, pkg.expectedLayerRequirements);
+      contentSeeds.push(answerDraft);
+    }
+  }
+  
+  // 3d: Archetype 필수 콘텐츠 확인 + 누락분 생성
+  for (const [type, req] of Object.entries(archetype.requiredContentAssets)) {
+    if (req.severity === 'critical' && !contentSeeds.find(c => c.type === type)) {
+      contentSeeds.push(await generateFromSeedTitle(archetype.contentSeedTitles[type], type));
+    }
+  }
+  
+  // Phase 4: Expected Layer 적용
+  const complianceConfig = {
+    safetyGateLevel: pkg.expectedLayerRequirements.safetyGateLevel,
+    mustInclude: pkg.expectedLayerRequirements.mustInclude,
+    mustNotDo: pkg.expectedLayerRequirements.mustNotDo,
+  };
+  
+  // Phase 5: DB 시딩 (Turnkey Engine)
+  const tenantId = await turnkeyEngine.seed({
+    tenant: { slug: slugify(pkg.brand.name), industry_type: pkg.brand.genesisIndustryKey },
+    brandProfile: pkg.brand,
+    designConfig,
+    gnbConfig,
+    contentAssets: contentSeeds,
+    complianceConfig,
+    hubId: pkg.hubContentRequest.hubSlug,  // Hub 연결
+    archetypeSlug: archetype.archetypeId,
+  });
+  
+  // Phase 6: Growth Orchestrator 점화 (S2P Bridge)
+  await s2pGrowthBridge.onSynergyOnboard({
+    tenantId,
+    tf8BlockScores: pkg.s2pGapMapping.tf8BlockScores,
+    industryType: pkg.brand.genesisIndustryKey,
+    bswAuditSessionId: pkg.sourceAuditSessionId,
+    bswGapData: pkg.contentGaps,
+    qisPredictions: pkg.qisAssets.industryOnlyQuestions,
+  });
+  
+  // Phase 7: QIS 시드 등록
+  await registerQisSeeds(tenantId, [
+    ...archetype.questionCapitalSeed,
+    ...pkg.qisAssets.industryOnlyQuestions.map(q => q.questionText),
+  ]);
+  
+  // Phase 8: Synergy Config 저장 (재진단 설정)
+  await saveSynergyConfig(tenantId, {
+    bswAuditSessionId: pkg.sourceAuditSessionId,
+    bswHandoffPackage: pkg,
+    autoReAuditEnabled: true,
+    reAuditIntervalWeeks: 4,
+  });
+  
+  return { tenantId, contentCount: contentSeeds.length, archetype: archetype.archetypeId };
+}
+```
+
+### 3.2 Growth Orchestrator v2 확장
 
 **수정 파일:** `apps/web/lib/studio/growth-orchestrator.ts`
 
-#### Step 5 확장: BSW-OS 갭 기반 기회 발견
+#### Step 5 — 5중 소스 기회 발견
 
 ```typescript
-// 기존 findOpportunities()에 BSW-OS 데이터 소스 추가
-async function findOpportunities(tenantId: string, geoScore: GeoScoreSnapshot) {
+async function findOpportunitiesV2(tenantId: string, geoScore: GeoScoreSnapshot): Promise<Opportunity[]> {
   const opportunities: Opportunity[] = [];
+  const synergyConfig = await getSynergyConfig(tenantId);
   
-  // 기존 소스 1: GEO 실패 항목
+  // 소스 1: GEO 실패 항목 (기존)
   for (const check of geoScore.failingChecks) {
     opportunities.push({ topic: check.name, score: check.points * 2, type: 'geo_gap' });
   }
   
-  // 기존 소스 2: QIS 예측 질문
+  // 소스 2: QIS 예측 질문 (기존)
   const qisQuestions = await getQisPredictions(tenantId);
   for (const q of qisQuestions) {
     opportunities.push({ topic: q.text, score: q.qvs_score, type: 'qis_question' });
   }
   
-  // ★ 신규 소스 3: BSW-OS 갭 데이터
-  const bswGaps = await getBswGapData(tenantId);
-  for (const gap of bswGaps) {
-    opportunities.push({
-      topic: gap.entity_name,
-      score: gap.priority_score * 3,  // BSW 갭은 3배 가중
-      type: gap.quadrant === 'red' ? 'bsw_content_gap' : 'bsw_reflection_gap',
-      metadata: { prescriptionType: gap.prescription_type, aepiImpact: gap.estimated_aepi_impact },
-    });
+  // ★ 소스 3: BSW-OS RED 갭 (신규)
+  if (synergyConfig?.bswGapData) {
+    for (const gap of synergyConfig.bswGapData.red) {
+      const isAlsoQis = qisQuestions.some(q => textSimilarity(q.text, gap.entityName) > 0.3);
+      opportunities.push({
+        topic: gap.entityName,
+        score: gap.priorityScore * (isAlsoQis ? 4 : 3), // QIS 교차 시 추가 부스트
+        type: 'bsw_content_gap',
+        metadata: { prescriptionType: gap.prescriptionType, aepiImpact: gap.estimatedAepiImpact },
+      });
+    }
+  }
+  
+  // ★ 소스 4: BSW-OS YELLOW 갭 → Polish 대상 (신규)
+  if (synergyConfig?.bswGapData) {
+    for (const gap of synergyConfig.bswGapData.yellow) {
+      opportunities.push({
+        topic: gap.entityName,
+        score: gap.priorityScore * 2,
+        type: 'bsw_reflection_gap',
+        metadata: { existingAssetId: await findExistingAsset(tenantId, gap.entityName) },
+      });
+    }
+  }
+  
+  // ★ 소스 5: BSW-OS WHITE 블루오션 (신규)
+  if (synergyConfig?.bswGapData) {
+    for (const gap of synergyConfig.bswGapData.white) {
+      opportunities.push({
+        topic: gap.entityName,
+        score: gap.priorityScore * 1.5,
+        type: 'bsw_blue_ocean',
+      });
+    }
   }
   
   return opportunities.sort((a, b) => b.score - a.score).slice(0, 10);
 }
 ```
 
-#### Step 6 확장: BSW-OS 기반 미션 카드 생성
+#### Step 9 확장 — BSW-OS 자동 피드백 전송
 
 ```typescript
-// generateMissionCards()에 BSW-OS 소스 추가
-function generateMissionCards(opportunities: Opportunity[], ...): MissionCard[] {
-  const missions: MissionCard[] = [];
+async function saveMissionV2(tenantId: string, result: WeeklyGrowthResult) {
+  await saveMission(tenantId, result); // 기존 로직
   
-  for (const opp of opportunities) {
-    if (opp.type === 'bsw_content_gap') {
-      // RED 갭 → AI 드래프트 생성 미션
-      missions.push({
-        priority: 'yellow',
-        action_type: 'review_needed',
-        source: 'bsw_audit',
-        title: `[AEO 진단] ${opp.topic} 콘텐츠 생성`,
-        description: `BSW-OS 진단에서 발견된 콘텐츠 공백입니다. AI가 초안을 생성했습니다.`,
-        estimated_minutes: 2,
-        impact_score: opp.metadata.aepiImpact,
-        cta_action: `/studio/content/review/${opp.draftAssetId}`,
-      });
-    } else if (opp.type === 'bsw_reflection_gap') {
-      // YELLOW 갭 → Polish 미션
-      missions.push({
-        priority: 'yellow',
-        action_type: 'review_needed',
-        source: 'bsw_audit',
-        title: `[AEO 개선] ${opp.topic} 콘텐츠 보강`,
-        description: `이 콘텐츠는 AI 검색 결과에 반영되지 않고 있습니다. Polish를 적용했습니다.`,
-        estimated_minutes: 3,
-        cta_action: `/studio/content/polish/${opp.existingAssetId}`,
-      });
+  // ★ BSW-OS에 주간 피드백 자동 전송
+  const synergyConfig = await getSynergyConfig(tenantId);
+  if (synergyConfig?.autoReAuditEnabled) {
+    try {
+      await reportToBsw(tenantId, result);
+    } catch (e) {
+      console.warn('[Synergy] BSW feedback failed, non-blocking:', e);
     }
   }
-  
-  return missions;
 }
 ```
 
-### 3.3 Content Polishing Engine 확장
+### 3.3 Content Polishing Engine v2 확장
 
 **수정 파일:** `apps/web/lib/studio/polish-scorer.ts`
 
-#### L3 Content Semantic 피드 통합
-
 ```typescript
-// scoreAsset()에 BSW-OS L3 데이터 보정 추가
-async function scoreAsset(
+// Expected Layer 통합 검증
+async function scoreAssetV2(
   asset: UniversalContentAsset,
   brandContext: BrandContext,
-  bswL3Data?: ContentSemanticResult  // ★ 신규 선택적 파라미터
-): Promise<PolishScore> {
-  const baseScore = calculateBaseScore(asset, brandContext);
+  options?: {
+    bswL3Data?: ContentSemanticResult;
+    expectedLayer?: ExpectedLayerConfig;
+  }
+): Promise<PolishScoreV2> {
+  const baseScore = await scoreAsset(asset, brandContext, options?.bswL3Data);
   
-  if (bswL3Data) {
-    // BSW-OS L3 데이터로 보정
-    const corrections = {
-      aeoReadiness: baseScore.dimensions.aeoReadiness * 0.7 + 
-                    (bswL3Data.answerFirstScores?.[0]?.score ?? 50) * 0.3,
-      brandAlignment: baseScore.dimensions.brandAlignment * 0.7 +
-                      (bswL3Data.eeat.overall ?? 50) * 0.3,
-    };
+  if (options?.expectedLayer) {
+    // Expected Layer 준수 검사
+    const compliance = checkExpectedLayerCompliance(
+      asset.json_payload.body_richtext ?? '',
+      options.expectedLayer
+    );
     
-    return { ...baseScore, dimensions: { ...baseScore.dimensions, ...corrections } };
+    // 준수율에 따라 점수 보정
+    const compliancePenalty = (1 - compliance.ratio) * 15; // 최대 15점 감점
+    
+    return {
+      ...baseScore,
+      totalScore: Math.max(0, baseScore.totalScore - compliancePenalty),
+      expectedLayerCompliance: compliance,
+      violations: compliance.violations, // must_not_do 위반 시 🔴 경고
+    };
   }
   
   return baseScore;
 }
-```
 
-### 3.4 디자인 시스템 연계
-
-**신규 파일:** `apps/web/lib/studio/blueprint-to-vtds.ts`
-
-```typescript
-/**
- * BSW-OS IndustryBlueprint.designPatterns → VTDS Vec7D 매핑
- */
-interface Vec7DMapping {
-  calm: number;      // 0-1
-  warm: number;
-  focus: number;
-  play: number;
-  bold: number;
-  heritage: number;
-  raw: number;
-}
-
-const CONVERSION_FOCUS_TO_VEC7D: Record<string, Partial<Vec7DMapping>> = {
-  'comparison': { focus: 0.8, bold: 0.6 },        // 비교 중심 → 집중+대담
-  'routine': { calm: 0.7, warm: 0.6 },             // 루틴 중심 → 차분+따뜻
-  'product': { focus: 0.7, play: 0.5 },            // 제품 중심 → 집중+재미
-  'expertise': { heritage: 0.7, focus: 0.6 },      // 전문성 중심 → 전통+집중
-};
-
-const TRUST_PRIORITY_TO_VEC7D: Record<string, Partial<Vec7DMapping>> = {
-  'high': { heritage: 0.8, calm: 0.6 },            // 높은 신뢰 → 전통+차분
-  'medium': { warm: 0.5, focus: 0.5 },
-  'low': { play: 0.5, bold: 0.5 },
-};
-
-export function blueprintToVec7D(designHints: SynergyHandoffPackage['designHints']): Vec7DMapping {
-  const base: Vec7DMapping = { calm: 0.5, warm: 0.5, focus: 0.5, play: 0.3, bold: 0.3, heritage: 0.3, raw: 0.2 };
+function checkExpectedLayerCompliance(bodyHtml: string, layer: ExpectedLayerConfig) {
+  const text = stripHtml(bodyHtml).toLowerCase();
+  const violations: string[] = [];
+  let met = 0;
+  let total = 0;
   
-  // conversionFocus 반영
-  const conversionOverrides = CONVERSION_FOCUS_TO_VEC7D[designHints.conversionFocus] ?? {};
-  // trustSignalPriority 반영
-  const trustOverrides = TRUST_PRIORITY_TO_VEC7D[designHints.trustSignalPriority] ?? {};
+  for (const item of layer.mustInclude) {
+    total++;
+    if (text.includes(item.toLowerCase())) met++;
+    else violations.push(`[MISSING] must_include: "${item}"`);
+  }
   
-  return { ...base, ...trustOverrides, ...conversionOverrides };
-}
-
-export function selectBestYamlTheme(vec7d: Vec7DMapping, industry: string): string {
-  // 44개 YAML 테마와 Vec7D 코사인 유사도 계산 → 최적 매칭
-  // ...
-}
-```
-
-### 3.5 GNB/IA 자동 구축
-
-**신규 파일:** `apps/web/lib/studio/blueprint-to-gnb.ts`
-
-```typescript
-import { INDUSTRY_GNB_NODES } from '@aihompyhub/gnb-config';
-
-/**
- * BSW-OS 진단 데이터 기반 GNB/IA 자동 구축
- */
-export function buildGnbFromBlueprint(
-  industryKey: string,
-  corrections: SynergyHandoffPackage['gnbCorrections'],
-  contentGaps: SynergyHandoffPackage['contentGaps']
-): GnbNode[] {
-  // 1. 업종 기본 프리셋 로드
-  const baseNodes = [...INDUSTRY_GNB_NODES[industryKey] ?? INDUSTRY_GNB_NODES['default']];
-  
-  // 2. RED 갭 기반 누락 노드 추가
-  for (const gap of contentGaps.red) {
-    const nodeId = mapPrescriptionToGnbNode(gap.prescriptionType, gap.entityType);
-    if (nodeId && !baseNodes.find(n => n.id === nodeId)) {
-      baseNodes.push({
-        id: nodeId,
-        label: getNodeLabel(nodeId),
-        enabled: true,
-        gnb_position: 'top',
-        _reason: `BSW-OS RED gap: ${gap.entityName}`,
-      });
+  for (const item of layer.mustNotDo) {
+    if (text.includes(item.toLowerCase())) {
+      violations.push(`[VIOLATION] must_not_do: "${item}"`);
     }
   }
   
-  // 3. BSW-OS 보정 데이터 적용
-  for (const missing of corrections.missingNodes) {
-    const existing = baseNodes.find(n => n.id === missing.id);
-    if (existing) {
-      existing.enabled = true;
-    } else {
-      baseNodes.push({ id: missing.id, label: getNodeLabel(missing.id), enabled: true, gnb_position: 'top' });
-    }
-  }
-  
-  // 4. 엔티티 분포 기반 우선순위 정렬
-  const entityWeights = corrections.entityDistribution;
-  baseNodes.sort((a, b) => {
-    const wA = corrections.priorityNodes.find(p => p.id === a.id)?.weight ?? 0;
-    const wB = corrections.priorityNodes.find(p => p.id === b.id)?.weight ?? 0;
-    return wB - wA;
-  });
-  
-  return baseNodes;
+  return { ratio: total > 0 ? met / total : 1, violations };
 }
+```
 
-function mapPrescriptionToGnbNode(prescription: string, entityType: string): string | null {
-  const map: Record<string, string> = {
-    'add_faq_markup': 'faq',
-    'create_content': entityType === 'comparative' ? 'compare' : 'solutions',
-    'add_eeat_signal': 'experts',
-    'opportunity_content': 'routines',
-    'add_author_markup': 'experts',
-  };
-  return map[prescription] ?? null;
+### 3.4 Predicted Content Pipeline v2 확장
+
+**수정 파일:** `apps/web/lib/studio/predictedContentPipeline.ts`
+
+```typescript
+// BSW-OS 예측 질문의 Expected Layer 자동 적용
+async function processPredictedQuestionsV2(
+  tenantId: string,
+  industryType: string,
+  predictedQuestions: QisPredictedQuestion[],
+  expectedLayer?: ExpectedLayerConfig  // ★ BSW-OS Expected Layer 추가
+) {
+  for (const q of filteredQuestions) {
+    const blueprint = {
+      questionText: q.questionText,
+      intent: q.predictedIntent,
+      schemaType: intentToSchemaType(q.predictedIntent),
+      // ★ BSW-OS Expected Layer + QIS auto 레이어 병합
+      mustInclude: [
+        ...(q.autoMustInclude ?? []),
+        ...(expectedLayer?.mustInclude ?? []),
+      ],
+      mustNotDo: [
+        ...(q.autoMustNotDo ?? []),
+        ...(expectedLayer?.mustNotDo ?? []),
+      ],
+    };
+    
+    await createCmosDraft(tenantId, blueprint);
+  }
 }
 ```
 
 ---
 
-## 4. 데이터베이스 확장
+## 4. 데이터베이스 확장 v2.0
 
-### 4.1 BSW-OS 측 신규 테이블
+### 4.1 BSW-OS 측 추가 테이블
 
 ```sql
--- synergy_handoffs: 핸드오프 이력 추적
-CREATE TABLE IF NOT EXISTS synergy_handoffs (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  audit_session_id UUID REFERENCES audit_sessions(id),
-  genesis_tenant_id TEXT,
-  handoff_package JSONB NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'delivered', 'accepted', 'building', 'completed', 'failed')),
-  genesis_callback_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  completed_at TIMESTAMPTZ
-);
-
--- synergy_feedback: GENESIS → BSW-OS 피드백 이력
-CREATE TABLE IF NOT EXISTS synergy_feedback (
+-- v2.0: Archetype 매칭 이력
+CREATE TABLE IF NOT EXISTS synergy_archetype_matches (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   handoff_id UUID REFERENCES synergy_handoffs(id),
-  website_url TEXT NOT NULL,
-  week_number INTEGER NOT NULL,
-  geo_score JSONB,
-  polish_scores JSONB,
-  missions_completed INTEGER DEFAULT 0,
-  content_changes INTEGER DEFAULT 0,
-  received_at TIMESTAMPTZ DEFAULT now()
+  suggested_archetype_id TEXT NOT NULL,
+  match_confidence NUMERIC(3,2) NOT NULL,
+  vec7d_projection JSONB NOT NULL,
+  psychology_weights JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_synergy_feedback_url ON synergy_feedback(website_url);
-CREATE INDEX idx_synergy_feedback_week ON synergy_feedback(week_number DESC);
-```
-
-### 4.2 GENESIS 측 테이블 확장
-
-```sql
--- universal_content_assets에 BSW-OS 출처 추적 컬럼 추가
-ALTER TABLE universal_content_assets 
-  ADD COLUMN IF NOT EXISTS bsw_source_gap_id TEXT,
-  ADD COLUMN IF NOT EXISTS bsw_prescription_type TEXT,
-  ADD COLUMN IF NOT EXISTS bsw_aepi_impact NUMERIC(5,2);
-
--- growth_missions에 BSW-OS 연계 필드 추가
-ALTER TABLE growth_missions
-  ADD COLUMN IF NOT EXISTS bsw_audit_session_id TEXT,
-  ADD COLUMN IF NOT EXISTS bsw_gap_data JSONB;
-
--- synergy_configs: 테넌트별 BSW-OS 연계 설정
-CREATE TABLE IF NOT EXISTS synergy_configs (
+-- v2.0: QIS 교차 매핑 이력
+CREATE TABLE IF NOT EXISTS synergy_qis_crossmap (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  tenant_id UUID NOT NULL REFERENCES tenants(id),
-  bsw_audit_session_id TEXT,
-  bsw_handoff_package JSONB,
-  auto_re_audit_enabled BOOLEAN DEFAULT true,
-  re_audit_interval_weeks INTEGER DEFAULT 4,
-  last_re_audit_at TIMESTAMPTZ,
+  handoff_id UUID REFERENCES synergy_handoffs(id),
+  industry_only_count INTEGER NOT NULL,
+  site_only_count INTEGER NOT NULL,
+  both_count INTEGER NOT NULL,
+  goldilocks_coverage NUMERIC(3,2),
+  cross_boosted_questions JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- v2.0: BAIR Score 이력 (Hub QIS Benchmark 교차)
+CREATE TABLE IF NOT EXISTS synergy_bair_scores (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  website_url TEXT NOT NULL,
+  hub_slug TEXT NOT NULL,
+  bair_score NUMERIC(4,3) NOT NULL,
+  aas_score NUMERIC(4,3),
+  ocr_score NUMERIC(4,3),
+  bsf_score NUMERIC(4,3),
+  measured_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 ```
 
----
+### 4.2 GENESIS 측 추가 필드
 
-## 5. UI/UX 연계 플로우
+```sql
+-- synergy_configs 확장
+ALTER TABLE synergy_configs
+  ADD COLUMN IF NOT EXISTS archetype_slug TEXT,
+  ADD COLUMN IF NOT EXISTS expected_layer_config JSONB,
+  ADD COLUMN IF NOT EXISTS hub_slug TEXT,
+  ADD COLUMN IF NOT EXISTS bsw_gap_data JSONB,
+  ADD COLUMN IF NOT EXISTS qis_predictions JSONB,
+  ADD COLUMN IF NOT EXISTS last_bair_score NUMERIC(4,3);
 
-### 5.1 BSW-OS 측: "즉시 구축" CTA
-
-**수정 대상:** `components/site-audit/SiteAuditDashboard.tsx`
-
-진단 결과 대시보드의 상단에 **"GENESIS로 즉시 구축"** CTA 버튼을 추가합니다.
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  🎯 현재 등급: C (업종 40%ile)                           │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  💡 이 진단 결과를 바탕으로                        │   │
-│  │  업종 Top 25% 수준의 AI 홈페이지를                 │   │
-│  │  즉시 구축할 수 있습니다.                          │   │
-│  │                                                   │   │
-│  │  ✅ 디자인 시스템 자동 생성                        │   │
-│  │  ✅ GNB/IA 업종 최적화                            │   │
-│  │  ✅ 초기 콘텐츠 30건 자동 생성 (갭 기반)           │   │
-│  │  ✅ Schema.org 완전 자동 포함                     │   │
-│  │  ✅ 주간 자동 성장 (Growth Orchestrator)           │   │
-│  │                                                   │   │
-│  │  [🚀 GENESIS로 즉시 구축하기]  [📋 핸드오프 JSON] │   │
-│  └─────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 5.2 GENESIS 측: BSW-OS 연계 대시보드
-
-**수정 대상:** `apps/web/app/admin/studio/page.tsx`
-
-Studio 대시보드에 **BSW-OS 진단 연계 카드**를 추가합니다.
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  📊 AEO 진단 현황                                       │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │ AEPI 72  │  │ GEO B    │  │ 업종     │              │
-│  │ (+8 δ)   │  │ (185pt)  │  │ 65%ile   │              │
-│  └──────────┘  └──────────┘  └──────────┘              │
-│                                                         │
-│  📋 BSW-OS 갭 기반 미션 (이번 주)                        │
-│  🟡 [AEO 갭] FAQ 콘텐츠 생성 — AI 초안 리뷰 (2분)      │
-│  🟡 [Quick Win] OG 태그 보강 — 자동 적용 리뷰 (1분)    │
-│  🟡 [AEO 개선] 제품 스키마 보강 — Polish 리뷰 (3분)    │
-│                                                         │
-│  ⏰ 다음 자동 재진단: 2026-07-01 (7일 후)               │
-│  [📊 전체 진단 결과 보기]  [🔄 즉시 재진단]             │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 5.3 Growth Mission Card에 BSW-OS 출처 배지
-
-기존 미션 카드에 `source: 'bsw_audit'` 표시를 추가합니다.
-
-```
-┌──────────────────────────────────────────┐
-│  🟡 Yellow | ⏱ 2분 | 🏷 BSW-OS 진단    │  ← 출처 배지
-│──────────────────────────────────────────│
-│  [AEO 갭] 스킨케어 성분 비교 FAQ 생성    │
-│                                          │
-│  BSW-OS 진단에서 발견된 콘텐츠 공백:      │
-│  "comparative" 유형 엔티티가 업종 평균의  │
-│  30% 수준입니다.                         │
-│                                          │
-│  예상 AEPI 영향: +8.5pt                  │
-│                                          │
-│  [AI 초안 리뷰하기]  [건너뛰기]          │
-└──────────────────────────────────────────┘
+-- universal_content_assets 확장
+ALTER TABLE universal_content_assets
+  ADD COLUMN IF NOT EXISTS expected_layer_compliance JSONB,
+  ADD COLUMN IF NOT EXISTS bsw_cross_boost BOOLEAN DEFAULT FALSE;
 ```
 
 ---
 
-## 6. 자동 재진단 Cron Job
+## 5. QIS 양방향 데이터 흐름 상세
 
-**신규 파일:** `apps/web/app/api/cron/bsw-re-audit/route.ts`
+### 5.1 Daily Cron 연동 확장
+
+**수정 파일:** `app/api/cron/qis-sync/route.ts` (BSW-OS)
 
 ```typescript
-// Vercel Cron: 매주 월요일 Growth Orchestrator 실행 후
-// 4주차마다 BSW-OS 재진단 트리거
-
+// v2: Synergy 연동 테넌트 피드백도 Pull
 export async function GET(request: Request) {
-  const tenants = await getTenantsWithSynergyEnabled();
+  // 기존: KWeddingHub Pull → Push
+  await pullFromHub('kwedding');
+  await pushToHub('kwedding');
   
-  for (const tenant of tenants) {
-    const config = await getSynergyConfig(tenant.id);
-    const weeksSinceLastAudit = getWeeksDiff(config.last_re_audit_at, new Date());
+  // ★ 신규: Synergy 연동 테넌트 GEO/Polish 데이터 Pull
+  const synergyTenants = await getSynergyFeedbackPending();
+  for (const tenant of synergyTenants) {
+    const feedback = await fetch(
+      `${GENESIS_API_URL}/api/v1/synergy/report?tenant_id=${tenant.genesis_tenant_id}`
+    ).then(r => r.json());
     
-    if (weeksSinceLastAudit >= config.re_audit_interval_weeks) {
-      // BSW-OS 재진단 트리거
-      await fetch(`${BSW_OS_URL}/api/synergy/re-audit`, {
-        method: 'POST',
-        body: JSON.stringify({
-          websiteUrl: tenant.website_url,
-          brandName: tenant.brand_name,
-          industry: tenant.industry_type,
-          triggerReason: 'monthly_review',
-          auditMode: 'quick',
-        }),
+    if (feedback) {
+      // GEO Score → TemporalTrend
+      await recordTemporalDataPoint(tenant.website_url, {
+        aepiScore: feedback.geoScore.current / 2.5, // GEO 250점 → AEPI 100점 스케일
+        geoScore: feedback.geoScore.current,
+        polishAvg: feedback.polishScores.reduce((s, p) => s + p.score, 0) / feedback.polishScores.length,
+        missionsCompleted: feedback.missionsCompleted,
       });
       
-      // 마지막 재진단 시각 업데이트
-      await updateLastReAuditAt(tenant.id);
+      // BAIR Score 교차 기록
+      if (feedback.bairScore) {
+        await recordBairScore(tenant.website_url, tenant.hub_slug, feedback.bairScore);
+      }
     }
   }
 }
 ```
 
----
+### 5.2 Hub Signal Types → BSW-OS 역설계 보강
 
-## 7. 환경 변수
-
-### BSW-OS (.env.local)
-```env
-# GENESIS 연계
-GENESIS_API_URL=https://aihompy.hub/api/v1
-GENESIS_SYNERGY_API_KEY=sk_synergy_...
-```
-
-### GENESIS (.env.local)
-```env
-# BSW-OS 연계
-BSW_OS_API_URL=https://bsw-os.vercel.app/api
-BSW_SYNERGY_KEY=sk_bsw_synergy_...
-BSW_RE_AUDIT_INTERVAL_WEEKS=4
-```
+| Hub 신호 유형 | BSW-OS 활용 | 역설계 보강 지점 |
+|-------------|-----------|--------------|
+| `community_question` | QIS 질문 우주 확장 | 실제 사용자 질문 → RED 갭 정밀화 |
+| `verified_review` | EEAT trustworthiness 보정 | 실 리뷰 데이터 → L3 신뢰도 교정 |
+| `price_report` | QVS ARPU 정밀화 | 실거래가 → 질문 가치 정확도 ↑ |
+| `stress_pattern` | 감정 기반 질문 예측 | 스트레스 패턴 → 예측 질문 트리거 |
+| `deal_room_contract` | QVS Conversion 정밀화 | 실 전환율 → ROI 정확도 ↑ |
+| `preference_pattern` | 콘텐츠 토픽 우선순위 | 선호도 → 블루오션 기회 발굴 |
 
 ---
 
-## 8. 구현 우선순위 로드맵
+## 6. 구현 우선순위 로드맵 v2.0
 
-### Phase 1: 핵심 데이터 브릿지 (1주)
-
-| # | 작업 | 시스템 | 예상 |
-|---|------|--------|------|
-| 1.1 | `SynergyHandoffPackage` 타입 정의 | 공통 | 2h |
-| 1.2 | `genesis-industry-mapper.ts` | BSW-OS | 2h |
-| 1.3 | `gap-to-uca-mapper.ts` | BSW-OS | 3h |
-| 1.4 | `POST /api/synergy/handoff` | BSW-OS | 4h |
-| 1.5 | `POST /api/v1/synergy/onboard` | GENESIS | 6h |
-| 1.6 | Turnkey Engine BSW-OS 데이터 수용 확장 | GENESIS | 4h |
-
-### Phase 2: Growth 연계 (1주)
+### Phase 1: 핵심 브릿지 + Archetype (2주)
 
 | # | 작업 | 시스템 | 예상 |
 |---|------|--------|------|
-| 2.1 | `POST /api/v1/synergy/growth-seed` | GENESIS | 4h |
-| 2.2 | Growth Orchestrator Step 5 확장 | GENESIS | 3h |
-| 2.3 | Growth Orchestrator Step 6 BSW 미션 카드 | GENESIS | 3h |
-| 2.4 | Polish Scorer L3 피드 통합 | GENESIS | 2h |
-| 2.5 | Mission Card UI BSW 배지 | GENESIS | 2h |
+| 1.1 | `SynergyHandoffPackageV2` 타입 정의 | 공통 | 3h |
+| 1.2 | `archetype-matcher.ts` (Vec7D 변환 + 매칭) | BSW-OS | 4h |
+| 1.3 | `s2p-gap-mapper.ts` (10영역 매핑) | BSW-OS | 3h |
+| 1.4 | `hub-content-matcher.ts` (Hub Pool 매칭) | BSW-OS | 3h |
+| 1.5 | `POST /api/synergy/handoff` v2 | BSW-OS | 5h |
+| 1.6 | `POST /api/v1/synergy/onboard` v2 (8 Phase) | GENESIS | 8h |
+| 1.7 | Archetype DB 연동 + preset_application_log 기록 | GENESIS | 3h |
+| 1.8 | Hub Content Pool 매칭 공급 로직 | GENESIS | 4h |
 
-### Phase 3: 피드백 루프 (1주)
-
-| # | 작업 | 시스템 | 예상 |
-|---|------|--------|------|
-| 3.1 | `POST /api/synergy/feedback` | BSW-OS | 3h |
-| 3.2 | `POST /api/v1/synergy/report` | GENESIS | 3h |
-| 3.3 | `POST /api/synergy/re-audit` | BSW-OS | 3h |
-| 3.4 | `cron/bsw-re-audit` | GENESIS | 2h |
-| 3.5 | Temporal Trend GENESIS 데이터 통합 | BSW-OS | 2h |
-
-### Phase 4: 디자인 & GNB 자동화 (1주)
+### Phase 2: QIS 양방향 + Growth 확장 (2주)
 
 | # | 작업 | 시스템 | 예상 |
 |---|------|--------|------|
-| 4.1 | `blueprint-to-vtds.ts` | GENESIS | 4h |
-| 4.2 | `blueprint-to-gnb.ts` | GENESIS | 4h |
-| 4.3 | BSW-OS "즉시 구축" CTA UI | BSW-OS | 3h |
-| 4.4 | GENESIS Studio BSW 연계 대시보드 | GENESIS | 4h |
-| 4.5 | DB 마이그레이션 (양쪽) | 공통 | 2h |
+| 2.1 | Growth Orchestrator `findOpportunitiesV2()` | GENESIS | 4h |
+| 2.2 | Mission Card BSW 소스 배지 + 우선순위 | GENESIS | 3h |
+| 2.3 | `predictedContentPipeline` Expected Layer 통합 | GENESIS | 3h |
+| 2.4 | `polish-scorer` Expected Layer 준수 검사 | GENESIS | 3h |
+| 2.5 | QIS Cron Synergy 피드백 Pull | BSW-OS | 3h |
+| 2.6 | BAIR Score 교차 기록 | BSW-OS | 2h |
+| 2.7 | `POST /api/synergy/feedback` v2 | BSW-OS | 3h |
+| 2.8 | `POST /api/v1/synergy/report` (주간 자동 전송) | GENESIS | 3h |
 
-> **총 예상:** ~4주 (약 60시간)
+### Phase 3: 피드백 루프 + Elo (1주)
+
+| # | 작업 | 시스템 | 예상 |
+|---|------|--------|------|
+| 3.1 | `POST /api/synergy/re-audit` (자동 재진단) | BSW-OS | 3h |
+| 3.2 | `cron/bsw-re-audit` v2 (BAIR 트리거 추가) | GENESIS | 3h |
+| 3.3 | Archetype Elo 캘리브레이션 (AEPI δ 반영) | GENESIS | 4h |
+| 3.4 | TemporalTrend GENESIS+BAIR 통합 | BSW-OS | 3h |
+| 3.5 | Persona Drift Alert → Growth Red Card | 양쪽 | 2h |
+
+### Phase 4: UI/UX + 대시보드 (1주)
+
+| # | 작업 | 시스템 | 예상 |
+|---|------|--------|------|
+| 4.1 | BSW-OS "Archetype 매칭 + 즉시 구축" CTA | BSW-OS | 4h |
+| 4.2 | BSW-OS 핸드오프 미리보기 (Archetype + Hub 매칭 표시) | BSW-OS | 3h |
+| 4.3 | GENESIS Studio BSW 연계 대시보드 v2 | GENESIS | 4h |
+| 4.4 | GENESIS Mission Card BSW 배지 + 교차 부스트 표시 | GENESIS | 3h |
+| 4.5 | DB 마이그레이션 (양쪽) | 공통 | 3h |
+
+> **총 예상:** ~6주 (약 95시간), Phase 1-2로 4주 내 핵심 기능 MVP
 
 ---
 
-## 9. 검증 계획
+## 7. 검증 계획 v2.0
 
 | 검증 항목 | 방법 | 성공 기준 |
 |---------|------|---------|
-| 핸드오프 패키지 생성 | BSW-OS Quick Audit → handoff API 호출 | 유효한 JSON, 모든 필드 non-null |
-| 업종 매핑 정확도 | 13개 BSW 업종 → GENESIS 업종 매핑 테스트 | 100% 매핑 성공 |
-| Turnkey 빌드 | 핸드오프 → GENESIS onboard → 사이트 생성 | 5분 이내 완전한 사이트 |
-| GNB 자동 구축 | RED 갭 3건 포함 핸드오프 → GNB 검증 | 누락 노드 0개 |
-| Growth 미션 생성 | BSW 갭 5건 시드 → 주간 미션 확인 | 3개 이상 BSW 미션 포함 |
-| 재진단 δ 측정 | 4주 운영 → 재진단 → AEPI δ 계산 | δ > 0 (개선 확인) |
-| E2E 폐루프 | 진단→구축→4주 운영→재진단 | 전체 플로우 무중단 |
+| Handoff v2 생성 | BSW Audit → handoff v2 API | 모든 v2 필드 유효, Archetype 매칭 confidence ≥ 0.5 |
+| Archetype 매칭 | 11개 아키타입 각각 Vec7D 테스트 | 정확한 업종별 매칭, 코사인 유사도 ≥ 0.6 |
+| Hub Pool 매칭 | 30개 Hub 콘텐츠 × 15 RED 갭 매칭 | 매칭율 ≥ 40% (6+/15) |
+| Hub Content 공급 | direct 15개 즉시 활성화 | 100% active 전환 |
+| QIS 예측 교차 | BSW 예측 + Hub 질문 교차 | 교차 부스트 적용 확인 |
+| Expected Layer | must_include 5개 + must_not_do 3개 테스트 | 100% 검증 통과 |
+| S2P Gap 매핑 | 10영역 → TF8 8블록 변환 | 모든 블록 점수 0-100 범위 |
+| Growth v2 | 5중 소스 기회 발견 10개 | BSW 소스 ≥ 3개 포함 |
+| E2E 폐루프 | 진단→매칭→구축→4주 운영→재진단 | AEPI δ > 0, BAIR δ > 0 |
+| Elo 학습 | 2개 아키타입 비교 (4주 후) | Elo Rating 차이 발생 |
 
 ---
 
-> **이 명세서를 기반으로 Phase 1부터 순차적으로 구현하면, 4주 내에 "AEO 진단 → 즉시 구축 → 자동 성장 → 재진단"의 완전한 폐루프가 실현됩니다.**
+> **v2.0 결론:** QIS 양방향 연동과 Hub Platform 통합으로, 핸드오프 패키지가 v1.0의 9개 섹션에서 v2.0의 **14개 섹션**(+QIS 자산, Archetype 힌트, S2P 갭, Hub 콘텐츠 매칭, Expected Layer)으로 확장되었습니다. 이를 통해 GENESIS의 **아키타입 시스템(11종)**, **Hub Content Pool(업종당 30+)**, **Expected Layer(5-tier)**, **Predicted Content Pipeline(24h 자동 리뷰)** 이 BSW-OS 진단 데이터와 완전히 맞물려, "진단 5초 → 구축 수 분 → 성장 매주 자동 → 재진단 매월 자동"의 **완전 자동화 AEO 플랫폼**이 실현됩니다.
