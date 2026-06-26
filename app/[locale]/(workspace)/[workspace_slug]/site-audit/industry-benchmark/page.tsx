@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   BarChart2, Play, RefreshCw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronUp, TrendingUp, Target, Database, Plus, Trash2, Globe,
-  LayoutDashboard, Award, Sparkles, Crosshair
+  LayoutDashboard, Award, Sparkles, Crosshair, Pause, SkipForward
 } from "lucide-react";
 import { INDUSTRY_TAXONOMY } from "../../../../../../lib/industry/industry-taxonomy";
 import {
@@ -13,6 +13,8 @@ import {
   ReferenceSite,
 } from "../../../../../../lib/industry/reference-sites-registry";
 import {
+  auditSingleSite,
+  aggregateBatchAudit,
   runBatchAudit,
   getBenchmarkProfile,
   getIndustryBlueprint,
@@ -33,10 +35,11 @@ import type { BenchmarkHistoryPoint } from "../../../../../../lib/benchmark/temp
 import type { QisBenchmarkIntegration } from "../../../../../../lib/benchmark/qis-benchmark-bridge";
 
 interface RunState {
-  status: 'idle' | 'running' | 'done' | 'error';
-  progress: number;
+  status: 'idle' | 'running' | 'paused' | 'done' | 'error';
+  progress: number;   // 완료된 사이트 수
   total: number;
   currentSite?: string;
+  resumeFromIndex?: number;  // 이어하기 시작 인덱스
   error?: string;
 }
 
@@ -59,6 +62,10 @@ export default function IndustryBenchmarkPage() {
     status: 'idle', progress: 0, total: 0
   });
   const [benchmarkData, setBenchmarkData] = useState<BenchmarkData | null>(null);
+  // 수집된 스냅샷 누적 (일시정지 후 재개 시에도 유지)
+  const [collectedSnapshots, setCollectedSnapshots] = useState<SiteAuditSnapshot[]>([]);
+  // 일시정지 요청 플래그 (ref: 루프 내에서 즉시 감지)
+  const pauseRequestedRef = useRef(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['sites', 'results', 'infographic']));
   const [addSiteForm, setAddSiteForm] = useState<{
     url: string; brandName: string; tier: "excellent" | "average" | "poor"; curatorNotes: string;
@@ -85,41 +92,93 @@ export default function IndustryBenchmarkPage() {
     });
   };
 
+  // ──────────────────────────────────────────────────────────
+  // 배치 감사 실행 (클라이언트 주도 오케스트레이션)
+  // ──────────────────────────────────────────────────────────
+
+  /** 새로 시작 */
   const handleRunBatchAudit = async () => {
+    pauseRequestedRef.current = false;
     const total = referenceSites.length;
-    setRunState({ status: 'running', progress: 0, total, currentSite: referenceSites[0]?.brandName || '준비 중...' });
+    setCollectedSnapshots([]);
     setBenchmarkData(null);
+    setRunState({ status: 'running', progress: 0, total, currentSite: referenceSites[0]?.brandName });
+    await runLoop(referenceSites, 0, [], total);
+  };
 
-    try {
-      // 실제 소요 시간에 맞춰 가짜 진행률 속도 현실화 (Quick: 5초/사이트, Full: 30초/사이트)
-      const progressInterval = setInterval(() => {
-        setRunState(prev => {
-          if (prev.progress < total - 1) {
-            const nextIdx = prev.progress + 1;
-            return {
-              ...prev,
-              progress: nextIdx,
-              currentSite: referenceSites[nextIdx]?.brandName || '분석 중...',
-            };
-          }
-          return prev;
+  /** 이어서 계속하기 */
+  const handleResume = async () => {
+    pauseRequestedRef.current = false;
+    const total = referenceSites.length;
+    const from = runState.resumeFromIndex ?? collectedSnapshots.length;
+    setRunState(prev => ({ ...prev, status: 'running', currentSite: referenceSites[from]?.brandName }));
+    await runLoop(referenceSites, from, collectedSnapshots, total);
+  };
+
+  /** 일시정지 요청 */
+  const handlePause = () => {
+    pauseRequestedRef.current = true;
+  };
+
+  /**
+   * 공통 루프 실행 — startIndex부터 sites 전체를 1개씩 순차 감사.
+   * pauseRequestedRef가 true이면 현재 사이트 완료 후 중지.
+   */
+  const runLoop = async (
+    sites: ReferenceSite[],
+    startIndex: number,
+    prevSnapshots: SiteAuditSnapshot[],
+    total: number
+  ) => {
+    const accumulated: SiteAuditSnapshot[] = [...prevSnapshots];
+
+    for (let i = startIndex; i < sites.length; i++) {
+      const site = sites[i];
+
+      // 일시정지 요청 확인 — 현재 사이트 시작 전 체크
+      if (pauseRequestedRef.current) {
+        setCollectedSnapshots(accumulated);
+        setRunState({
+          status: 'paused',
+          progress: accumulated.length,
+          total,
+          currentSite: undefined,
+          resumeFromIndex: i,
         });
-      }, auditMode === 'full' ? 30000 : 5000);
+        return;
+      }
 
-      const result = await runBatchAudit(selectedSubIndustry, "admin", auditMode);
-      clearInterval(progressInterval);
-      
-      setBenchmarkData({
-        snapshots: result.snapshots,
-        profile: result.profile,
-        blueprint: result.blueprint,
-      });
-      setRunState({ status: 'done', progress: result.snapshots.length, total });
+      // 현재 사이트 표시
+      setRunState(prev => ({ ...prev, currentSite: site.brandName }));
+
+      try {
+        const snapshot = await auditSingleSite(site, selectedSubIndustry, auditMode);
+        accumulated.push(snapshot);
+      } catch (err: unknown) {
+        // auditSingleSite 내부에서 이미 fallback 처리하지만, 만약을 대비
+        console.error(`[runLoop] Unexpected error for ${site.url}:`, err);
+      }
+
+      // 진행률 즉시 업데이트 (실제 완료 기준)
+      setCollectedSnapshots([...accumulated]);
+      setRunState(prev => ({
+        ...prev,
+        progress: accumulated.length,
+        currentSite: sites[i + 1]?.brandName,
+      }));
+    }
+
+    // 전체 완료 → 집계 실행
+    try {
+      const { profile, blueprint } = await aggregateBatchAudit(accumulated, selectedSubIndustry);
+      setBenchmarkData({ snapshots: accumulated, profile, blueprint });
+      setRunState({ status: 'done', progress: accumulated.length, total });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setRunState(prev => ({ ...prev, status: 'error', error: msg }));
     }
   };
+
 
   const handleLoadExisting = async () => {
     try {
@@ -243,26 +302,61 @@ export default function IndustryBenchmarkPage() {
           </div>
         </div>
 
-        {/* 액션 버튼 */}
+        {/* 액션 버튼 — 상태별 렌더링 */}
         <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={handleRunBatchAudit}
-            disabled={runState.status === 'running' || referenceSites.length === 0}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-indigo-500/20"
-          >
-            {runState.status === 'running' ? (
-              <><RefreshCw className="h-4 w-4 animate-spin" /> 감사 중... ({runState.progress}/{runState.total})</>
-            ) : (
-              <><Play className="h-4 w-4" /> {selectedSubIndustry} 배치 감사 실행</>
-            )}
-          </button>
-          <button
-            onClick={handleLoadExisting}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm rounded-xl border border-slate-700 transition-all cursor-pointer"
-          >
-            <Database className="h-4 w-4" />
-            기존 데이터 불러오기
-          </button>
+
+          {/* [1] 실행 버튼: idle / paused / done / error 상태에서만 표시 */}
+          {(runState.status === 'idle' || runState.status === 'done' || runState.status === 'error') && (
+            <button
+              onClick={handleRunBatchAudit}
+              disabled={referenceSites.length === 0}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-indigo-500/20"
+            >
+              <Play className="h-4 w-4" />
+              {selectedSubIndustry} 배치 감사 실행
+            </button>
+          )}
+
+          {/* [2] 이어서 계속하기: paused 상태에서만 표시 */}
+          {runState.status === 'paused' && (
+            <button
+              onClick={handleResume}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-500/20"
+            >
+              <SkipForward className="h-4 w-4" />
+              이어서 계속하기 ({runState.resumeFromIndex ?? collectedSnapshots.length}/{runState.total}에서 재개)
+            </button>
+          )}
+
+          {/* [3] 일시정지: running 상태에서만 표시 */}
+          {runState.status === 'running' && (
+            <>
+              <button
+                onClick={handlePause}
+                className="flex items-center gap-2 px-5 py-2.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 font-bold text-sm rounded-xl border border-amber-600/40 transition-all cursor-pointer"
+              >
+                <Pause className="h-4 w-4" />
+                일시정지 (현재 사이트 완료 후)
+              </button>
+              <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                <RefreshCw className="h-3 w-3 animate-spin text-indigo-400" />
+                {runState.currentSite && <span className="font-semibold text-indigo-300">{runState.currentSite}</span>}
+                감사 중…
+              </span>
+            </>
+          )}
+
+          {/* [4] 기존 데이터 불러오기: running 아닔 상태에서만 */}
+          {runState.status !== 'running' && (
+            <button
+              onClick={handleLoadExisting}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm rounded-xl border border-slate-700 transition-all cursor-pointer"
+            >
+              <Database className="h-4 w-4" />
+              기존 데이터 불러오기
+            </button>
+          )}
+
           {referenceSites.length === 0 && (
             <p className="text-xs text-amber-400">
               ⚠️ 이 업종은 아직 레퍼런스 사이트가 없습니다. 아래에서 추가해주세요.
@@ -270,51 +364,89 @@ export default function IndustryBenchmarkPage() {
           )}
         </div>
 
-        {/* 진행 상태 */}
-        {runState.status === 'running' && (
-          <div className="bg-slate-800/50 rounded-xl p-5 space-y-3">
+        {/* 진행 상태 패널 (running + paused 통합) */}
+        {(runState.status === 'running' || runState.status === 'paused') && (
+          <div className={`rounded-xl p-5 space-y-3 border ${
+            runState.status === 'paused'
+              ? 'bg-amber-950/30 border-amber-700/30'
+              : 'bg-slate-800/50 border-slate-700/30'
+          }`}>
+            {/* 헤더 */}
             <div className="flex items-center justify-between text-xs text-slate-400">
               <span className="flex items-center gap-2">
-                <RefreshCw className="h-3.5 w-3.5 animate-spin text-indigo-400" />
-                벤치마크 감사 진행 중...
+                {runState.status === 'running' ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                    <span>벤치마크 감사 진행 중…
+                      {runState.currentSite && (
+                        <span className="ml-1 font-bold text-indigo-300">({runState.currentSite})</span>
+                      )}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Pause className="h-3.5 w-3.5 text-amber-400" />
+                    <span className="text-amber-400 font-semibold">⏸ 일시정지됨 — 위의 [이어서 계속하기]로 재개합니다.</span>
+                  </>
+                )}
               </span>
               <span className="font-bold text-indigo-400">{runState.progress}/{runState.total}개 완료</span>
             </div>
+
+            {/* 실제 프로그레스 바 */}
             <div className="h-2.5 bg-slate-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
+                className={`h-full rounded-full transition-all duration-500 ${
+                  runState.status === 'paused'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                    : 'bg-gradient-to-r from-violet-500 to-indigo-500'
+                }`}
                 style={{ width: `${runState.total ? (runState.progress / runState.total) * 100 : 0}%` }}
               />
             </div>
-            <p className="text-[10px] text-slate-500 text-center mt-2 animate-pulse">
-              서버에서 사이트 일괄 감사가 순차적으로 진행 중입니다. (예상 소요 시간: {auditMode === 'full' ? Math.ceil(runState.total * 1.5) : Math.ceil(runState.total * 0.2)}분)<br/>
-              완료 시까지 창을 유지해 주세요.
-            </p>
-            {/* 사이트별 상태 표시 */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+
+            {/* 사이트별 상태 그리드 — collectedSnapshots 기반 정확한 판단 */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
               {referenceSites.map((site, idx) => {
-                const isCompleted = idx < runState.progress;
-                const isCurrent = idx === runState.progress;
+                const snap = collectedSnapshots.find(s => s.siteId === site.id);
+                const isCompleted = !!snap;
+                const isCurrent = runState.status === 'running' && runState.currentSite === site.brandName;
+                const isPausedAt = runState.status === 'paused' && idx === (runState.resumeFromIndex ?? 0);
                 return (
                   <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
-                    isCompleted 
-                      ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
+                    isCompleted
+                      ? snap?.error
+                        ? 'bg-red-500/5 border-red-500/20 text-red-400'
+                        : 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
                       : isCurrent
                       ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 animate-pulse'
+                      : isPausedAt
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
                       : 'bg-slate-800/30 border-slate-700/50 text-slate-500'
                   }`}>
                     {isCompleted ? (
-                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      snap?.error ? <XCircle className="h-3 w-3 shrink-0" /> : <CheckCircle2 className="h-3 w-3 shrink-0" />
                     ) : isCurrent ? (
                       <RefreshCw className="h-3 w-3 shrink-0 animate-spin" />
+                    ) : isPausedAt ? (
+                      <Pause className="h-3 w-3 shrink-0" />
                     ) : (
                       <Clock className="h-3 w-3 shrink-0" />
                     )}
                     <span className="truncate">{site.brandName}</span>
+                    {isCompleted && !snap?.error && (
+                      <span className="ml-auto text-[9px] font-mono opacity-60">L3:{Math.round(snap.contentSemanticScore)}</span>
+                    )}
                   </div>
                 );
               })}
             </div>
+
+            {runState.status === 'running' && (
+              <p className="text-[10px] text-slate-500 text-center animate-pulse">
+                현재 사이트 감사 시 헤더 일시정지를 누르면 해당 사이트 완료 후 중지됩니다. 다시 오면 [이어서 계속하기]로 재개 가능.
+              </p>
+            )}
           </div>
         )}
 
@@ -326,9 +458,16 @@ export default function IndustryBenchmarkPage() {
         )}
 
         {runState.status === 'error' && (
-          <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-            <XCircle className="h-4 w-4" />
-            오류: {runState.error}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+              <XCircle className="h-4 w-4" />
+              오류: {runState.error}
+            </div>
+            {collectedSnapshots.length > 0 && (
+              <p className="text-xs text-slate-400 pl-1">
+                부분 완료된 {collectedSnapshots.length}개 스냅샷이 있습니다. 위의 [이어서 계속하기]로 나머지를 재개할 수 있습니다.
+              </p>
+            )}
           </div>
         )}
       </div>
