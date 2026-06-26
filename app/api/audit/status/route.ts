@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const db = getSupabaseAdminClient();
     const { data, error } = await db
       .from('audit_sessions')
-      .select('status, progress, result_data, last_checkpoint_step')
+      .select('status, progress, result_data, last_checkpoint_step, tier, checkpoint_data')
       .eq('id', sessionId)
       .single();
 
@@ -25,7 +25,9 @@ export async function GET(request: Request) {
       status: data.status,
       progress: data.progress,
       last_checkpoint_step: data.last_checkpoint_step,
-      ...(data.status === 'completed' && { resultReady: true })
+      tier: data.tier,
+      checkpoint_data: data.checkpoint_data,
+      ...(data.status === 'completed' && { resultReady: true }),
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
