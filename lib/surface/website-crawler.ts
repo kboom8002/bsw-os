@@ -40,6 +40,10 @@ export interface CrawledPage {
   outboundLinks?: { href: string; text: string; rel?: string }[];
   internalLinks?: { href: string; text: string }[];
   wordCount?: number;
+
+  // === 감사 엔진 보강 (SPA 이중 소스) ===
+  trustZoneText?: string;                // nav/footer에서 추출한 Trust 신호 텍스트
+  isSpaRendered?: boolean;               // Jina 폴백으로 렌더된 페이지인지
 }
 
 export interface CrawlResult {
@@ -98,8 +102,11 @@ function findInSchema(schema: any, key: string): string | null {
 
 /**
  * Custom RegExp HTML Parser
+ * @param url 페이지 URL
+ * @param html 원본 SSR HTML
+ * @param jinaHtml Jina 렌더링 HTML (SPA 이중 소스 — optional)
  */
-export function parseHtml(url: string, html: string): CrawledPage {
+export function parseHtml(url: string, html: string, jinaHtml?: string): CrawledPage {
   // 1. Title
   let title = '';
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -153,8 +160,19 @@ export function parseHtml(url: string, html: string): CrawledPage {
     }
   }
 
-  // 6. Body Text extraction (strip head, scripts, styles, header, nav, footer, etc.)
-  let bodyContent = html;
+  // 6. Trust Zone 텍스트 보존 (nav/footer에서 E-E-A-T Trust 신호 추출)
+  const trustZoneParts: string[] = [];
+  const footerMatches = html.match(/<footer[\s\S]*?<\/footer>/gi) || [];
+  const navMatches = html.match(/<nav[\s\S]*?<\/nav>/gi) || [];
+  for (const zone of [...footerMatches, ...navMatches]) {
+    const zoneText = decodeHtmlEntities(zone.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+    if (zoneText.length > 10) trustZoneParts.push(zoneText);
+  }
+  const trustZoneText = trustZoneParts.join(' ').substring(0, 5000);
+
+  // 7. Body Text extraction — Jina 이중 소스가 있으면 Jina HTML에서 bodyText 추출
+  const bodySource = jinaHtml || html;
+  let bodyContent = bodySource;
   bodyContent = bodyContent.replace(/<head\b[\s\S]*?<\/head>/i, '');
   bodyContent = bodyContent.replace(/<script\b[\s\S]*?<\/script>/gi, '');
   bodyContent = bodyContent.replace(/<style\b[\s\S]*?<\/style>/gi, '');
@@ -167,6 +185,17 @@ export function parseHtml(url: string, html: string): CrawledPage {
 
   if (bodyText.length > 50000) {
     bodyText = bodyText.substring(0, 50000) + '... [truncated]';
+  }
+
+  // Jina 이중 소스가 있으면 headings도 Jina HTML에서 추출 보강
+  if (jinaHtml && headings.length === 0) {
+    const jinaHeadingRegex = /<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+    let jh;
+    while ((jh = jinaHeadingRegex.exec(jinaHtml)) !== null) {
+      const level = parseInt(jh[1], 10);
+      const text = decodeHtmlEntities(jh[2].replace(/<[^>]+>/g, '').trim());
+      if (text) headings.push({ level, text });
+    }
   }
 
   // Extended Parse Items
@@ -366,7 +395,9 @@ export function parseHtml(url: string, html: string): CrawledPage {
     headings,
     schemas,
     bodyText,
-    rawHtml: html.substring(0, 10000),
+    rawHtml: html.substring(0, 50000),
+    trustZoneText,
+    isSpaRendered: !!jinaHtml,
     canonical: canonicalMatch ? canonicalMatch[1] : undefined,
     metaRobots: robotsMatch ? robotsMatch[1] : undefined,
     metaAuthor: authorMatch ? authorMatch[1] : undefined,
@@ -545,18 +576,16 @@ async function getSslDetails(urlStr: string): Promise<{ enabled: boolean; expiry
 export class WebsiteCrawler {
   private userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (BSW-AEO-Bot/1.0)';
 
-  async fetchPage(url: string, isSpaFallback = false): Promise<{ content: string; status: number; ttfb?: number }> {
+  async fetchPage(url: string, isSpaFallback = false): Promise<{ content: string; status: number; ttfb?: number; jinaHtml?: string; isSpaRendered?: boolean }> {
     const startTime = performance.now();
     try {
-      const targetUrl = isSpaFallback ? `https://r.jina.ai/${url}` : url;
-      
-      const res = await fetch(targetUrl, {
+      const res = await fetch(url, {
         headers: {
           'User-Agent': this.userAgent,
-          'Accept': isSpaFallback ? 'text/plain' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
         },
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(10000)
       });
       
       const ttfb = performance.now() - startTime;
@@ -565,19 +594,55 @@ export class WebsiteCrawler {
         throw new Error(`Status ${res.status}`);
       }
       
-      let content = await res.text();
+      const content = await res.text();
       
-      if (!isSpaFallback && content.length < 1500 && (content.includes('<script') || content.includes('id="root"') || content.includes('id="app"'))) {
-        console.warn(`[Crawler] SPA detected for ${url}. Triggering headless rendering fallback...`);
-        return this.fetchPage(url, true);
+      // SPA 감지: HTML이 매우 짧고 JS 렌더링 마커가 있는 경우
+      const isSpa = content.length < 2000 && (
+        content.includes('id="root"') || content.includes('id="app"') ||
+        content.includes('id="__next"') || content.includes('__NEXT_DATA__')
+      );
+      
+      if (isSpa) {
+        console.warn(`[Crawler] SPA detected for ${url}. Fetching Jina rendered HTML...`);
+        try {
+          const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
+            headers: {
+              'User-Agent': this.userAgent,
+              'Accept': 'text/html',  // HTML 형태로 요청
+              'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
+            },
+            signal: AbortSignal.timeout(15000)
+          });
+          if (jinaRes.ok) {
+            const jinaContent = await jinaRes.text();
+            // 이중 소스: 원본 HTML(head) + Jina HTML(body)
+            return { content, status: res.status, ttfb, jinaHtml: jinaContent, isSpaRendered: true };
+          }
+        } catch (jinaErr: any) {
+          console.warn(`[Crawler] Jina fallback failed for ${url}: ${jinaErr.message}`);
+        }
+        // Jina도 실패하면 원본 HTML이라도 반환
+        return { content, status: res.status, ttfb, isSpaRendered: true };
       }
       
       return { content, status: res.status, ttfb };
     } catch (e: any) {
-      if (!isSpaFallback) {
-        console.warn(`[Crawler] Initial fetch failed for ${url}, trying SPA fallback...`);
-        return this.fetchPage(url, true);
-      }
+      // 원본 fetch 자체가 실패하면 Jina로 단독 시도
+      console.warn(`[Crawler] Initial fetch failed for ${url}, trying Jina fallback...`);
+      try {
+        const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
+          headers: {
+            'User-Agent': this.userAgent,
+            'Accept': 'text/html',
+            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
+          },
+          signal: AbortSignal.timeout(15000)
+        });
+        if (jinaRes.ok) {
+          const jinaContent = await jinaRes.text();
+          return { content: jinaContent, status: jinaRes.status, isSpaRendered: true };
+        }
+      } catch (_) {}
       throw new Error(`Failed to fetch ${url}: ${e.message}`);
     }
   }
@@ -685,10 +750,10 @@ export class WebsiteCrawler {
         const url = activeUrls[i];
         try {
           console.log(`[Crawler] Fetching sitemap URL: ${url}`);
-          const { content: html, status, ttfb } = await this.fetchPage(url);
+          const { content: html, status, ttfb, jinaHtml } = await this.fetchPage(url);
           if (i === 0) firstPageTtfb = ttfb;
           httpStatusCodes.push({ url, status });
-          crawled.push(parseHtml(url, html));
+          crawled.push(parseHtml(url, html, jinaHtml));
         } catch (e: any) {
           console.warn(`[Crawler] Skip ${url}: ${e.message}`);
           httpStatusCodes.push({ url, status: 500 });
@@ -719,10 +784,10 @@ export class WebsiteCrawler {
 
       try {
         console.log(`[Crawler] Fetching: ${url} (${crawled.length + 1}/${maxPages})`);
-        const { content: html, status, ttfb } = await this.fetchPage(url);
+        const { content: html, status, ttfb, jinaHtml } = await this.fetchPage(url);
         if (crawled.length === 0) firstPageTtfb = ttfb;
         httpStatusCodes.push({ url, status });
-        const parsed = parseHtml(url, html);
+        const parsed = parseHtml(url, html, jinaHtml);
         crawled.push(parsed);
 
         const discovered = discoverLinks(url, html);

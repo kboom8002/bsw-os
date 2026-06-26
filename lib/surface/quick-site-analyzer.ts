@@ -82,6 +82,55 @@ export class QuickSiteAnalyzer {
     // 2. Extract entities from HTML
     const entities = this.extractEntitiesFromHtml(pages, workspaceId, websiteUrl);
 
+    // B5 수정: entities가 비었으면 브랜드 기본 entity 주입
+    if (entities.length === 0) {
+      let hostname = websiteUrl;
+      try { hostname = new URL(websiteUrl).hostname; } catch {}
+      const now = new Date().toISOString();
+      entities.push({
+        id: 'se-fallback-brand',
+        workspace_id: workspaceId,
+        website_url: websiteUrl,
+        source_page_url: websiteUrl,
+        surface_type: 'brand_identity',
+        entity_name: brandName || hostname,
+        entity_content: { domain: hostname, source: 'fallback-brand', note: 'SPA/크롤링 제한으로 자동 생성' },
+        completeness_score: 30,
+        eeat_strength: 20,
+        has_schema_support: false,
+        extraction_model: 'fallback',
+        extraction_confidence: 30,
+        extracted_at: now
+      });
+      // bodyText에서 추가 entity 추출 시도 (마크다운 heading 패턴)
+      for (const page of pages) {
+        const text = page.bodyText || '';
+        const mdHeadingRegex = /^#{1,3}\s+(.+)$/gm;
+        let mdMatch;
+        while ((mdMatch = mdHeadingRegex.exec(text)) !== null) {
+          const headingText = mdMatch[1].trim();
+          if (headingText.length >= 4 && headingText.length <= 200) {
+            const surfaceType = this.classifyHeadingText(headingText);
+            entities.push({
+              id: `se-md-${entities.length}`,
+              workspace_id: workspaceId,
+              website_url: websiteUrl,
+              source_page_url: page.url,
+              surface_type: surfaceType,
+              entity_name: headingText,
+              entity_content: { source: 'markdown-heading' },
+              completeness_score: 45,
+              eeat_strength: this.estimateHeadingEeat(headingText),
+              has_schema_support: false,
+              extraction_model: 'markdown-parser',
+              extraction_confidence: 50,
+              extracted_at: now
+            });
+          }
+        }
+      }
+    }
+
     // 3. Estimate scores and build snapshot
     const snapshot = this.estimateSnapshot(workspaceId, websiteUrl, entities, pages, techInfra, schemaQuality, contentSemantic);
 
@@ -99,7 +148,7 @@ export class QuickSiteAnalyzer {
       snapshot,
       gaps,
       crawledPages: pages.length,
-      auditMode: 'estimated',
+      auditMode: pages.some(p => p.isSpaRendered) ? 'partial' : 'estimated',
       techInfra,
       schemaQuality,
       contentSemantic
@@ -342,8 +391,11 @@ export class QuickSiteAnalyzer {
 
     const estimatedReflected = Math.round(totalEntities * Math.min(1, aepi / 100));
 
-    // L4 Reflection properties (mock baseline)
-    const citationRate = Math.round(aepi * 0.7);
+    // L4 Reflection properties
+    // B10 수정: AEPI=0일 때 L1+L2+L3 기반 최솟값 보정
+    const citationRate = aepi > 5
+      ? Math.round(aepi * 0.7)
+      : Math.max(5, Math.round((techInfra.techInfraScore * 0.3 + schemaQuality.schemaQualityScore * 0.4 + contentSemantic.contentSemanticScore * 0.3) * 0.5));
 
     return {
       workspace_id: workspaceId,

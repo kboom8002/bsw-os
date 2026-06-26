@@ -49,6 +49,10 @@ export class TechInfraAuditor {
     let aiCrawlerAccessScore = 100;
     const targetAiBots = ['OAI-SearchBot', 'GPTBot', 'Google-Extended', 'PerplexityBot', 'Anthropic-AI'];
     let disallowedCount = 0;
+
+    // B3 수정: SSL 소켓 실패 시 URL scheme으로 HTTPS 보정
+    const httpsEnabled = !!crawlResult.httpsStatus
+      || (pages[0]?.url?.startsWith('https://') ?? false);
     
     for (const bot of targetAiBots) {
       const policy = robotsBotMatrix.find(p => p.botName.toLowerCase() === bot.toLowerCase());
@@ -68,7 +72,7 @@ export class TechInfraAuditor {
     aiCrawlerAccessScore = Math.max(0, 100 - disallowedCount * 20);
 
     // 2. SSL / HTTPS (15%)
-    const httpsEnabled = !!crawlResult.httpsStatus;
+
     let sslCertValid = httpsEnabled;
     let sslCertExpiryDays = 0;
     
@@ -137,6 +141,10 @@ export class TechInfraAuditor {
           recommendation: 'Implement static site generation (SSG) or configure a CDN for caching.'
         });
       }
+    } else {
+      // B7 수정: TTFB 측정 불가 시 neutral 처리 (0점 방지)
+      ttfbGrade = 'moderate';
+      ttfbScore = 50;
     }
 
     // Broken links and Status codes
@@ -251,16 +259,11 @@ export class TechInfraAuditor {
       });
     }
 
-    // Check if Jina or headful SPA rendering was fallback-triggered
-    let spaDetected = false;
+    // B6 수정: SPA 감지를 isSpaRendered 플래그 기반으로 정밀화
+    let spaDetected = pages.some(p => p.isSpaRendered === true);
     let ssrPages = 0;
     for (const page of pages) {
-      if (page.rawHtml.includes('id="root"') || page.rawHtml.includes('id="app"') || page.rawHtml.includes('__next')) {
-        if (page.rawHtml.length < 5000 && page.rawHtml.includes('<script')) {
-          spaDetected = true;
-        }
-      }
-      if (!page.rawHtml.includes('r.jina.ai')) {
+      if (!page.isSpaRendered) {
         ssrPages++;
       }
     }

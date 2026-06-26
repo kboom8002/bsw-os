@@ -120,6 +120,8 @@ export class ContentSemanticAnalyzer {
     for (const page of pages) {
       const text = page.bodyText || '';
       const html = page.rawHtml || '';
+      // B2 연계: Trust 신호 스캔에 trustZoneText 포함
+      const trustText = (page.trustZoneText || '') + ' ' + text;
       
       // Experience
       if (!expReviews && (text.includes('후기') || text.includes('리뷰') || text.includes('review') || text.includes('testimonial'))) {
@@ -161,14 +163,14 @@ export class ContentSemanticAnalyzer {
         autAwards = true;
       }
 
-      // Trust
-      if (!truPrivacy && (page.internalLinks || []).some(l => l.href.includes('/privacy') || l.href.includes('/terms') || l.text.includes('개인정보') || l.text.includes('이용약관'))) {
+      // Trust — B2 수정: trustZoneText(네비/푸터)도 스캔
+      if (!truPrivacy && ((page.internalLinks || []).some(l => l.href.includes('/privacy') || l.href.includes('/terms') || l.text.includes('개인정보') || l.text.includes('이용약관')) || trustText.includes('개인정보') || trustText.includes('privacy') || trustText.includes('이용약관') || trustText.includes('terms'))) {
         truPrivacy = true;
       }
-      if (!truContact && (text.includes('고객센터') || text.includes('전화번호') || text.includes('이메일') || text.includes('02-') || text.includes('070-') || text.includes('0507-') || text.includes('주소'))) {
+      if (!truContact && (trustText.includes('고객센터') || trustText.includes('전화번호') || trustText.includes('이메일') || trustText.includes('02-') || trustText.includes('070-') || trustText.includes('0507-') || trustText.includes('주소') || trustText.includes('1544-') || trustText.includes('1566-') || trustText.includes('1577-') || trustText.includes('1588-') || trustText.includes('1600-') || trustText.includes('1800-') || trustText.includes('080-') || trustText.includes('contact'))) {
         truContact = true;
       }
-      if (!truRefund && (text.includes('refund') || text.includes('warranty') || text.includes('환불') || text.includes('보증') || text.includes('AS') || text.includes('A/S'))) {
+      if (!truRefund && (trustText.includes('refund') || trustText.includes('warranty') || trustText.includes('환불') || trustText.includes('보증') || trustText.includes('AS') || trustText.includes('A/S') || trustText.includes('교환') || trustText.includes('반품'))) {
         truRefund = true;
       }
     }
@@ -235,7 +237,8 @@ export class ContentSemanticAnalyzer {
       const questionInHeading = (page.headings || []).some(h => h.text.includes('?') || h.text.includes('어떻게') || h.text.includes('왜') || h.text.includes('무엇') || h.text.includes('how') || h.text.includes('why') || h.text.includes('what'));
       
       // Compute score
-      let directAnswerScore = 50;
+      // B9 수정: bodyText가 너무 짧으면 측정 불가로 간주
+      let directAnswerScore = text.length < 50 ? 20 : 50;
       if (firstSentenceLength > 0 && firstSentenceLength <= 15) directAnswerScore += 20;
       if (first100WordsContainAnswer) directAnswerScore += 20;
       if (questionInHeading) directAnswerScore += 10;
@@ -376,14 +379,19 @@ export class ContentSemanticAnalyzer {
     }
 
     // 5. Quantitative Data Density
+    // B12 수정: 한국어 워드카운트 보정
     let numbersCount = 0;
     let totalWords = 0;
+    const isKoreanSite = pages.some(p => /[가-힣]/.test((p.bodyText || '').substring(0, 200)));
     for (const page of pages) {
       const text = page.bodyText || '';
       const words = text.split(/\s+/);
-      totalWords += words.length;
+      // 한국어 사이트: 글자 수 기반 보정 (평균 3.5자/단어)
+      const effectiveWordCount = isKoreanSite
+        ? Math.round(text.replace(/\s+/g, '').length / 3.5)
+        : words.length;
+      totalWords += effectiveWordCount;
       for (const word of words) {
-        // match numbers or percentages e.g. 95%, 10,000, 1.2
         if (/^\d+/.test(word) || word.includes('%')) {
           numbersCount++;
         }

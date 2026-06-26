@@ -206,6 +206,22 @@ export class SchemaQualityAuditor {
       }
     }
 
+    // B8 수정: Microdata (itemscope/itemtype) 및 RDFa 감지 — JSON-LD 없는 사이트 보완
+    let microdataTypeCount = 0;
+    let pagesWithMicrodata = 0;
+    for (const page of pages) {
+      const rawHtml = page.rawHtml || '';
+      const microdataRegex = /itemtype=["']https?:\/\/schema\.org\/([^"']+)["']/gi;
+      let mdMatch;
+      let pageHasMicrodata = false;
+      while ((mdMatch = microdataRegex.exec(rawHtml)) !== null) {
+        uniqueSchemaTypes.add(mdMatch[1]);
+        microdataTypeCount++;
+        pageHasMicrodata = true;
+      }
+      if (pageHasMicrodata) pagesWithMicrodata++;
+    }
+
     function auditFields(type: string, required: string[], recommended: string[], obj: any, url: string): SchemaAuditItem {
       const missingRequired: string[] = [];
       const missingRecommended: string[] = [];
@@ -391,7 +407,9 @@ export class SchemaQualityAuditor {
     };
 
     // Calculate overall Schema Quality Score
-    const schemaCoverage = pages.length > 0 ? Math.round((pagesWithSchemas / pages.length) * 100) : 0;
+    // B8: JSON-LD + Microdata 합산
+    const totalPagesWithStructuredData = Math.min(pages.length, pagesWithSchemas + pagesWithMicrodata);
+    const schemaCoverage = pages.length > 0 ? Math.round((totalPagesWithStructuredData / pages.length) * 100) : 0;
     
     // Schema availability & completeness
     let schemaCount = 0;
@@ -405,7 +423,9 @@ export class SchemaQualityAuditor {
       }
     }
     
-    const avgSchemaCompletenessScore = schemaCount > 0 ? schemaScoreSum / schemaCount : 0;
+    const avgSchemaCompletenessScore = schemaCount > 0 
+      ? schemaScoreSum / schemaCount 
+      : (microdataTypeCount > 0 ? 40 : 0); // B8: Microdata가 있으면 최소 40
     
     // Weights: 40% avg schema completeness + 20% schema coverage + 25% OG completeness + 15% title/desc meta tags
     const avgTitleScore = titleOptimization.reduce((sum, item) => sum + item.score, 0) / (pages.length || 1);
