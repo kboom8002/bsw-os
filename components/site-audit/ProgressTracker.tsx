@@ -16,6 +16,20 @@ interface ProgressData {
   message: string;
 }
 
+const STEPS = [
+  { icon: '🕷️', label: '웹사이트 크롤링', est: '~15초' },
+  { icon: '📊', label: '빠른 엔티티 추출', est: '~5초' },
+  { icon: '🧠', label: 'LLM 심층 분석', est: '~45초' },
+  { icon: '🔗', label: '지식 그래프 구축', est: '~10초' },
+  { icon: '💡', label: 'AI 답변 카드 역설계', est: '~30초' },
+  { icon: '👤', label: '브랜드 페르소나 역설계', est: '~30초' },
+  { icon: '⚙️', label: '기술 인프라 감사', est: '~15초' },
+  { icon: '📋', label: 'Schema.org 품질 감사', est: '~15초' },
+  { icon: '📝', label: '콘텐츠 시맨틱 분석', est: '~30초' },
+  { icon: '🔍', label: 'AI 검색 반영도 검증', est: '~90초' },
+  { icon: '🎯', label: '갭 분석 및 처방전 생성', est: '~20초' },
+];
+
 export default function ProgressTracker({ sessionId, locale, tierName = "Pro" }: ProgressTrackerProps) {
   const router = useRouter();
   const [status, setStatus] = useState<string>("running");
@@ -108,6 +122,44 @@ export default function ProgressTracker({ sessionId, locale, tierName = "Pro" }:
                   Step {progress.current_step}/{progress.total_steps}: <span className="text-slate-400">{progress.message}</span>
                 </span>
               </div>
+            </div>
+
+            {/* Step List with descriptions */}
+            <div className="space-y-1.5 mb-6">
+              {STEPS.map((step, idx) => {
+                const stepNum = idx + 1;
+                const isCompleted = stepNum < progress.current_step;
+                const isCurrent = stepNum === progress.current_step;
+                return (
+                  <div
+                    key={idx}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${
+                      isCompleted
+                        ? 'bg-emerald-500/5 text-emerald-400'
+                        : isCurrent
+                          ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
+                          : 'text-slate-600'
+                    }`}
+                  >
+                    <span className="text-base w-6 text-center shrink-0">
+                      {isCompleted ? '✅' : step.icon}
+                    </span>
+                    <span className={`flex-1 font-medium ${
+                      isCurrent ? 'text-indigo-300' : isCompleted ? 'text-emerald-400/80' : 'text-slate-600'
+                    }`}>
+                      {step.label}
+                    </span>
+                    <span className={`font-mono text-[10px] ${
+                      isCompleted ? 'text-emerald-500/50' : isCurrent ? 'text-indigo-400/60' : 'text-slate-700'
+                    }`}>
+                      {isCompleted ? '완료' : step.est}
+                    </span>
+                    {isCurrent && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="text-center">

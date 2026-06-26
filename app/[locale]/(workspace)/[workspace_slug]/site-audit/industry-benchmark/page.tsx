@@ -69,17 +69,35 @@ export default function IndustryBenchmarkPage() {
   };
 
   const handleRunBatchAudit = async () => {
-    setRunState({ status: 'running', progress: 0, total: referenceSites.length });
+    const total = referenceSites.length;
+    setRunState({ status: 'running', progress: 0, total, currentSite: referenceSites[0]?.brandName || '준비 중...' });
     setBenchmarkData(null);
 
     try {
+      // 사이트별 진행률 시뮬레이션 (실제 runBatchAudit는 일괄 처리)
+      const progressInterval = setInterval(() => {
+        setRunState(prev => {
+          if (prev.progress < total - 1) {
+            const nextIdx = prev.progress + 1;
+            return {
+              ...prev,
+              progress: nextIdx,
+              currentSite: referenceSites[nextIdx]?.brandName || '분석 중...',
+            };
+          }
+          return prev;
+        });
+      }, auditMode === 'full' ? 8000 : 2000);
+
       const result = await runBatchAudit(selectedSubIndustry, "admin", auditMode);
+      clearInterval(progressInterval);
+      
       setBenchmarkData({
         snapshots: result.snapshots,
         profile: result.profile,
         blueprint: result.blueprint,
       });
-      setRunState({ status: 'done', progress: result.snapshots.length, total: referenceSites.length });
+      setRunState({ status: 'done', progress: result.snapshots.length, total });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setRunState(prev => ({ ...prev, status: 'error', error: msg }));
@@ -237,20 +255,45 @@ export default function IndustryBenchmarkPage() {
 
         {/* 진행 상태 */}
         {runState.status === 'running' && (
-          <div className="bg-slate-800/50 rounded-xl p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span>감사 진행 중...</span>
-              <span>{runState.progress}/{runState.total}개 완료</span>
+          <div className="bg-slate-800/50 rounded-xl p-5 space-y-3">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-2">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                벤치마크 감사 진행 중...
+              </span>
+              <span className="font-bold text-indigo-400">{runState.progress}/{runState.total}개 완료</span>
             </div>
-            <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div className="h-2.5 bg-slate-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
                 style={{ width: `${runState.total ? (runState.progress / runState.total) * 100 : 0}%` }}
               />
             </div>
-            {runState.currentSite && (
-              <p className="text-[10px] text-slate-500 mt-2">현재: {runState.currentSite}</p>
-            )}
+            {/* 사이트별 상태 표시 */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+              {referenceSites.map((site, idx) => {
+                const isCompleted = idx < runState.progress;
+                const isCurrent = idx === runState.progress;
+                return (
+                  <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
+                    isCompleted 
+                      ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
+                      : isCurrent
+                      ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 animate-pulse'
+                      : 'bg-slate-800/30 border-slate-700/50 text-slate-500'
+                  }`}>
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                    ) : isCurrent ? (
+                      <RefreshCw className="h-3 w-3 shrink-0 animate-spin" />
+                    ) : (
+                      <Clock className="h-3 w-3 shrink-0" />
+                    )}
+                    <span className="truncate">{site.brandName}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

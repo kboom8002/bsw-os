@@ -72,6 +72,55 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
   const [loading, setLoading] = useState(false);
   const [showTiers, setShowTiers] = useState(false);
 
+  const [detectedIndustry, setDetectedIndustry] = useState<string | null>(null);
+
+  const detectIndustryFromUrl = (inputUrl: string): string | null => {
+    const lower = inputUrl.toLowerCase();
+    const DOMAIN_INDUSTRY_MAP: Record<string, { key: string; label: string }> = {
+      'skin': { key: 'skincare', label: '스킨케어' },
+      'beauty': { key: 'skincare', label: '스킨케어' },
+      'hair': { key: 'hair_salon', label: '헤어살롱' },
+      'cafe': { key: 'cafe', label: '카페' },
+      'restaurant': { key: 'restaurant', label: '레스토랑' },
+      'law': { key: 'legal', label: '법률' },
+      'clinic': { key: 'clinic', label: '병원/클리닉' },
+      'dental': { key: 'clinic', label: '병원/클리닉' },
+      'fitness': { key: 'fitness', label: '피트니스' },
+      'academy': { key: 'education', label: '교육/학원' },
+      'hotel': { key: 'travel', label: '여행/호텔' },
+      'photo': { key: 'wedding_studio', label: '웨딩스튜디오' },
+      'wedding': { key: 'wedding', label: '웨딩플래닝' },
+    };
+    for (const [keyword, info] of Object.entries(DOMAIN_INDUSTRY_MAP)) {
+      if (lower.includes(keyword)) {
+        return info.key;
+      }
+    }
+    return null;
+  };
+
+  const getDetectedLabel = (key: string): string => {
+    const labels: Record<string, string> = {
+      'skincare': '스킨케어', 'hair_salon': '헤어살롱', 'cafe': '카페',
+      'restaurant': '레스토랑', 'legal': '법률', 'clinic': '병원/클리닉',
+      'fitness': '피트니스', 'education': '교육/학원', 'travel': '여행/호텔',
+      'wedding_studio': '웨딩스튜디오', 'wedding': '웨딩플래닝',
+    };
+    return labels[key] || key;
+  };
+
+  const handleUrlBlur = () => {
+    if (!url.trim()) {
+      setDetectedIndustry(null);
+      return;
+    }
+    const detected = detectIndustryFromUrl(url);
+    if (detected && !industry) {
+      setDetectedIndustry(detected);
+      setIndustry(detected);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -194,6 +243,7 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
+                  onBlur={handleUrlBlur}
                   placeholder="https://example.com"
                   className="w-full pl-10 pr-4 py-3 bg-slate-800/60 border border-slate-700 rounded-xl text-slate-100 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all"
                 />
@@ -221,6 +271,20 @@ export default function SiteAuditLanding({ locale = "ko" }: { locale?: string })
                   <option value="fashion_ecommerce">패션/쇼핑몰</option>
                 </select>
               </div>
+              {detectedIndustry && (
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    🏷️ 자동 감지: {getDetectedLabel(detectedIndustry)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setDetectedIndustry(null); setIndustry(''); }}
+                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                  >
+                    [수정]
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Brand name input */}

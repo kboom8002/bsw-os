@@ -42,6 +42,8 @@ import SchemaQualityPanel from "./SchemaQualityPanel";
 import ContentSemanticPanel from "./ContentSemanticPanel";
 import RelativePositioningPanel from "./RelativePositioningPanel";
 import StrategyPanel from "./StrategyPanel";
+import { INDUSTRY_TAXONOMY } from '../../lib/industry/industry-taxonomy';
+import { runBatchAudit } from '../../app/actions/industry-benchmark';
 
 interface SiteAuditDashboardProps {
   brandName: string;
@@ -118,6 +120,28 @@ export default function SiteAuditDashboard({
   const [localTechInfra, setLocalTechInfra] = useState<TechInfraAuditResult | null>(techInfra);
   const [localSchemaQuality, setLocalSchemaQuality] = useState<SchemaQualityAuditResult | null>(schemaQuality);
   const [localContentSemantic, setLocalContentSemantic] = useState<ContentSemanticResult | null>(contentSemantic);
+
+  // Inline benchmark CTA state
+  const [selectedSubIndustry, setSelectedSubIndustry] = useState<string>('');
+  const [benchmarkRunning, setBenchmarkRunning] = useState(false);
+  const [localRelativePosition, setLocalRelativePosition] = useState<RelativePosition | null>(relativePosition);
+  const [localImprovementStrategy, setLocalImprovementStrategy] = useState<ImprovementStrategy | null>(improvementStrategy);
+
+  const handleRunBenchmark = async () => {
+    if (!selectedSubIndustry) return;
+    try {
+      setBenchmarkRunning(true);
+      const result = await runBatchAudit(selectedSubIndustry, 'default', 'quick');
+      if (result) {
+        setLocalRelativePosition(result as any);
+        setLocalImprovementStrategy(result as any);
+      }
+    } catch (err) {
+      console.error('Benchmark run error:', err);
+    } finally {
+      setBenchmarkRunning(false);
+    }
+  };
 
   const handleReRun = async () => {
     if (!onTriggerReRun) return;
@@ -312,7 +336,14 @@ export default function SiteAuditDashboard({
         )}
 
         {/* Tabs navigation (10 Tabs) */}
-        <div className="flex flex-wrap gap-1.5 mb-8 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-full overflow-x-auto">
+        <div className="relative mb-8 group">
+          {/* Left gradient fade */}
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity rounded-l-xl md:hidden" />
+          {/* Right gradient fade + scroll hint arrow */}
+          <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none flex items-center justify-end pr-1 md:hidden">
+            <span className="text-slate-500 animate-pulse text-xs">›</span>
+          </div>
+        <div className="flex gap-1.5 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-full overflow-x-auto scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {[
             { id: "overview", label: "진단 개요", icon: LayoutDashboard, lock: false },
             { id: "tech_infra", label: "기술 인프라", icon: Layers, lock: false },
@@ -344,6 +375,7 @@ export default function SiteAuditDashboard({
             );
           })}
         </div>
+        </div>
 
         {/* Tab contents */}
         <div className="space-y-8">
@@ -373,6 +405,11 @@ export default function SiteAuditDashboard({
                 currentUrl={websiteUrl}
                 currentBrand={brandName}
                 targetTierId="tier1"
+                previewInsights={[
+                  { label: 'Schema 유형 감지', value: localSchemaQuality ? `${(localSchemaQuality as any).detectedTypes?.length || localSchemaQuality.schemaTypeCount || 0}개` : '분석 필요', type: 'neutral' as const },
+                  { label: '스키마 완성도', value: localSchemaQuality ? `${Math.round(localSchemaQuality.schemaQualityScore || 0)}%` : '—', type: (localSchemaQuality?.schemaQualityScore || 0) > 60 ? 'positive' as const : 'warning' as const },
+                ]}
+                totalLockedItems={localSchemaQuality?.issues?.length || 12}
               >
                 <div className="opacity-40 pointer-events-none">
                   <SchemaQualityPanel schemaQuality={localSchemaQuality} />
@@ -393,6 +430,11 @@ export default function SiteAuditDashboard({
                 currentUrl={websiteUrl}
                 currentBrand={brandName}
                 targetTierId="tier1"
+                previewInsights={[
+                  { label: '콘텐츠 시맨틱 점수', value: localContentSemantic ? `${Math.round(localContentSemantic.contentSemanticScore || 0)}점` : '—', type: (localContentSemantic?.contentSemanticScore || 0) > 60 ? 'positive' as const : 'warning' as const },
+                  { label: '토픽 클러스터', value: localContentSemantic ? `${localContentSemantic.topicClusters?.length || 0}개 감지` : '분석 필요', type: 'neutral' as const },
+                ]}
+                totalLockedItems={localContentSemantic?.issues?.length || 15}
               >
                 <div className="opacity-40 pointer-events-none">
                   <ContentSemanticPanel contentSemantic={localContentSemantic} />
@@ -413,6 +455,11 @@ export default function SiteAuditDashboard({
                 currentUrl={websiteUrl}
                 currentBrand={brandName}
                 targetTierId="tier1"
+                previewInsights={[
+                  { label: '발견된 갭', value: `${localGaps.length}건`, type: localGaps.length > 5 ? 'warning' as const : 'positive' as const },
+                  { label: '최우선 처방', value: localGaps[0]?.entity_name || '전체 분석 필요', type: 'warning' as const },
+                ]}
+                totalLockedItems={localGaps.length}
               >
                 <div className="opacity-40 pointer-events-none">
                   <PrescriptionList gaps={localGaps} />
@@ -433,6 +480,12 @@ export default function SiteAuditDashboard({
                 currentUrl={websiteUrl}
                 currentBrand={brandName}
                 targetTierId="tier1"
+                previewInsights={[
+                  { label: '추출 엔티티', value: `${localEntities.length}개`, type: 'neutral' as const },
+                  { label: 'AI 답변 카드', value: `${localCards.length}개 역설계`, type: localCards.length > 0 ? 'positive' as const : 'warning' as const },
+                  { label: '최상위 엔티티', value: localEntities[0]?.entity_name || '—', type: 'neutral' as const },
+                ]}
+                totalLockedItems={localEntities.length + localCards.length}
               >
                 <div className="opacity-40 pointer-events-none space-y-8">
                   <SurfaceMapPanel entities={localEntities} />
@@ -460,13 +513,46 @@ export default function SiteAuditDashboard({
               >
                 <div className="opacity-40 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl" />
               </LockedPanel>
-            ) : relativePosition ? (
-              <RelativePositioningPanel position={relativePosition} />
+            ) : localRelativePosition ? (
+              <RelativePositioningPanel position={localRelativePosition} />
             ) : (
-              <div className="text-center py-16 text-slate-500 text-sm">
-                <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p className="font-semibold">업종 벤치마크 데이터가 아직 없습니다</p>
-                <p className="text-xs mt-1">사이드바의 '업종 벤치마크' 메뉴에서 레퍼런스 사이트 감사를 먼저 실행해주세요.</p>
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 backdrop-blur-xl">
+                <div className="text-center mb-6">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-indigo-400/30" />
+                  <p className="font-bold text-lg text-slate-200">업종 벤치마크 데이터가 아직 없습니다</p>
+                  <p className="text-sm text-slate-400 mt-2">업종을 선택하고 벤치마크를 실행하면 동종 업계 대비 포지셔닝을 확인할 수 있습니다.</p>
+                </div>
+                <div className="max-w-md mx-auto space-y-4">
+                  <select
+                    value={selectedSubIndustry}
+                    onChange={(e) => setSelectedSubIndustry(e.target.value)}
+                    disabled={benchmarkRunning}
+                    className="w-full px-4 py-3 bg-slate-800/60 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all appearance-none disabled:opacity-50"
+                  >
+                    <option value="">업종을 선택하세요</option>
+                    {INDUSTRY_TAXONOMY.map(cat => (
+                      <optgroup key={cat.key} label={`${cat.icon} ${cat.displayNameKo}`}>
+                        {cat.subIndustries.map(sub => (
+                          <option key={sub.key} value={sub.key}>{sub.displayNameKo}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleRunBenchmark}
+                    disabled={!selectedSubIndustry || benchmarkRunning}
+                    className="w-full py-3 px-6 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {benchmarkRunning ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        벤치마크 실행 중...
+                      </>
+                    ) : (
+                      '📊 업종 벤치마크 실행 (~5분)'
+                    )}
+                  </button>
+                </div>
               </div>
             )
           )}
@@ -484,13 +570,46 @@ export default function SiteAuditDashboard({
               >
                 <div className="opacity-40 pointer-events-none min-h-[400px] bg-slate-800/50 rounded-xl" />
               </LockedPanel>
-            ) : improvementStrategy ? (
-              <StrategyPanel strategy={improvementStrategy} />
+            ) : localImprovementStrategy ? (
+              <StrategyPanel strategy={localImprovementStrategy} />
             ) : (
-              <div className="text-center py-16 text-slate-500 text-sm">
-                <Target className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p className="font-semibold">개선 전략이 아직 생성되지 않았습니다</p>
-                <p className="text-xs mt-1">업종 벤치마크 감사를 완료하면 자동으로 생성됩니다.</p>
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 backdrop-blur-xl">
+                <div className="text-center mb-6">
+                  <Target className="h-12 w-12 mx-auto mb-4 text-indigo-400/30" />
+                  <p className="font-bold text-lg text-slate-200">개선 전략이 아직 생성되지 않았습니다</p>
+                  <p className="text-sm text-slate-400 mt-2">업종 벤치마크를 실행하면 Gap-to-Best 분석 기반 전략이 자동 생성됩니다.</p>
+                </div>
+                <div className="max-w-md mx-auto space-y-4">
+                  <select
+                    value={selectedSubIndustry}
+                    onChange={(e) => setSelectedSubIndustry(e.target.value)}
+                    disabled={benchmarkRunning}
+                    className="w-full px-4 py-3 bg-slate-800/60 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all appearance-none disabled:opacity-50"
+                  >
+                    <option value="">업종을 선택하세요</option>
+                    {INDUSTRY_TAXONOMY.map(cat => (
+                      <optgroup key={cat.key} label={`${cat.icon} ${cat.displayNameKo}`}>
+                        {cat.subIndustries.map(sub => (
+                          <option key={sub.key} value={sub.key}>{sub.displayNameKo}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleRunBenchmark}
+                    disabled={!selectedSubIndustry || benchmarkRunning}
+                    className="w-full py-3 px-6 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {benchmarkRunning ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        벤치마크 실행 중...
+                      </>
+                    ) : (
+                      '📊 업종 벤치마크 실행 (~5분)'
+                    )}
+                  </button>
+                </div>
               </div>
             )
           )}
@@ -563,9 +682,48 @@ export default function SiteAuditDashboard({
           )}
         </div>
       
-        {/* Email Capture (Only for Free tier) */}
+        {/* Next Action CTA + Email Capture */}
         {tier === 'free' && (
-          <div className="mt-12">
+          <div className="mt-12 space-y-8">
+            {/* F3: Next Action CTA */}
+            <div className="bg-gradient-to-br from-slate-900/60 to-indigo-900/20 border border-indigo-500/20 rounded-2xl p-8 backdrop-blur-xl shadow-xl">
+              <h3 className="text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
+                📋 다음 단계 추천
+              </h3>
+              <p className="text-xs text-slate-400 mb-6">무료 진단 결과를 바탕으로 AI 검색 가시성을 향상시키기 위한 최적 다음 행동을 제안합니다.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  onClick={() => handleUpgradeToFullAudit('tier1')}
+                  className="group p-4 bg-slate-800/60 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500/30 rounded-xl transition-all text-left cursor-pointer"
+                >
+                  <span className="text-2xl block mb-2">🔬</span>
+                  <span className="text-sm font-bold text-slate-200 group-hover:text-indigo-300 transition-colors">정밀 진단 업그레이드</span>
+                  <span className="text-xs text-slate-500 block mt-1">AI 실측으로 정확도 3배 향상</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('positioning')}
+                  className="group p-4 bg-slate-800/60 hover:bg-violet-600/20 border border-slate-700 hover:border-violet-500/30 rounded-xl transition-all text-left cursor-pointer"
+                >
+                  <span className="text-2xl block mb-2">📊</span>
+                  <span className="text-sm font-bold text-slate-200 group-hover:text-violet-300 transition-colors">업종 벤치마크 비교</span>
+                  <span className="text-xs text-slate-500 block mt-1">동종 업계 상위 10%와 비교</span>
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="group p-4 bg-slate-800/60 hover:bg-emerald-600/20 border border-slate-700 hover:border-emerald-500/30 rounded-xl transition-all text-left cursor-pointer"
+                >
+                  <span className="text-2xl block mb-2">📄</span>
+                  <span className="text-sm font-bold text-slate-200 group-hover:text-emerald-300 transition-colors">PDF 리포트 다운로드</span>
+                  <span className="text-xs text-slate-500 block mt-1">이 결과를 팀에게 공유</span>
+                </button>
+              </div>
+              {localSnapshot && localSnapshot.aepi_score < 60 && (
+                <div className="mt-4 px-4 py-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs text-amber-400">
+                  💡 현재 {Math.round(localSnapshot.aepi_score)}점(등급 {localSnapshot.aepi_score >= 80 ? 'A' : localSnapshot.aepi_score >= 60 ? 'B' : localSnapshot.aepi_score >= 40 ? 'C' : 'D'})은 Quick Win 3개 실행으로 B+ 이상까지 올릴 수 있습니다.
+                </div>
+              )}
+            </div>
+
             <EmailCaptureForm />
           </div>
         )}

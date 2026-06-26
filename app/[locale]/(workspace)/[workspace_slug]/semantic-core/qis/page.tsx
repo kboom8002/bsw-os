@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
@@ -40,34 +40,64 @@ export default function QisScenesPage() {
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
   const { t } = useTranslation();
-  const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
 
-  const [canonicals] = useState<CanonicalQuestion[]>([
-    { id: "cq-1", normalized_question: "Is niacinamide safe for inflamed skin barriers?" },
-    { id: "cq-2", normalized_question: "What is the recommended daily dosage of niacinamide?" },
-    { id: "cq-3", normalized_question: "Are luxury skincare ingredients clinically tested?" }
-  ]);
+  const [workspaceId, setWorkspaceId] = useState<string>("");
+  const [canonicals, setCanonicals] = useState<CanonicalQuestion[]>([]);
+  const [scenes, setScenes] = useState<QisSceneItem[]>([]);
+  const [dbLoading, setDbLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
 
-  const [scenes, setScenes] = useState<QisSceneItem[]>([
-    {
-      id: "scene-1",
-      canonical_question_id: "cq-1",
-      scene_name: "SEO Mobile Search: Inflamed Barrier Skincare",
-      query_template: "safe niacinamide concentration for damaged skin barrier",
-      intent_model: "informational_commercial_mix",
-      scenario_context: "User has severe redness, searching on mobile, needs immediate safety guarantees and dermatological support references.",
-      risk_level: "high"
-    },
-    {
-      id: "scene-2",
-      canonical_question_id: "cq-2",
-      scene_name: "E-Commerce Checkout: Daily Dose Guide",
-      query_template: "how much niacinamide to apply daily",
-      intent_model: "transactional",
-      scenario_context: "User is on product details page, looking to understand usage instructions before confirming checkout.",
-      risk_level: "medium"
+  // DB에서 데이터 로드
+  useEffect(() => {
+    loadFromDb();
+  }, [workspaceSlug]);
+
+  const loadFromDb = async () => {
+    setDbLoading(true);
+    setDbError(null);
+    try {
+      const { getSupabaseClient } = await import('@/lib/supabase');
+      const supabase = getSupabaseClient();
+
+      // 워크스페이스 ID 조회
+      const { data: ws } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('slug', workspaceSlug)
+        .single();
+
+      const resolvedWsId = ws?.id || '11111111-1111-1111-1111-111111111111';
+      setWorkspaceId(resolvedWsId);
+
+      // Canonical Questions 조회
+      const { data: cqs, error: cqErr } = await supabase
+        .from('canonical_questions')
+        .select('id, normalized_question')
+        .eq('workspace_id', resolvedWsId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (cqErr) throw cqErr;
+      setCanonicals(cqs || []);
+
+      // QIS Scenes 조회
+      const { data: sc, error: scErr } = await supabase
+        .from('qis_scenes')
+        .select('id, canonical_question_id, scene_name, query_template, intent_model, scenario_context, risk_level')
+        .eq('workspace_id', resolvedWsId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (scErr) throw scErr;
+      setScenes(sc || []);
+
+    } catch (err: any) {
+      console.error('QIS DB 조회 실패:', err);
+      setDbError(err.message || 'DB 연결 실패');
+    } finally {
+      setDbLoading(false);
     }
-  ]);
+  };
 
   const [isCreating, setIsCreating] = useState(false);
   const [runningAgent, setRunningAgent] = useState(false);
@@ -111,7 +141,7 @@ export default function QisScenesPage() {
         risk_level: riskLevel
       };
 
-      const result = await createQisScene(mockWorkspaceId, data);
+      const result = await createQisScene(workspaceId || '11111111-1111-1111-1111-111111111111', data);
       
       const created: QisSceneItem = {
         id: result.id || "scene-" + Math.floor(Math.random() * 1000),
@@ -152,7 +182,7 @@ export default function QisScenesPage() {
       await new Promise(r => setTimeout(r, 600));
       setAgentLogs(prev => [...prev, "[Safety] Enforcing 'high' risk boundary rule...", "[System] Persisting candidate QIS Scene to database..."]);
 
-      const result = await runQisGenAgent(mockWorkspaceId, cqId, targetCq.normalized_question);
+      const result = await runQisGenAgent(workspaceId || '11111111-1111-1111-1111-111111111111', cqId, targetCq.normalized_question);
 
       setAgentLogs(prev => [
         ...prev, 
@@ -223,6 +253,32 @@ export default function QisScenesPage() {
         }`}>
           {feedback.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
           <span>{feedback.message}</span>
+        </div>
+      )}
+
+      {/* DB 상태 표시 */}
+      {dbLoading && (
+        <div className="flex items-center justify-center py-12 gap-3 text-slate-500">
+          <Cpu className="h-5 w-5 animate-spin" />
+          <span className="text-sm font-semibold">QIS 데이터 로드 중...</span>
+        </div>
+      )}
+
+      {dbError && (
+        <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-sm text-red-400 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <div>
+            <span className="font-bold">DB 연결 오류: </span>{dbError}
+            <button onClick={loadFromDb} className="ml-3 text-xs underline hover:text-red-300 cursor-pointer">재시도</button>
+          </div>
+        </div>
+      )}
+
+      {!dbLoading && !dbError && canonicals.length === 0 && (
+        <div className="bg-slate-800/30 border border-dashed border-slate-700 rounded-xl p-8 text-center space-y-2">
+          <HelpCircle className="h-8 w-8 text-slate-600 mx-auto" />
+          <p className="text-sm font-bold text-slate-400">아직 Canonical Question이 없습니다</p>
+          <p className="text-xs text-slate-500">워크스페이스에서 질문을 생성하면 이곳에 표시됩니다.</p>
         </div>
       )}
 

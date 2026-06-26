@@ -67,6 +67,8 @@ export default function WorkspaceLayout({
     { name: "nav.sbs_index", href: `/${locale}/sbs-index`, icon: Award, badge: "Public", module: "sbs-index" },
     { name: "nav.truth_studio", href: `/${locale}/${workspaceSlug}/truth`, icon: ShieldAlert, badge: "L2 Gate", module: "truth" },
     { name: "nav.semantic_core", href: `/${locale}/${workspaceSlug}/semantic-core`, icon: HelpCircle, badge: "CQ/QIS", module: "semantic-core" },
+    { name: "nav.qis_triaxis", href: `/${locale}/${workspaceSlug}/semantic-core/qis-triaxis`, icon: Eye, badge: "3축", module: "qis-triaxis" },
+    { name: "nav.qis_predictions", href: `/${locale}/${workspaceSlug}/semantic-core/qis`, icon: HelpCircle, badge: "예측", module: "qis-predictions" },
     { name: "nav.objects_studio", href: `/${locale}/${workspaceSlug}/objects`, icon: Layers, module: "objects" },
     { name: "nav.surfaces", href: `/${locale}/${workspaceSlug}/surfaces`, icon: Layers, module: "surfaces" },
     { name: "nav.persona", href: `/${locale}/${workspaceSlug}/persona`, icon: User, badge: "AI 매칭", module: "persona" },
