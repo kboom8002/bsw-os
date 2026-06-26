@@ -33,7 +33,9 @@
     "industry_benchmark": "Industry Benchmark",
     "benchmark": "Industry Benchmark",
     "sbs_index": "Public AI Index (SBS)",
-    "kculture_studio": "K-Culture Intelligence"
+    "kculture_studio": "K-Culture Intelligence",
+    "qis_triaxis": "QIS Tri-Axis",
+    "qis_predictions": "QVS Predictions"
   },
   "dashboard": {
     "title": "Brand Semantic Website OS",

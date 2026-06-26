@@ -91,7 +91,7 @@ export default function IndustryBenchmarkPage() {
     setBenchmarkData(null);
 
     try {
-      // 사이트별 진행률 시뮬레이션 (실제 runBatchAudit는 일괄 처리)
+      // 실제 소요 시간에 맞춰 가짜 진행률 속도 현실화 (Quick: 5초/사이트, Full: 30초/사이트)
       const progressInterval = setInterval(() => {
         setRunState(prev => {
           if (prev.progress < total - 1) {
@@ -104,7 +104,7 @@ export default function IndustryBenchmarkPage() {
           }
           return prev;
         });
-      }, auditMode === 'full' ? 8000 : 2000);
+      }, auditMode === 'full' ? 30000 : 5000);
 
       const result = await runBatchAudit(selectedSubIndustry, "admin", auditMode);
       clearInterval(progressInterval);
@@ -286,6 +286,10 @@ export default function IndustryBenchmarkPage() {
                 style={{ width: `${runState.total ? (runState.progress / runState.total) * 100 : 0}%` }}
               />
             </div>
+            <p className="text-[10px] text-slate-500 text-center mt-2 animate-pulse">
+              서버에서 사이트 일괄 감사가 순차적으로 진행 중입니다. (예상 소요 시간: {auditMode === 'full' ? Math.ceil(runState.total * 1.5) : Math.ceil(runState.total * 0.2)}분)<br/>
+              완료 시까지 창을 유지해 주세요.
+            </p>
             {/* 사이트별 상태 표시 */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
               {referenceSites.map((site, idx) => {
