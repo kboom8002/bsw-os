@@ -52,14 +52,17 @@ export class PredictionAccuracyTracker {
   /**
    * 2. Recalibrates signal source weights based on past accuracy statistics.
    */
-  public async recalibrateSignalWeights(workspaceId: string): Promise<RecalibrationResult> {
+  public async recalibrateSignalWeights(workspaceId?: string): Promise<RecalibrationResult> {
     const supabase = getSupabaseAdminClient();
 
     // Fetch past predicted questions with verified accuracies
-    const { data: rawVerified } = await supabase
+    let query = supabase
       .from("predicted_questions")
-      .select("*, emergence_signals(*)")
-      .eq("workspace_id", workspaceId);
+      .select("*, emergence_signals(*)");
+    if (workspaceId) {
+      query = query.eq("workspace_id", workspaceId);
+    }
+    const { data: rawVerified } = await query;
 
     const verified = (rawVerified ?? []).filter(
       (v) => v.prediction_accuracy !== null && v.prediction_accuracy !== undefined

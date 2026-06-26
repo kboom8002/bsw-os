@@ -46,12 +46,22 @@ export async function POST(req: NextRequest) {
       processedCount++;
     }
 
-    // 4. (선택적) 모델 가중치 재보정 (P2)
-    // await tracker.recalibrateSignalWeights(workspaceId);
+    // 4. 모델 가중치 재보정 (피드백 10건 이상 시 실행)
+    let recalibrated = false;
+    if (processedCount >= 3) {
+      try {
+        // 피드백이 충분히 쌓이면 신호 가중치 자동 재보정
+        const recalResult = await tracker.recalibrateSignalWeights();
+        recalibrated = true;
+        console.log('[QIS Feedback] Signal weights recalibrated:', recalResult);
+      } catch (recalErr) {
+        console.warn('[QIS Feedback] Recalibration failed (non-critical):', recalErr);
+      }
+    }
 
     return NextResponse.json({
       ok: true,
-      data: { processed: processedCount }
+      data: { processed: processedCount, recalibrated }
     });
 
   } catch (error) {
