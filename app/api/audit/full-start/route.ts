@@ -23,9 +23,7 @@ export async function POST(request: Request) {
       industry: industry || "default",
       tier,
       status: "running",
-      competitors,
-      progress: { current_step: -1, total_steps: 14, message: "세션 생성 완료. 진단 시작 대기 중..." },
-      checkpoint_data: {},
+      progress: { current_step: -1, total_steps: 14, message: "세션 생성 완료. 진단 시작 대기 중...", competitors },
     }).select("id").single();
 
     if (error || !data) {

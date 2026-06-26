@@ -48,16 +48,15 @@ function detectIndustry(websiteUrl: string, entities: any[]): string {
 // ─── Helper: update progress in DB ───
 async function upd(db: ReturnType<typeof getSupabaseAdminClient>, sid: string, step: number, msg: string) {
   await db.from("audit_sessions").update({
-    progress: { current_step: step, total_steps: 14, message: msg, updated_at: new Date().toISOString() },
-    last_checkpoint_step: step,
+    progress: { current_step: step, total_steps: 14, message: msg, last_checkpoint_step: step, updated_at: new Date().toISOString() },
   }).eq("id", sid);
 }
 
 // ─── Helper: save checkpoint data ───
 async function saveCheckpoint(db: ReturnType<typeof getSupabaseAdminClient>, sid: string, step: number, data: Record<string, any>) {
   await db.from("audit_sessions").update({
-    last_checkpoint_step: step,
-    checkpoint_data: data,
+    result_data: data,
+    progress: { current_step: step, total_steps: 14, message: `Step ${step} checkpoint saved`, last_checkpoint_step: step, updated_at: new Date().toISOString() },
   }).eq("id", sid);
 }
 
@@ -105,7 +104,7 @@ export async function POST(request: Request) {
 
     // Load session
     const { data: session, error: sessErr } = await db.from("audit_sessions")
-      .select("workspace_id, website_url, brand_name, tier, industry, competitors, checkpoint_data, status")
+      .select("workspace_id, website_url, brand_name, tier, industry, progress, result_data, status")
       .eq("id", sessionId).single();
 
     if (sessErr || !session) {
@@ -117,8 +116,8 @@ export async function POST(request: Request) {
     const brandName = session.brand_name;
     const tier = session.tier || "tier2";
     const industryInput = session.industry;
-    const competitors: string[] = session.competitors || [];
-    const cp: Record<string, any> = session.checkpoint_data || {};
+    const competitors: string[] = session.progress?.competitors || [];
+    const cp: Record<string, any> = session.result_data || {};
 
     // Ensure session is in a valid state to run
     if (session.status === "completed") {
@@ -486,10 +485,7 @@ export async function POST(request: Request) {
             status: "completed",
             completed_at: new Date().toISOString(),
             result_data: finalResult,
-            last_checkpoint_step: 14,
-            ...(tech_infra_snapshot_id ? { tech_infra_snapshot_id } : {}),
-            ...(schema_quality_snapshot_id ? { schema_quality_snapshot_id } : {}),
-            ...(content_semantic_snapshot_id ? { content_semantic_snapshot_id } : {}),
+            progress: { current_step: 14, total_steps: 14, message: "진단 완료", last_checkpoint_step: 14, updated_at: new Date().toISOString() },
           }).eq("id", sessionId);
 
           return NextResponse.json({ ok: true, step: 14, message: "Audit complete", completed: true });
