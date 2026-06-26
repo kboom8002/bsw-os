@@ -7,6 +7,7 @@ import {
   METRIC_META,
   BenchmarkMetricKey,
 } from './batch-audit-runner';
+import { MacroCategoryKey } from './industry-taxonomy';
 
 // ── 백분위 분포 ─────────────────────────────────────────
 export interface PercentileDistribution {
@@ -70,6 +71,7 @@ export interface BlueprintSection {
 
 export interface IndustryBlueprint {
   subIndustryKey: string;
+  macroKey?: MacroCategoryKey;
   displayNameKo: string;
   sampleCount: number;
   generatedAt: string;
@@ -83,6 +85,7 @@ export interface IndustryBlueprint {
 // ── 집계 프로필 ──────────────────────────────────────────
 export interface IndustryBenchmarkProfile {
   subIndustryKey: string;
+  macroKey?: MacroCategoryKey;
   displayNameKo: string;
   sampleCount: number;
   generatedAt: string;

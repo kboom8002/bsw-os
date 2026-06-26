@@ -2,12 +2,15 @@
 // 업종별 레퍼런스 사이트 레지스트리
 // tier: excellent(우수) / average(평균) / poor(미흡)
 
+import { MacroCategoryKey } from './industry-taxonomy';
+
 export interface ReferenceSite {
   id: string;          // 고유 식별자 (영문 slug)
   url: string;
   brandName: string;
   tier: 'excellent' | 'average' | 'poor';
   subIndustryKey: string;
+  macroKey?: MacroCategoryKey;
   curatorNotes?: string;
 }
 

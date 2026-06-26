@@ -7,6 +7,7 @@ import { TechInfraAuditResult } from '../surface/tech-infra-auditor';
 import { SchemaQualityAuditResult } from '../surface/schema-quality-auditor';
 import { ContentSemanticResult } from '../surface/content-semantic-analyzer';
 import { ReferenceSite } from './reference-sites-registry';
+import { MacroCategoryKey } from './industry-taxonomy';
 
 export interface SiteAuditSnapshot {
   siteId: string;
@@ -14,6 +15,7 @@ export interface SiteAuditSnapshot {
   brandName: string;
   tier: 'excellent' | 'average' | 'poor';
   subIndustryKey: string;
+  macroKey?: MacroCategoryKey;
 
   // L1 메트릭
   techInfraScore: number;

@@ -42,7 +42,8 @@ export const qisSignalPayloadSchema = z.object({
     'vortex_mission_signal', // Vortex 미션 관련 신호
     'cross_axis_trend',      // 3축 교차 트렌드
   ]),
-  industry: z.string().default('wedding'),  // 유연한 문자열 (Place/Vortex도 수용)
+  industry: z.string().default('wedding'),  // BSW V3 세부업종 키 (Place/Vortex도 수용)
+  macro_industry: z.string().optional(),     // V3 BM 매크로 카테고리 (ecommerce_d2c | local_services | ...)
   hub_slug: z.string().optional(),
   // ── 3축 컨텍스트 ──
   hub_axis: hubAxisEnum,
@@ -100,6 +101,7 @@ export const qisRealMetricsSchema = z.object({
     'sentiment_seasonal',    // 계절 감정 패턴
   ]),
   industry: z.string().default('wedding'),
+  macro_industry: z.string().optional(),     // V3 BM 매크로 카테고리
   hub_slug: z.string().optional(),
   period_start: z.string(),
   period_end: z.string(),

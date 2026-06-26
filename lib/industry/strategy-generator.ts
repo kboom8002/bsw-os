@@ -5,6 +5,7 @@ import { RelativePosition, GapToBest, MetricPosition, PositionTier } from './rel
 import { IndustryBlueprint, BlueprintRecommendation } from './benchmark-aggregator';
 import { SurfaceGapAnalysis } from '../schema';
 import { METRIC_META, BenchmarkMetricKey } from './batch-audit-runner';
+import { MacroCategoryKey } from './industry-taxonomy';
 
 export type OverallGrade = 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -35,6 +36,7 @@ export interface StrategyItem {
 
 export interface ImprovementStrategy {
   subIndustryKey: string;
+  macroKey?: MacroCategoryKey;
   displayNameKo: string;
   brandName: string;
   websiteUrl: string;

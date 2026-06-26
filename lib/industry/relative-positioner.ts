@@ -4,6 +4,7 @@
 import { AuditResult } from '../../app/actions/site-audit';
 import { IndustryBenchmarkProfile, IndustryBlueprint } from './benchmark-aggregator';
 import { BENCHMARK_METRIC_KEYS, METRIC_META, BenchmarkMetricKey } from './batch-audit-runner';
+import { MacroCategoryKey } from './industry-taxonomy';
 
 export type PositionTier =
   | 'top10'
@@ -43,6 +44,7 @@ export interface GapToBest {
 
 export interface RelativePosition {
   subIndustryKey: string;
+  macroKey?: MacroCategoryKey;
   displayNameKo: string;
   brandName: string;
   websiteUrl: string;

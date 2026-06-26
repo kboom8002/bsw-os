@@ -59,8 +59,22 @@ const THEME_KEYWORDS: Record<string, string> = {
   '사진': 'k-photo',
   '촬영': 'k-photo',
   '숙소': 'k-stay',
-  '호텔': 'k-stay',
+  '호텔': 'k-hotel',
   '펜션': 'k-stay',
+  // V3 추가 업종 키워드
+  '시니어': 'senior-care',
+  '시니어케어': 'senior-care',
+  '네일': 'k-nail',
+  '헤어': 'k-hair',
+  '미용': 'k-hair',
+  '피트니스': 'k-fitness',
+  '헬스': 'k-fitness',
+  '필라테스': 'k-fitness',
+  '요가': 'k-fitness',
+  '반려동물': 'k-pet',
+  '펫': 'k-pet',
+  '인테리어': 'k-home',
+  '가구': 'k-home',
 };
 
 // 축별 추천 콘텐츠 포맷
