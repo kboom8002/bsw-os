@@ -463,7 +463,7 @@ async function runFullSiteAuditBackground(
       if (snapshot) {
         const tracker = new TemporalTracker();
         await updateProgress(sessionId, 14, 14, '시계열 트렌드 기록 중...');
-        trends = await tracker.getTrends(websiteUrl, snapshot);
+        trends = await tracker.getTrends(websiteUrl);
         console.log(`[Audit] Step 14 OK: ${trends.length} temporal trends fetched`);
       }
     } catch (e: any) {

@@ -3,7 +3,8 @@
 import React, { useState, useCallback } from "react";
 import {
   BarChart2, Play, RefreshCw, CheckCircle2, XCircle, Clock,
-  ChevronDown, ChevronUp, TrendingUp, Target, Database, Plus, Trash2, Globe
+  ChevronDown, ChevronUp, TrendingUp, Target, Database, Plus, Trash2, Globe,
+  LayoutDashboard, Award
 } from "lucide-react";
 import { INDUSTRY_TAXONOMY } from "../../../../../../lib/industry/industry-taxonomy";
 import {
@@ -19,8 +20,12 @@ import {
   addReferenceSite,
   deleteReferenceSite,
 } from "../../../../../actions/industry-benchmark";
-import { SiteAuditSnapshot } from "../../../../../../lib/industry/batch-audit-runner";
+import { SiteAuditSnapshot, METRIC_META, BENCHMARK_METRIC_KEYS, BenchmarkMetricKey } from "../../../../../../lib/industry/batch-audit-runner";
 import { IndustryBenchmarkProfile, IndustryBlueprint } from "../../../../../../lib/industry/benchmark-aggregator";
+import { IndustryLeaderboard } from "../../../../../../components/benchmark/IndustryLeaderboard";
+import { BrandDrilldownPanel } from "../../../../../../components/benchmark/BrandDrilldownPanel";
+import { MetricDistributionChart } from "../../../../../../components/benchmark/MetricDistributionChart";
+import type { BenchmarkHistoryPoint } from "../../../../../../lib/benchmark/temporal-tracker";
 
 interface RunState {
   status: 'idle' | 'running' | 'done' | 'error';
@@ -49,11 +54,14 @@ export default function IndustryBenchmarkPage() {
     status: 'idle', progress: 0, total: 0
   });
   const [benchmarkData, setBenchmarkData] = useState<BenchmarkData | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['sites', 'results']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['sites', 'results', 'infographic']));
   const [addSiteForm, setAddSiteForm] = useState<{
     url: string; brandName: string; tier: "excellent" | "average" | "poor"; curatorNotes: string;
   }>({ url: "", brandName: "", tier: "average", curatorNotes: "" });
   const [addingSite, setAddingSite] = useState(false);
+  // 인포그래픽 드릴다운 상태
+  const [drilldownTarget, setDrilldownTarget] = useState<BenchmarkHistoryPoint | null>(null);
+  const [selectedMetricKey, setSelectedMetricKey] = useState<string>("techInfraScore");
 
   // 선택된 업종의 레퍼런스 사이트
   const referenceSites = getReferenceSitesBySubIndustry(selectedSubIndustry);
@@ -417,6 +425,161 @@ export default function IndustryBenchmarkPage() {
           </div>
         )}
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════
+           인포그래픽 대시보드 — 업종 현황 한눈에
+      ═══════════════════════════════════════════════════════════ */}
+      {benchmarkData && benchmarkData.snapshots.length > 0 && (() => {
+        // SiteAuditSnapshot → BenchmarkHistoryPoint 변환
+        const historyPoints: BenchmarkHistoryPoint[] = benchmarkData.snapshots
+          .filter(s => !s.error)
+          .map(s => ({
+            id: s.siteId,
+            url: s.siteUrl,
+            brandName: s.brandName,
+            subIndustryKey: s.subIndustryKey,
+            auditedAt: s.auditedAt,
+            aepiScore: Math.round(s.techInfraScore * 0.3 + s.schemaQualityScore * 0.3 + s.contentSemanticScore * 0.4),
+            tier: s.tier,
+            metrics: BENCHMARK_METRIC_KEYS.reduce((acc, k) => {
+              const v = (s as unknown as Record<string, unknown>)[k];
+              acc[k] = typeof v === 'number' ? v : (typeof v === 'boolean' ? (v ? 100 : 0) : 0);
+              return acc;
+            }, {} as Record<string, number>),
+          }));
+
+        const avgAepi = historyPoints.length > 0
+          ? historyPoints.reduce((s, p) => s + p.aepiScore, 0) / historyPoints.length
+          : 0;
+        const topAepi = historyPoints.length > 0
+          ? Math.max(...historyPoints.map(p => p.aepiScore))
+          : 0;
+
+        return (
+          <div className="bg-slate-900/50 border border-violet-500/20 rounded-2xl overflow-hidden">
+            <button
+              onClick={() => toggleSection('infographic')}
+              className="w-full flex items-center justify-between p-5 text-left cursor-pointer hover:bg-slate-800/30 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-gradient-to-tr from-violet-500 to-indigo-600 rounded-lg">
+                  <LayoutDashboard className="h-4 w-4 text-white" />
+                </div>
+                <h2 className="text-sm font-bold text-slate-100">업종 현황 인포그래픽</h2>
+                <span className="text-[10px] bg-violet-500/20 text-violet-400 border border-violet-500/30 px-2 py-0.5 rounded-full font-bold">NEW</span>
+              </div>
+              {expandedSections.has('infographic') ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+            </button>
+
+            {expandedSections.has('infographic') && (
+              <div className="px-5 pb-6 space-y-8">
+
+                {/* 업종 KPI 요약 카드 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "총 분석 사이트", value: `${historyPoints.length}개`, sub: `${benchmarkData.snapshots.filter(s=>s.tier==='excellent').length} Excellent`, color: "emerald" },
+                    { label: "업종 AEPI 평균", value: avgAepi.toFixed(1), sub: "L1×30%+L2×30%+L3×40%", color: "indigo" },
+                    { label: "업종 TOP AEPI", value: topAepi.toFixed(0), sub: historyPoints.find(p=>p.aepiScore===topAepi)?.brandName ?? "-", color: "violet" },
+                    { label: "Excellent 비율", value: `${Math.round(historyPoints.filter(p=>p.tier==='excellent').length/Math.max(historyPoints.length,1)*100)}%`, sub: `${historyPoints.filter(p=>p.tier==='excellent').length}/${historyPoints.length}`, color: "amber" },
+                  ].map(kpi => (
+                    <div key={kpi.label} className={`bg-${kpi.color}-500/5 border border-${kpi.color}-500/20 rounded-xl p-4`}>
+                      <div className={`text-2xl font-black text-${kpi.color}-400`}>{kpi.value}</div>
+                      <div className="text-xs font-semibold text-slate-300 mt-1">{kpi.label}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">{kpi.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 리더보드 */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Award className="h-4 w-4 text-amber-400" />
+                    <h3 className="text-sm font-bold text-slate-200">업종 AEPI 리더보드</h3>
+                    <span className="text-[10px] text-slate-500">클릭하여 역설계 상세 보기</span>
+                  </div>
+                  <div
+                    onClick={(e) => {
+                      // 클릭된 행의 브랜드 찾기 (data-url 속성)
+                      const row = (e.target as HTMLElement).closest('[data-url]');
+                      if (row) {
+                        const url = row.getAttribute('data-url');
+                        const point = historyPoints.find(p => p.url === url);
+                        if (point) setDrilldownTarget(point);
+                      }
+                    }}
+                    className="[&_tbody_tr]:cursor-pointer"
+                    {...({} as Record<string, unknown>)}
+                  >
+                    <IndustryLeaderboard
+                      points={historyPoints}
+                      showMetrics={["techInfraScore", "schemaQualityScore", "contentSemanticScore"]}
+                      maxRows={historyPoints.length}
+                    />
+                  </div>
+                </div>
+
+                {/* 메트릭 분포 히스토그램 */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-slate-200">메트릭 분포 분석</h3>
+                    <select
+                      value={selectedMetricKey}
+                      onChange={e => setSelectedMetricKey(e.target.value)}
+                      className="text-xs bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300 focus:outline-none focus:border-indigo-500"
+                    >
+                      {BENCHMARK_METRIC_KEYS.map(k => (
+                        <option key={k} value={k}>{METRIC_META[k]?.nameKo ?? k}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
+                    <div className="text-xs text-slate-400 mb-3">
+                      <span className="font-semibold">{METRIC_META[selectedMetricKey as BenchmarkMetricKey]?.nameKo}</span>
+                      {" "} — 업종 내 {historyPoints.length}개 사이트 분포
+                    </div>
+                    <MetricDistributionChart
+                      points={historyPoints}
+                      metricKey={selectedMetricKey}
+                      metricNameKo={METRIC_META[selectedMetricKey as BenchmarkMetricKey]?.nameKo ?? selectedMetricKey}
+                      industryAvg={
+                        historyPoints.length > 0
+                          ? historyPoints.reduce((s, p) => s + (p.metrics[selectedMetricKey] ?? 0), 0) / historyPoints.length
+                          : undefined
+                      }
+                    />
+                    {/* P25 / P50 / P75 요약 */}
+                    {historyPoints.length >= 4 && (() => {
+                      const sorted = [...historyPoints.map(p => p.metrics[selectedMetricKey] ?? 0)].sort((a,b) => a-b);
+                      const p25 = sorted[Math.floor(sorted.length * 0.25)];
+                      const p50 = sorted[Math.floor(sorted.length * 0.50)];
+                      const p75 = sorted[Math.floor(sorted.length * 0.75)];
+                      return (
+                        <div className="flex gap-4 mt-3 text-xs">
+                          {[{label:'P25(하위25%)',val:p25,cls:'text-red-400'},{label:'P50(중간)',val:p50,cls:'text-amber-400'},{label:'P75(상위25%)',val:p75,cls:'text-emerald-400'}].map(s => (
+                            <div key={s.label}>
+                              <span className="text-slate-500">{s.label}: </span>
+                              <span className={`font-bold font-mono ${s.cls}`}>{s.val?.toFixed(0) ?? '-'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* 드릴다운 패널 */}
+      {drilldownTarget && (
+        <BrandDrilldownPanel
+          target={drilldownTarget}
+          onClose={() => setDrilldownTarget(null)}
+        />
+      )}
 
       {/* 감사 결과 */}
       {benchmarkData && (
