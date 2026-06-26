@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import {
   BarChart2, Play, RefreshCw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronUp, TrendingUp, Target, Database, Plus, Trash2, Globe,
-  LayoutDashboard, Award
+  LayoutDashboard, Award, Sparkles, Crosshair
 } from "lucide-react";
 import { INDUSTRY_TAXONOMY } from "../../../../../../lib/industry/industry-taxonomy";
 import {
@@ -20,12 +20,17 @@ import {
   addReferenceSite,
   deleteReferenceSite,
 } from "../../../../../actions/industry-benchmark";
+import { fetchQisBenchmarkData } from "../../../../../actions/qis-benchmark";
 import { SiteAuditSnapshot, METRIC_META, BENCHMARK_METRIC_KEYS, BenchmarkMetricKey } from "../../../../../../lib/industry/batch-audit-runner";
 import { IndustryBenchmarkProfile, IndustryBlueprint } from "../../../../../../lib/industry/benchmark-aggregator";
 import { IndustryLeaderboard } from "../../../../../../components/benchmark/IndustryLeaderboard";
 import { BrandDrilldownPanel } from "../../../../../../components/benchmark/BrandDrilldownPanel";
 import { MetricDistributionChart } from "../../../../../../components/benchmark/MetricDistributionChart";
+import { AeoContentTrendPanel } from "../../../../../../components/benchmark/AeoContentTrendPanel";
+import { QvsAepiMatrix } from "../../../../../../components/benchmark/QvsAepiMatrix";
+import { FirstMoverTimeline } from "../../../../../../components/benchmark/FirstMoverTimeline";
 import type { BenchmarkHistoryPoint } from "../../../../../../lib/benchmark/temporal-tracker";
+import type { QisBenchmarkIntegration } from "../../../../../../lib/benchmark/qis-benchmark-bridge";
 
 interface RunState {
   status: 'idle' | 'running' | 'done' | 'error';
@@ -62,6 +67,10 @@ export default function IndustryBenchmarkPage() {
   // 인포그래픽 드릴다운 상태
   const [drilldownTarget, setDrilldownTarget] = useState<BenchmarkHistoryPoint | null>(null);
   const [selectedMetricKey, setSelectedMetricKey] = useState<string>("techInfraScore");
+  // QIS 통합 탭 + 데이터
+  const [infographicTab, setInfographicTab] = useState<'overview' | 'aeo' | 'strategy'>('overview');
+  const [qisData, setQisData] = useState<QisBenchmarkIntegration | null>(null);
+  const [qisLoading, setQisLoading] = useState(false);
 
   // 선택된 업종의 레퍼런스 사이트
   const referenceSites = getReferenceSitesBySubIndustry(selectedSubIndustry);
@@ -472,7 +481,46 @@ export default function IndustryBenchmarkPage() {
             </button>
 
             {expandedSections.has('infographic') && (
-              <div className="px-5 pb-6 space-y-8">
+              <div className="px-5 pb-6 space-y-6">
+
+                {/* 3-탭 네비게이션 */}
+                <div className="flex gap-1 bg-slate-800/50 rounded-xl p-1">
+                  {[
+                    { key: 'overview' as const, label: '📊 업종 현황', icon: BarChart2 },
+                    { key: 'aeo' as const, label: '🔮 AEO 콘텐츠 트렌드', icon: Sparkles },
+                    { key: 'strategy' as const, label: '🎯 QVS×AEPI 전략', icon: Crosshair },
+                  ].map(tab => {
+                    const Icon = tab.icon;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={async () => {
+                          setInfographicTab(tab.key);
+                          if ((tab.key === 'aeo' || tab.key === 'strategy') && !qisData && !qisLoading && benchmarkData) {
+                            setQisLoading(true);
+                            try {
+                              const data = await fetchQisBenchmarkData(selectedSubIndustry, benchmarkData.snapshots);
+                              setQisData(data);
+                            } catch (e) { console.warn('QIS fetch failed:', e); }
+                            finally { setQisLoading(false); }
+                          }
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          infographicTab === tab.key
+                            ? 'bg-indigo-600 text-white shadow-lg'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* 탭 1: 업종 현황 (기존) */}
+                {infographicTab === 'overview' && (
+                  <div className="space-y-8">
 
                 {/* 업종 KPI 요약 카드 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -566,6 +614,55 @@ export default function IndustryBenchmarkPage() {
                     })()}
                   </div>
                 </div>
+
+                  </div>
+                )}
+
+                {/* 탭 2: AEO 콘텐츠 트렌드 */}
+                {infographicTab === 'aeo' && (
+                  <div>
+                    {qisLoading ? (
+                      <div className="flex items-center justify-center h-48 gap-2 text-sm text-slate-400">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        QIS 데이터 로딩 중...
+                      </div>
+                    ) : (
+                      <AeoContentTrendPanel
+                        trends={qisData?.contentTrends ?? []}
+                        coverageDistribution={qisData?.coverageDistribution ?? { none: 0, sparse: 0, moderate: 0, saturated: 0 }}
+                        topPredictions={qisData?.topPredictions ?? []}
+                        activeSignals={qisData?.activeSignals ?? 0}
+                        totalPredictions={qisData?.totalPredictions ?? 0}
+                        avgQvs={qisData?.avgQvsComposite ?? 0}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* 탭 3: QVS×AEPI 전략 */}
+                {infographicTab === 'strategy' && (
+                  <div className="space-y-6">
+                    {qisLoading ? (
+                      <div className="flex items-center justify-center h-48 gap-2 text-sm text-slate-400">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        전략 데이터 로딩 중...
+                      </div>
+                    ) : (
+                      <>
+                        <QvsAepiMatrix items={qisData?.qvsAepiMatrix ?? []} />
+                        {(qisData?.firstMoverItems ?? []).length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-amber-400" />
+                              선점 기회 타임라인
+                            </h3>
+                            <FirstMoverTimeline items={qisData?.firstMoverItems ?? []} />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
 
               </div>
             )}
