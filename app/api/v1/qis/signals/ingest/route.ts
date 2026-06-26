@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     for (const signal of parsed.data.signals) {
       results.received++;
 
-      // 1. bsw_received_signals 테이블에 저장
+      // 1. bsw_received_signals 테이블에 저장 (3축 컨텍스트 포함)
       const { error: insertError } = await supabase
         .from('bsw_received_signals')
         .insert({
@@ -52,6 +52,12 @@ export async function POST(request: NextRequest) {
           signal_type: signal.signal_type,
           industry: signal.industry,
           hub_slug: signal.hub_slug,
+          // ── 3축 컨텍스트 ──
+          hub_axis: signal.hub_axis || 'industry',
+          place_slug: signal.place_slug || null,
+          vortex_slug: signal.vortex_slug || null,
+          geo_context: signal.geo_context || null,
+          // ── 기존 필드 ──
           tenant_id: signal.tenant_id || null,
           raw_text: signal.raw_text,
           metadata: signal.metadata || {},

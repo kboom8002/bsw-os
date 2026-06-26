@@ -41,6 +41,10 @@ export async function GET(req: NextRequest) {
       auto_must_include: row.auto_must_include || [],
       auto_must_not_do: row.auto_must_not_do || [],
       qvs_composite: row.qvs_composite ? Number(row.qvs_composite) : undefined,
+      // 3축 기본값
+      target_axis: (row as any).target_axis || 'industry',
+      geo_keywords: (row as any).geo_keywords || [],
+      recommended_formats: (row as any).recommended_formats || [],
     }));
 
     return NextResponse.json({

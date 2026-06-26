@@ -24,15 +24,19 @@ export class QisHubClient {
 
   /**
    * BSW에서 생성된 예측 질문들을 Hub에 Push (전달)합니다.
+   * @param options.axis - 3축 라우팅: 'industry' | 'place' | 'vortex' | 'cross_axis'
    */
-  async pushPredictedQuestions(questions: QisPredictedQuestion[]): Promise<boolean> {
+  async pushPredictedQuestions(
+    questions: QisPredictedQuestion[],
+    options?: { axis?: string }
+  ): Promise<boolean> {
     if (questions.length === 0) return true;
 
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/qis/questions`, {
         method: 'POST',
         headers: this.headers,
-        body: JSON.stringify({ questions })
+        body: JSON.stringify({ questions, axis: options?.axis || 'industry' })
       });
 
       if (!response.ok) {

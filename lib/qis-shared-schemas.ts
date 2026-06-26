@@ -1,6 +1,17 @@
 import { z } from 'zod';
 
-// QIS 신호 방출 스키마 (KWeddingHub → BSW)
+// ── 3축(업종·지역·테마) 공통 타입 ──
+export const hubAxisEnum = z.enum(['industry', 'place', 'vortex']).default('industry');
+export type HubAxis = z.infer<typeof hubAxisEnum>;
+
+export const geoContextSchema = z.object({
+  region: z.string(),
+  city: z.string().optional(),
+  district: z.string().optional(),
+}).optional();
+export type GeoContext = z.infer<typeof geoContextSchema>;
+
+// QIS 신호 방출 스키마 (Hub → BSW)
 export const qisSignalPayloadSchema = z.object({
   source_platform: z.enum(['kweddinghub', 'aihompyhub', 'jehuhub', 'other']).default('kweddinghub'),
   signal_type: z.enum([
@@ -24,10 +35,21 @@ export const qisSignalPayloadSchema = z.object({
     'conflict_pattern',
     'entity_created',
     'entity_reviewed',
-    'comparison_requested'
+    'comparison_requested',
+    // 3축 확장
+    'place_review',          // 지역 스팟 후기
+    'place_inquiry',         // 지역 문의 (주차, 예약 등)
+    'vortex_mission_signal', // Vortex 미션 관련 신호
+    'cross_axis_trend',      // 3축 교차 트렌드
   ]),
-  industry: z.enum(['wedding', 'beauty', 'hanbang', 'book', 'expert', 'music', 'food']).default('wedding'),
+  industry: z.string().default('wedding'),  // 유연한 문자열 (Place/Vortex도 수용)
   hub_slug: z.string().optional(),
+  // ── 3축 컨텍스트 ──
+  hub_axis: hubAxisEnum,
+  place_slug: z.string().optional(),        // 'jeju', 'gangnam', 'seongsu'
+  vortex_slug: z.string().optional(),       // 테마 DAO slug
+  geo_context: geoContextSchema,
+  // ── 기존 필드 ──
   tenant_id: z.string().uuid().optional(),
   raw_text: z.string().min(1),
   metadata: z.record(z.string(), z.unknown()).default({}),
@@ -43,7 +65,7 @@ export const qisSignalBatchSchema = z.object({
 });
 export type QisSignalBatch = z.infer<typeof qisSignalBatchSchema>;
 
-// QIS 예측 질문 수신 스키마 (BSW → KWeddingHub)
+// QIS 예측 질문 수신 스키마 (BSW → Hub)
 export const qisPredictedQuestionSchema = z.object({
   bsw_question_id: z.string().uuid(),
   question_text: z.string().min(5),
@@ -55,6 +77,12 @@ export const qisPredictedQuestionSchema = z.object({
   auto_must_include: z.array(z.string()).default([]),
   auto_must_not_do: z.array(z.string()).default([]),
   qvs_composite: z.number().optional(),
+  // ── 3축 타겟 정보 ──
+  target_axis: z.enum(['industry', 'place', 'vortex', 'cross_axis']).default('industry'),
+  place_slug: z.string().optional(),
+  vortex_slug: z.string().optional(),
+  geo_keywords: z.array(z.string()).default([]),
+  recommended_formats: z.array(z.string()).default([]),  // 축별 추천: expert_column, case_study, answer_card
 });
 
 export type QisPredictedQuestion = z.infer<typeof qisPredictedQuestionSchema>;

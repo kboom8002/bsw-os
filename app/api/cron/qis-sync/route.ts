@@ -4,6 +4,7 @@ import { QuestionPredictor } from '@/lib/prediction/question-predictor';
 import { KWeddingHubCollector } from '@/lib/prediction/signal-collectors/kweddinghub-collector';
 import { getSupabaseAdminClient } from '@/lib/supabase';
 import { QisPredictedQuestion } from '@/lib/qis-shared-schemas';
+import { enrichPredictionWithAxis, buildTriAxisPayload } from '@/lib/qis/tri-axis-router';
 
 export const maxDuration = 120;
 
@@ -109,6 +110,7 @@ export async function GET(request: NextRequest) {
         .limit(50);
 
       if (newPredictions && newPredictions.length > 0) {
+        // 예측 질문 기본 구조 생성
         const questions: QisPredictedQuestion[] = newPredictions.map(pred => ({
           bsw_question_id: pred.id,
           question_text: pred.question_text,
@@ -119,7 +121,11 @@ export async function GET(request: NextRequest) {
           current_ai_coverage: pred.current_ai_coverage as 'none' | 'sparse' | 'moderate' | 'saturated',
           auto_must_include: pred.auto_must_include || [],
           auto_must_not_do: pred.auto_must_not_do || [],
-          qvs_composite: undefined
+          qvs_composite: undefined,
+          // 3축 기본값 (enrichPredictionWithAxis에서 실제 값으로 대체됨)
+          target_axis: 'industry' as const,
+          geo_keywords: [],
+          recommended_formats: [],
         }));
 
         // bsw_predicted_questions 테이블에 동기화 (upsert)
@@ -139,13 +145,77 @@ export async function GET(request: NextRequest) {
             }, { onConflict: 'bsw_question_id' });
         }
 
-        // Hub에 Push
-        const pushSuccess = await hubClient.pushPredictedQuestions(questions);
+        // ═══ 3축 라우팅: 예측 질문의 원본 신호에서 축 컨텍스트 추출 ═══
+        // 최근 수신 신호를 조회하여 예측 질문과 매칭
+        const { data: recentSignals } = await supabase
+          .from('bsw_received_signals')
+          .select('raw_text, industry, hub_axis, place_slug, vortex_slug, geo_context, predicted_impact')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        // raw_text 기반으로 가장 가까운 신호 매칭
+        const enrichedQuestions = questions.map(q => {
+          const matchingSignal = (recentSignals || []).find(
+            s => s.raw_text && q.question_text.includes(s.raw_text.slice(0, 20))
+          );
+          // 매칭된 신호가 있으면 축 정보로 강화, 없으면 question_text로 자동 감지
+          const syntheticSignal = matchingSignal || {
+            raw_text: q.question_text,
+            industry: q.question_text,
+            hub_axis: 'industry' as const,
+            source_platform: 'aihompyhub' as const,
+            signal_type: 'community_question' as const,
+            predicted_impact: 'medium' as const,
+            detected_at: new Date().toISOString(),
+          };
+          return enrichPredictionWithAxis(q, syntheticSignal as any);
+        });
+
+        // 3축 그룹별로 Hub에 Push
+        const triAxis = buildTriAxisPayload(enrichedQuestions);
+        const pushResults: Record<string, boolean> = {};
+
+        // Industry (기존 경로)
+        if (triAxis.industry.length > 0) {
+          pushResults.industry = await hubClient.pushPredictedQuestions(triAxis.industry);
+        }
+
+        // Place
+        if (triAxis.place.length > 0) {
+          pushResults.place = await hubClient.pushPredictedQuestions(
+            triAxis.place,
+            { axis: 'place' }
+          );
+        }
+
+        // Vortex
+        if (triAxis.vortex.length > 0) {
+          pushResults.vortex = await hubClient.pushPredictedQuestions(
+            triAxis.vortex,
+            { axis: 'vortex' }
+          );
+        }
+
+        // Cross-Axis
+        if (triAxis.crossAxis.length > 0) {
+          pushResults.crossAxis = await hubClient.pushPredictedQuestions(
+            triAxis.crossAxis,
+            { axis: 'cross_axis' }
+          );
+        }
+
+        const totalPushed = Object.values(pushResults).filter(Boolean).length;
 
         results.push = {
-          count: questions.length,
-          pushed: pushSuccess,
-          status: pushSuccess ? 'ok' : 'push_failed'
+          count: enrichedQuestions.length,
+          triAxisBreakdown: {
+            industry: triAxis.industry.length,
+            place: triAxis.place.length,
+            vortex: triAxis.vortex.length,
+            crossAxis: triAxis.crossAxis.length,
+          },
+          pushResults,
+          status: totalPushed > 0 ? 'ok' : 'push_failed'
         };
       } else {
         results.push = { count: 0, status: 'no_new_predictions' };
