@@ -11,7 +11,12 @@
 
 import { BatchAuditRunner, SiteAuditSnapshot, BatchAuditOptions } from '../../lib/industry/batch-audit-runner';
 import { BenchmarkAggregator, IndustryBenchmarkProfile, IndustryBlueprint } from '../../lib/industry/benchmark-aggregator';
-import { getReferenceSitesBySubIndustry, ReferenceSite } from '../../lib/industry/reference-sites-registry';
+import {
+  getReferenceSitesBySubIndustry,
+  addReferenceSite as _addReferenceSite,
+  deleteReferenceSite as _deleteReferenceSite,
+} from '../../lib/industry/reference-sites-registry';
+import type { ReferenceSite, NewReferenceSite } from '../../lib/industry/reference-sites-registry';
 import { findSubIndustry } from '../../lib/industry/industry-taxonomy';
 import { getSupabaseAdminClient } from '../../lib/supabase';
 
@@ -225,63 +230,17 @@ export async function getBenchmarkAuditHistory(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 레퍼런스 사이트 관리
+// 레퍼런스 사이트 관리 — reference-sites-registry.ts에서 re-export
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface NewReferenceSite {
-  url: string;
-  brandName: string;
-  tier: 'excellent' | 'average' | 'poor';
-  subIndustryKey: string;
-  curatorNotes?: string;
+
+
+/** 레퍼런스 사이트 추가 (Server Action wrapper) */
+export async function addReferenceSite(site: NewReferenceSite): Promise<{ id: string }> {
+  return _addReferenceSite(site);
 }
 
-/**
- * 레퍼런스 사이트 추가
- */
-export async function addReferenceSite(
-  site: NewReferenceSite
-): Promise<{ id: string }> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from('reference_sites')
-    .insert({
-      url: site.url,
-      brand_name: site.brandName,
-      tier: site.tier,
-      sub_industry_key: site.subIndustryKey,
-      curator_notes: site.curatorNotes ?? null,
-      active: true,
-    })
-    .select('id')
-    .single();
-
-  if (error || !data) {
-    throw new Error(`레퍼런스 사이트 추가 실패: ${error?.message ?? '알 수 없는 오류'}`);
-  }
-
-  return { id: data.id as string };
-}
-
-/**
- * 레퍼런스 사이트 삭제
- */
+/** 레퍼런스 사이트 삭제 (Server Action wrapper) */
 export async function deleteReferenceSite(id: string): Promise<boolean> {
-  try {
-    const supabase = getSupabaseAdminClient();
-    const { error } = await supabase
-      .from('reference_sites')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.warn('[industry-benchmark] deleteReferenceSite failed:', error.message);
-      return false;
-    }
-
-    return true;
-  } catch (err: unknown) {
-    console.warn('[industry-benchmark] deleteReferenceSite error:', err instanceof Error ? err.message : String(err));
-    return false;
-  }
+  return _deleteReferenceSite(id);
 }
