@@ -28,40 +28,111 @@ body {
 
 /* PDF 인쇄(Print) 전용 최적화 스타일 */
 @media print {
+  /* 페이지 여백 */
+  @page {
+    margin: 15mm 12mm;
+    size: A4;
+  }
+
   /* 불필요한 UI 숨김 */
-  header, footer, nav, button, .print-hidden {
+  header, footer, nav, aside,
+  button, .print-hidden,
+  [aria-label="breadcrumb"] {
     display: none !important;
   }
-  
-  /* 다크모드 -> 라이트모드 텍스트 및 배경 강제 치환 (잉크 절약) */
-  body {
-    background-color: white !important;
-    color: black !important;
+
+  /* 다크모드 → 라이트모드 강제 치환 */
+  body, html {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
   }
-  .bg-slate-950, .bg-slate-900, .bg-slate-800 {
-    background-color: white !important;
-    color: black !important;
-    border-color: #e2e8f0 !important; /* slate-200 */
+
+  /* 다크 배경 클래스들 → 흰 배경으로 */
+  [class*="bg-slate-"],
+  [class*="bg-gray-"],
+  [class*="backdrop-blur"] {
+    background-color: #ffffff !important;
+    backdrop-filter: none !important;
   }
-  .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 {
-    color: #1e293b !important; /* slate-800 */
+
+  /* 텍스트 색상 → 다크 텍스트로 */
+  [class*="text-slate-"],
+  [class*="text-gray-"],
+  [class*="text-white"] {
+    color: #1e293b !important;
   }
-  
-  /* 페이지 잘림 방지 */
-  .break-inside-avoid {
-    page-break-inside: avoid;
-    break-inside: avoid;
+
+  /* 보더는 연한 색으로 */
+  [class*="border-slate-"],
+  [class*="border-white"] {
+    border-color: #cbd5e1 !important;
   }
-  
-  /* 레이아웃 여백 제거 */
+
+  /* 중요 강조색은 유지 (점수, 배지) */
+  [class*="text-cyan-"],
+  [class*="text-indigo-"],
+  [class*="text-emerald-"],
+  [class*="text-violet-"] {
+    color: #0f172a !important;
+  }
+
+  /* 배경 강조색 제거 */
+  [class*="bg-cyan-"],
+  [class*="bg-indigo-"],
+  [class*="bg-emerald-"],
+  [class*="bg-violet-"],
+  [class*="bg-amber-"] {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  /* 그라디언트 텍스트 → 단색으로 */
+  [class*="bg-gradient-"][class*="bg-clip-text"] {
+    -webkit-text-fill-color: #0f172a !important;
+    background: none !important;
+  }
+
+  /* 레이아웃 최적화 */
   main {
     padding: 0 !important;
     margin: 0 !important;
     max-width: 100% !important;
+    overflow: visible !important;
   }
 
-  /* 차트 렌더링 보정 */
+  /* 플렉스 레이아웃 유지 */
+  .flex { display: flex !important; }
+  .grid { display: grid !important; }
+
+  /* 차트/SVG 보존 */
   canvas, svg {
     max-width: 100% !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* 페이지 분할 제어 */
+  .break-inside-avoid,
+  [class*="rounded-2xl"],
+  [class*="rounded-xl"] {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* 섹션 간 페이지 분할 허용 */
+  section, .print-page-break {
+    page-break-before: always;
+  }
+
+  /* 링크 URL 숨김 (인쇄 시 URL 표시 제거) */
+  a[href]:after {
+    content: none !important;
+  }
+
+  /* 스크롤 컨테이너 펼침 */
+  [class*="overflow-"] {
+    overflow: visible !important;
+    max-height: none !important;
   }
 }

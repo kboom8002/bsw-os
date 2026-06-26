@@ -58,25 +58,35 @@ export default function WorkspaceLayout({
 
   const navigation: SidebarItem[] = [
     { name: "common.workspace", href: `/${locale}/${workspaceSlug}`, icon: LayoutDashboard, module: "dashboard" },
+    // Site Audit 그룹
     { name: "nav.site_audit", href: `/${locale}/site-audit`, icon: Search, badge: "Crawl", module: "site-audit" },
-    { name: "nav.site_audit_settings", href: `/${locale}/${workspaceSlug}/site-audit/settings`, icon: Settings, module: "site-audit-settings" },
     { name: "nav.site_audit_history", href: `/${locale}/${workspaceSlug}/site-audit/history`, icon: Clock, module: "site-audit-history" },
-    { name: "nav.site_audit_llms", href: `/${locale}/${workspaceSlug}/site-audit/llms-generator`, icon: FileBarChart, module: "site-audit-llms" },
     { name: "nav.industry_benchmark", href: `/${locale}/${workspaceSlug}/site-audit/industry-benchmark`, icon: Eye, badge: "NEW", module: "industry-benchmark" },
+    { name: "nav.site_audit_llms", href: `/${locale}/${workspaceSlug}/site-audit/llms-generator`, icon: FileBarChart, module: "site-audit-llms" },
+    { name: "nav.site_audit_settings", href: `/${locale}/${workspaceSlug}/site-audit/settings`, icon: Settings, module: "site-audit-settings" },
+    // 분석 도구 그룹
     { name: "nav.benchmark", href: `/${locale}/benchmark`, icon: FileBarChart, badge: "Live", module: "benchmark" },
     { name: "nav.sbs_index", href: `/${locale}/sbs-index`, icon: Award, badge: "Public", module: "sbs-index" },
-    { name: "nav.truth_studio", href: `/${locale}/${workspaceSlug}/truth`, icon: ShieldAlert, badge: "L2 Gate", module: "truth" },
-    { name: "nav.semantic_core", href: `/${locale}/${workspaceSlug}/semantic-core`, icon: HelpCircle, badge: "CQ/QIS", module: "semantic-core" },
+    { name: "nav.truth_studio", href: `/${locale}/${workspaceSlug}/truth`, icon: ShieldAlert, badge: "L2", module: "truth" },
+    { name: "nav.semantic_core", href: `/${locale}/${workspaceSlug}/semantic-core`, icon: HelpCircle, badge: "QIS", module: "semantic-core" },
     { name: "nav.qis_triaxis", href: `/${locale}/${workspaceSlug}/semantic-core/qis-triaxis`, icon: Eye, badge: "3축", module: "qis-triaxis" },
     { name: "nav.qis_predictions", href: `/${locale}/${workspaceSlug}/semantic-core/qis`, icon: HelpCircle, badge: "예측", module: "qis-predictions" },
+    // 실행 그룹
     { name: "nav.objects_studio", href: `/${locale}/${workspaceSlug}/objects`, icon: Layers, module: "objects" },
     { name: "nav.surfaces", href: `/${locale}/${workspaceSlug}/surfaces`, icon: Layers, module: "surfaces" },
-    { name: "nav.persona", href: `/${locale}/${workspaceSlug}/persona`, icon: User, badge: "AI 매칭", module: "persona" },
-    { name: "nav.website", href: `/${locale}/${workspaceSlug}/website`, icon: Layers, badge: "AEO/GEO", module: "website" },
-    { name: "nav.observatory", href: `/${locale}/${workspaceSlug}/observatory`, icon: Eye, badge: "AAS 41%", module: "observatory" },
+    { name: "nav.persona", href: `/${locale}/${workspaceSlug}/persona`, icon: User, badge: "AI", module: "persona" },
+    { name: "nav.website", href: `/${locale}/${workspaceSlug}/website`, icon: Layers, badge: "AEO", module: "website" },
+    { name: "nav.observatory", href: `/${locale}/${workspaceSlug}/observatory`, icon: Eye, module: "observatory" },
     { name: "nav.reports", href: `/${locale}/${workspaceSlug}/reports`, icon: FileBarChart, module: "reports" },
     { name: "nav.fixit", href: `/${locale}/${workspaceSlug}/fixit`, icon: Wrench, badge: "Hypo", module: "fixit" },
-    { name: "nav.kculture_studio", href: `/${locale}/${workspaceSlug}/kculture`, icon: Building2, badge: "Hybrid", module: "kculture" },
+    { name: "nav.kculture_studio", href: `/${locale}/${workspaceSlug}/kculture`, icon: Building2, module: "kculture" },
+  ];
+
+  const navGroups = [
+    { label: null, items: ["dashboard"] },
+    { label: "Site Audit", items: ["site-audit", "site-audit-history", "industry-benchmark", "site-audit-llms", "site-audit-settings"] },
+    { label: "시맨틱 분석", items: ["benchmark", "sbs-index", "truth", "semantic-core", "qis-triaxis", "qis-predictions"] },
+    { label: "실행 도구", items: ["objects", "surfaces", "persona", "website", "observatory", "reports", "fixit", "kculture"] },
   ];
 
   const switchWorkspace = (slug: string) => {
@@ -84,9 +94,11 @@ export default function WorkspaceLayout({
     router.push(`/${locale}/${slug}`);
   };
 
-  const navClass = (href: string) => {
-    const isActive = pathname === href || (href !== `/${locale}/${workspaceSlug}` && pathname?.startsWith(href));
-    return `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+  const navClass = (href: string, isExact = false) => {
+    const isActive = isExact
+      ? pathname === href
+      : (href !== `/${locale}/${workspaceSlug}` && pathname?.startsWith(href));
+    return `flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
       isActive 
         ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" 
         : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
@@ -137,24 +149,45 @@ export default function WorkspaceLayout({
         )}
       </div>
 
-      {/* Main navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        {navigation.map((item) => (
-          <Link
-            key={item.name}
-            href={item.href}
-            onClick={() => setMobileOpen(false)}
-            className={navClass(item.href)}
-          >
-            <item.icon className="w-4 h-4 flex-shrink-0" />
-            <span className="flex-1 truncate">{t(item.name)}</span>
-            {item.badge && (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-800/40 text-cyan-400">
-                {item.badge}
-              </span>
-            )}
-          </Link>
-        ))}
+      {/* Main navigation - grouped */}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-4">
+        {navGroups.map((group, gi) => {
+          const groupItems = navigation.filter(n => group.items.includes(n.module));
+          if (groupItems.length === 0) return null;
+          return (
+            <div key={gi}>
+              {group.label && (
+                <div className="px-3 mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                    {group.label}
+                  </span>
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {groupItems.map((item) => (
+                  <Link
+                    key={item.module}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={navClass(item.href, item.module === 'dashboard')}
+                    title={t(item.name)}
+                  >
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 text-xs leading-snug"style={{ wordBreak: 'keep-all' }}>
+                      {t(item.name)}
+                    </span>
+                    {item.badge && (
+                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-950 border border-cyan-800/40 text-cyan-400 flex-shrink-0">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+              {gi < navGroups.length - 1 && <hr className="border-white/5 mx-2" />}
+            </div>
+          );
+        })}
       </nav>
 
       {/* Language Selector Bar */}
@@ -212,7 +245,7 @@ export default function WorkspaceLayout({
       )}
 
       {/* Sidebar - Desktop and Mobile Drawer */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 md:translate-x-0 md:static md:h-screen flex-shrink-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-40 w-72 transform transition-transform duration-300 md:translate-x-0 md:static md:h-screen flex-shrink-0 ${
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       }`}>
         {sidebarContent}

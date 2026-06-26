@@ -106,6 +106,99 @@ async function updateProgress(sessionId: string, currentStep: number, totalSteps
   }
 }
 
+/** 일시정지 여부 확인 */
+async function checkPaused(sessionId: string): Promise<boolean> {
+  try {
+    const db = getSupabaseAdminClient();
+    const { data } = await db.from('audit_sessions')
+      .select('status').eq('id', sessionId).single();
+    return data?.status === 'paused';
+  } catch {
+    return false;
+  }
+}
+
+/** 중간 결과를 checkpoint_data에 저장 */
+async function saveCheckpoint(
+  sessionId: string,
+  stepIndex: number,
+  checkpointData: Record<string, any>,
+  partialResult?: Partial<AuditResult>
+) {
+  try {
+    const db = getSupabaseAdminClient();
+    await db.from('audit_sessions').update({
+      last_checkpoint_step: stepIndex,
+      checkpoint_data: checkpointData,
+      ...(partialResult ? { partial_result: partialResult } : {})
+    }).eq('id', sessionId);
+  } catch (e) {
+    console.warn(`[Audit] Could not save checkpoint at step ${stepIndex}:`, e);
+  }
+}
+
+/** 감사 세션 상태 조회 (클라이언트 폴링용) */
+export async function getAuditSession(sessionId: string) {
+  const db = getSupabaseAdminClient();
+  const { data } = await db.from('audit_sessions')
+    .select('id, status, progress, last_checkpoint_step, brand_name, website_url, tier, result_data, partial_result')
+    .eq('id', sessionId)
+    .single();
+  return data;
+}
+
+/** 실행 중인 감사 일시정지 */
+export async function pauseAuditSession(sessionId: string): Promise<{ ok: boolean; message: string }> {
+  try {
+    const db = getSupabaseAdminClient();
+    const { data } = await db.from('audit_sessions')
+      .select('status').eq('id', sessionId).single();
+    if (!data || data.status !== 'running') {
+      return { ok: false, message: '실행 중이 아닌 세션은 일시정지할 수 없습니다.' };
+    }
+    await db.from('audit_sessions').update({
+      status: 'paused',
+      paused_at: new Date().toISOString()
+    }).eq('id', sessionId);
+    return { ok: true, message: '다음 단계 시작 전 일시정지됩니다.' };
+  } catch (e: any) {
+    return { ok: false, message: e.message };
+  }
+}
+
+/** 일시정지된 감사 이어하기 */
+export async function resumeAuditSession(sessionId: string): Promise<{ ok: boolean; message: string }> {
+  try {
+    const db = getSupabaseAdminClient();
+    const { data } = await db.from('audit_sessions')
+      .select('*').eq('id', sessionId).single();
+    if (!data || data.status !== 'paused') {
+      return { ok: false, message: '일시정지 상태의 세션만 재개할 수 있습니다.' };
+    }
+    const resumeFrom = (data.last_checkpoint_step as number) || 0;
+    const checkpointData = (data.checkpoint_data as Record<string, any>) || {};
+
+    await db.from('audit_sessions').update({
+      status: 'running',
+      resumed_at: new Date().toISOString()
+    }).eq('id', sessionId);
+
+    // 이어 실행 (checkpoint 이후 step부터)
+    runFullSiteAuditBackground(
+      sessionId, data.workspace_id, data.website_url, data.brand_name,
+      data.competitors || [], data.tier || 'tier2', data.industry,
+      resumeFrom, checkpointData
+    ).catch(err => {
+      console.error(`Resumed audit ${sessionId} failed:`, err);
+      db.from('audit_sessions').update({ status: 'failed', progress: { message: '재개 후 진단 실패: ' + err.message } }).eq('id', sessionId);
+    });
+
+    return { ok: true, message: `Step ${resumeFrom + 1}부터 재개합니다.` };
+  } catch (e: any) {
+    return { ok: false, message: e.message };
+  }
+}
+
 export async function runQuickSiteAudit(
   workspaceId: string,
   websiteUrl: string,
@@ -218,17 +311,21 @@ async function runFullSiteAuditBackground(
   brandName: string,
   competitors: string[] = [],
   tier: 'free' | 'tier1' | 'tier1.5' | 'tier2' | 'tier3' = 'tier3',
-  industryInput?: string
+  industryInput?: string,
+  resumeFromStep: number = 0,          // ← 이어하기 지점
+  checkpointData: Record<string, any> = {}  // ← 이전 checkpoint 데이터
 ): Promise<AuditResult> {
   console.log(`[Audit Action] Beginning full site audit for ${brandName} (${websiteUrl}), tier: ${tier}`);
 
-  let quickResult: QuickAuditResult | null = null;
-  try {
-    await updateProgress(sessionId, 0, 14, '빠른 진단 기준으로 초기 추정 중...');
-    const analyzer = new QuickSiteAnalyzer();
-    quickResult = await analyzer.analyze(workspaceId, websiteUrl, brandName);
-  } catch (e: any) {
-    console.warn(`[Audit Action] Quick audit baseline failed: ${e.message}`);
+  let quickResult: QuickAuditResult | null = checkpointData.quickResult || null;
+  if (!quickResult) {
+    try {
+      await updateProgress(sessionId, 0, 14, '빠른 진단 기준으로 초기 추정 중...');
+      const analyzer = new QuickSiteAnalyzer();
+      quickResult = await analyzer.analyze(workspaceId, websiteUrl, brandName);
+    } catch (e: any) {
+      console.warn(`[Audit Action] Quick audit baseline failed: ${e.message}`);
+    }
   }
 
   let hasLlmEntities = false;
@@ -236,44 +333,56 @@ async function runFullSiteAuditBackground(
 
   try {
     // ── Step 1: Crawl Website ──
-    let crawlResult: any = null;
-    let crawledPages: CrawledPage[] = [];
-    try {
-      const crawler = new WebsiteCrawler();
-      await updateProgress(sessionId, 1, 14, '웹사이트 구조 크롤링 중...');
-      crawlResult = await crawler.crawl(websiteUrl, 20);
-      crawledPages = crawlResult.pages || [];
-      console.log(`[Audit] Step 1 OK: crawled ${crawledPages.length} pages`);
-    } catch (e: any) {
-      console.warn(`[Audit] Step 1 FAIL (crawl): ${e.message}. Using quick audit entities.`);
-      if (quickResult) {
-        return { ...quickResultToAudit(quickResult, industryInput), auditMode: 'estimated' };
+    let crawlResult: any = checkpointData.crawlResult || null;
+    let crawledPages: CrawledPage[] = checkpointData.crawledPages || [];
+    if (resumeFromStep < 1 || !crawlResult) {
+      try {
+        const crawler = new WebsiteCrawler();
+        await updateProgress(sessionId, 1, 14, '웹사이트 구조 크롤링 중...');
+        if (await checkPaused(sessionId)) { console.log('[Audit] Paused at step 1'); return quickResult ? quickResultToAudit(quickResult, industryInput) : { websiteUrl, brandName, entities: [], cards: [], snapshot: null, observedPersona: null, parametricSnapshot: null, personaSpec: null, gaps: [], trends: [], auditMode: 'estimated' }; }
+        crawlResult = await crawler.crawl(websiteUrl, 20);
+        crawledPages = crawlResult.pages || [];
+        console.log(`[Audit] Step 1 OK: crawled ${crawledPages.length} pages`);
+        await saveCheckpoint(sessionId, 1, { quickResult, crawlResult, crawledPages });
+      } catch (e: any) {
+        console.warn(`[Audit] Step 1 FAIL (crawl): ${e.message}. Using quick audit entities.`);
+        if (quickResult) {
+          return { ...quickResultToAudit(quickResult, industryInput), auditMode: 'estimated' };
+        }
+        throw e;
       }
-      throw e;
     }
 
     // ── Step 2: Tech Infra Audit (L1) ──
     let techInfra: TechInfraAuditResult;
-    try {
-      await updateProgress(sessionId, 2, 14, 'L1: 기술 인프라(AI Crawler Accessibility) 진단 중...');
-      techInfra = TechInfraAuditor.audit(crawlResult);
-      console.log('[Audit] Step 2 OK: L1 Tech Infra Score =', techInfra.techInfraScore);
-    } catch (e: any) {
-      console.warn(`[Audit] Step 2 FAIL (tech-infra): ${e.message}`);
-      techInfra = quickResult?.techInfra || {
-        robotsBotMatrix: [], aiCrawlerAccessScore: 50, httpsEnabled: false, sslCertValid: false,
-        sslCertExpiryDays: 0, ttfbMs: 0, ttfbGrade: 'slow', redirectChainDepth: 0, brokenLinks: [],
-        renderingMode: 'ssr', spaDetected: false, sitemapExists: false, sitemapUrlCount: 0,
-        sitemapFreshnessScore: 0, llmsTxtExists: false, canonicalConsistency: 0, techInfraScore: 50, issues: []
-      };
+    if (resumeFromStep >= 2 && checkpointData.techInfra) {
+      techInfra = checkpointData.techInfra;
+    } else {
+      try {
+        await updateProgress(sessionId, 2, 14, 'L1: 기술 인프라(AI Crawler Accessibility) 진단 중...');
+        if (await checkPaused(sessionId)) { await saveCheckpoint(sessionId, 1, { quickResult, crawlResult, crawledPages }); return quickResultToAudit(quickResult!, industryInput); }
+        techInfra = TechInfraAuditor.audit(crawlResult);
+        console.log('[Audit] Step 2 OK: L1 Tech Infra Score =', techInfra.techInfraScore);
+        await saveCheckpoint(sessionId, 2, { quickResult, crawlResult, crawledPages, techInfra });
+      } catch (e: any) {
+        console.warn(`[Audit] Step 2 FAIL (tech-infra): ${e.message}`);
+        techInfra = quickResult?.techInfra || {
+          robotsBotMatrix: [], aiCrawlerAccessScore: 50, httpsEnabled: false, sslCertValid: false,
+          sslCertExpiryDays: 0, ttfbMs: 0, ttfbGrade: 'slow', redirectChainDepth: 0, brokenLinks: [],
+          renderingMode: 'ssr', spaDetected: false, sitemapExists: false, sitemapUrlCount: 0,
+          sitemapFreshnessScore: 0, llmsTxtExists: false, canonicalConsistency: 0, techInfraScore: 50, issues: []
+        };
+      }
     }
 
     // ── Step 3: Schema Quality Audit (L2) ──
     let schemaQuality: SchemaQualityAuditResult;
     try {
+      if (await checkPaused(sessionId)) { return quickResultToAudit(quickResult!, industryInput); }
       await updateProgress(sessionId, 3, 14, 'L2: 구조화 시맨틱(Schema & OG metadata) 진단 중...');
       schemaQuality = SchemaQualityAuditor.audit(crawledPages);
       console.log('[Audit] Step 3 OK: L2 Schema Quality Score =', schemaQuality.schemaQualityScore);
+      await saveCheckpoint(sessionId, 3, { quickResult, crawlResult, crawledPages, techInfra, schemaQuality });
     } catch (e: any) {
       console.warn(`[Audit] Step 3 FAIL (schema-quality): ${e.message}`);
       schemaQuality = quickResult?.schemaQuality || {
@@ -287,16 +396,22 @@ async function runFullSiteAuditBackground(
     }
 
     // ── Step 4: Extract Entities (LLM) ──
-    let allEntities: SurfaceEntity[] = [];
-    try {
-      const extractor = new LlmEntityExtractor();
-      await updateProgress(sessionId, 4, 14, '지식 자산(Entity) 추출 중...');
-      allEntities = await extractor.extractBatch(workspaceId, crawledPages.slice(0, 10), websiteUrl);
+    let allEntities: SurfaceEntity[] = checkpointData.allEntities || [];
+    if (resumeFromStep < 4 || allEntities.length === 0) {
+      try {
+        if (await checkPaused(sessionId)) { return quickResultToAudit(quickResult!, industryInput); }
+        const extractor = new LlmEntityExtractor();
+        await updateProgress(sessionId, 4, 14, '지식 자산(Entity) 추출 중...');
+        allEntities = await extractor.extractBatch(workspaceId, crawledPages.slice(0, 10), websiteUrl);
+        hasLlmEntities = allEntities.length > 0;
+        console.log(`[Audit] Step 4 OK: extracted ${allEntities.length} entities in batch`);
+        await saveCheckpoint(sessionId, 4, { quickResult, crawlResult, crawledPages, techInfra, schemaQuality, allEntities });
+      } catch (e: any) {
+        console.warn(`[Audit] Step 4 FAIL (LLM extract): ${e.message}. Using quick audit entities.`);
+        allEntities = quickResult?.entities || [];
+      }
+    } else {
       hasLlmEntities = allEntities.length > 0;
-      console.log(`[Audit] Step 4 OK: extracted ${allEntities.length} entities in batch`);
-    } catch (e: any) {
-      console.warn(`[Audit] Step 4 FAIL (LLM extract): ${e.message}. Using quick audit entities.`);
-      allEntities = quickResult?.entities || [];
     }
 
     if (allEntities.length === 0 && quickResult) {
@@ -304,15 +419,19 @@ async function runFullSiteAuditBackground(
     }
 
     // ── Step 5: Build Knowledge Graph ──
-    let kg: any = { entities: allEntities, nodes: [], edges: [], concepts: [] };
-    try {
-      const kgBuilder = new KnowledgeGraphBuilder();
-      await updateProgress(sessionId, 5, 14, '지식 그래프 구축 중...');
-      kg = await kgBuilder.build(workspaceId, websiteUrl, allEntities);
-      console.log(`[Audit] Step 5 OK: KG with ${kg.entities.length} entities`);
-    } catch (e: any) {
-      console.warn(`[Audit] Step 5 FAIL (KG): ${e.message}. Using flat entities.`);
-      kg = { entities: allEntities, nodes: [], edges: [], concepts: [] };
+    let kg: any = checkpointData.kg || { entities: allEntities, nodes: [], edges: [], concepts: [] };
+    if (resumeFromStep < 5 || !checkpointData.kg) {
+      try {
+        if (await checkPaused(sessionId)) { return quickResultToAudit(quickResult!, industryInput); }
+        const kgBuilder = new KnowledgeGraphBuilder();
+        await updateProgress(sessionId, 5, 14, '지식 그래프 구축 중...');
+        kg = await kgBuilder.build(workspaceId, websiteUrl, allEntities);
+        console.log(`[Audit] Step 5 OK: KG with ${kg.entities.length} entities`);
+        await saveCheckpoint(sessionId, 5, { quickResult, crawlResult, crawledPages, techInfra, schemaQuality, allEntities, kg });
+      } catch (e: any) {
+        console.warn(`[Audit] Step 5 FAIL (KG): ${e.message}. Using flat entities.`);
+        kg = { entities: allEntities, nodes: [], edges: [], concepts: [] };
+      }
     }
 
     // ── Step 6: Reverse Answer Cards ──

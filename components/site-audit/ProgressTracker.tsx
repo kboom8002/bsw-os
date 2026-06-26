@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Clock, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, AlertCircle, Pause, Play, RotateCcw } from "lucide-react";
 
 interface ProgressTrackerProps {
   sessionId: string;
@@ -39,6 +39,9 @@ export default function ProgressTracker({ sessionId, locale, tierName = "Pro" }:
     message: "진단 대기 중..."
   });
   const [error, setError] = useState<string | null>(null);
+  const [pauseLoading, setPauseLoading] = useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [checkpointStep, setCheckpointStep] = useState<number>(0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -55,6 +58,9 @@ export default function ProgressTracker({ sessionId, locale, tierName = "Pro" }:
         if (data.progress) {
           setProgress(data.progress);
         }
+        if (data.last_checkpoint_step) {
+          setCheckpointStep(data.last_checkpoint_step);
+        }
 
         if (data.status === "completed") {
           clearInterval(interval);
@@ -70,10 +76,36 @@ export default function ProgressTracker({ sessionId, locale, tierName = "Pro" }:
     };
 
     pollStatus(); // initial call
-    interval = setInterval(pollStatus, 3000); // Poll every 3 seconds
+    interval = setInterval(pollStatus, 3000);
 
     return () => clearInterval(interval);
   }, [sessionId, locale, router]);
+
+  const handlePause = async () => {
+    setPauseLoading(true);
+    try {
+      const res = await fetch(`/api/audit/pause?sessionId=${sessionId}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) setStatus('paused');
+    } catch (e) {
+      console.error('Pause failed', e);
+    } finally {
+      setPauseLoading(false);
+    }
+  };
+
+  const handleResume = async () => {
+    setResumeLoading(true);
+    try {
+      const res = await fetch(`/api/audit/resume?sessionId=${sessionId}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) setStatus('running');
+    } catch (e) {
+      console.error('Resume failed', e);
+    } finally {
+      setResumeLoading(false);
+    }
+  };
 
   const percentage = Math.round((progress.current_step / progress.total_steps) * 100);
 
@@ -91,11 +123,39 @@ export default function ProgressTracker({ sessionId, locale, tierName = "Pro" }:
             )}
           </div>
           <h2 className="text-2xl font-bold text-slate-100">
-            {status === "failed" ? "진단 실패" : status === "completed" ? "진단 완료!" : "정밀 진단 진행 중..."}
+            {status === "failed" ? "진단 실패" : status === "paused" ? "⏸ 일시정지" : status === "completed" ? "진단 완료!" : "정밀 진단 진행 중..."}
           </h2>
           <p className="text-sm text-slate-400 mt-2">
             {tierName} 진단 | 예상 소요: {tierName === "Enterprise" ? "~15분" : tierName === "Pro" ? "~8분" : "~3분"}
           </p>
+          {/* 일시정지 / 재개 버튼 */}
+          <div className="flex items-center justify-center gap-2 mt-4">
+            {status === "running" && (
+              <button
+                onClick={handlePause}
+                disabled={pauseLoading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 hover:bg-amber-600/30 transition-all text-xs font-bold disabled:opacity-50"
+              >
+                {pauseLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause className="h-3.5 w-3.5" />}
+                일시정지
+              </button>
+            )}
+            {status === "paused" && (
+              <>
+                <div className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-1.5">
+                  ⏸ Step {checkpointStep} 완료 후 저장됨 — 이어하기 가능
+                </div>
+                <button
+                  onClick={handleResume}
+                  disabled={resumeLoading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 transition-all text-xs font-bold disabled:opacity-50"
+                >
+                  {resumeLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                  이어 계속하기
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {error ? (

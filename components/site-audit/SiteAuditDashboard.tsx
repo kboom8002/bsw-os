@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   ShieldAlert, RefreshCw, BarChart3,
   FileCode2, UserCheck, Globe, Clock,
@@ -197,8 +198,47 @@ export default function SiteAuditDashboard({
   const isProPlus = tier === 'tier2' || tier === 'tier3';
   const isEnterprise = tier === 'tier3';
 
+  // locale 및 workspaceSlug 추출 (URL 패턴: /{locale}/{workspace_slug}/... 또는 /{locale}/site-audit)
+  const pathParts = pathname?.split('/').filter(Boolean) || [];
+  const locale = pathParts[0] || 'ko';
+  const workspaceSlug = pathParts[1] && !['site-audit', 'benchmark', 'sbs-index'].includes(pathParts[1])
+    ? pathParts[1]
+    : 'demo-brand-semantic-lab';
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      {/* Breadcrumb nav */}
+      <div className="border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-sm print-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-between">
+          <nav className="flex items-center gap-1.5 text-xs text-slate-500" aria-label="breadcrumb">
+            <Link href={`/${locale}/${workspaceSlug}`} className="hover:text-cyan-400 transition-colors flex items-center gap-1">
+              <LayoutDashboard className="h-3 w-3" />
+              <span>홈</span>
+            </Link>
+            <span className="text-slate-700">/</span>
+            <Link href={`/${locale}/site-audit`} className="hover:text-cyan-400 transition-colors">Site Audit</Link>
+            <span className="text-slate-700">/</span>
+            <span className="text-slate-300 font-medium truncate max-w-[200px]">{brandName}</span>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Link href={`/${locale}/${workspaceSlug}/site-audit/history`}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-slate-500 hover:text-cyan-400 hover:bg-slate-800/60 transition-all">
+              <Clock className="h-3 w-3" />
+              <span>감사 이력</span>
+            </Link>
+            <Link href={`/${locale}/${workspaceSlug}/site-audit/industry-benchmark`}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-slate-500 hover:text-cyan-400 hover:bg-slate-800/60 transition-all">
+              <BarChart3 className="h-3 w-3" />
+              <span>업종 벤치마크</span>
+            </Link>
+            <Link href={`/${locale}/${workspaceSlug}/site-audit/llms-generator`}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-slate-500 hover:text-cyan-400 hover:bg-slate-800/60 transition-all">
+              <FileText className="h-3 w-3" />
+              <span>llms.txt 생성기</span>
+            </Link>
+          </div>
+        </div>
+      </div>
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
