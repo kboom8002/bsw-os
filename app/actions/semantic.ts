@@ -1617,21 +1617,27 @@ export async function createPipelineRun(
   if (!isAuthorized) throw new Error("UNAUTHORIZED");
 
   const supabase = getSupabaseAdminClient();
-  const { data: result, error } = await supabase
-    .from('pipeline_runs')
-    .insert({
-      workspace_id: workspaceId,
-      pipeline_type: pipelineType,
-      domain_key: domainKey || null,
-      brand_slug: brandSlug || null,
-      status: 'running',
-      started_at: new Date().toISOString()
-    })
-    .select('id, status')
-    .single();
+  try {
+    const { data: result, error } = await supabase
+      .from('pipeline_runs')
+      .insert({
+        workspace_id: workspaceId,
+        pipeline_type: pipelineType,
+        domain_key: domainKey || null,
+        brand_slug: brandSlug || null,
+        status: 'running',
+        started_at: new Date().toISOString()
+      })
+      .select('id, status')
+      .single();
 
-  if (error) throw new Error(`DB Error: ${error.message}`);
-  return result;
+    if (error) throw error;
+    return result;
+  } catch (err: any) {
+    // Graceful degradation: pipeline_runs 테이블 미존재 시 가상 ID 반환
+    console.warn('[createPipelineRun] DB 기록 실패 (테이블 미존재 가능):', err.message);
+    return { id: `ephemeral-${Date.now()}`, status: 'running' };
+  }
 }
 
 /**
@@ -1643,6 +1649,9 @@ export async function updatePipelineRun(
   resultSummary?: any,
   errorMessage?: string
 ): Promise<boolean> {
+  // ephemeral run은 DB 업데이트 불필요
+  if (runId.startsWith('ephemeral-')) return true;
+
   const supabase = getSupabaseAdminClient();
   const updateData: any = {
     status,
@@ -1656,12 +1665,16 @@ export async function updatePipelineRun(
     updateData.error_message = errorMessage;
   }
 
-  const { error } = await supabase
-    .from('pipeline_runs')
-    .update(updateData)
-    .eq('id', runId);
+  try {
+    const { error } = await supabase
+      .from('pipeline_runs')
+      .update(updateData)
+      .eq('id', runId);
 
-  if (error) throw new Error(`DB Error: ${error.message}`);
+    if (error) throw error;
+  } catch (err: any) {
+    console.warn('[updatePipelineRun] DB 업데이트 실패:', err.message);
+  }
   return true;
 }
 
@@ -1675,81 +1688,64 @@ export async function getPipelineReadiness(workspaceId: string, domainKey: strin
 
   const supabase = getSupabaseAdminClient();
 
-  // 1. Benchmark Audit Results count
-  const { count: benchmarkCount } = await supabase
-    .from('benchmark_audit_results')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId)
-    .eq('sub_industry', domainKey);
+  // Helper: 테이블 미존재 시 0 반환
+  const safeCount = async (table: string, filters: Record<string, string>): Promise<number> => {
+    try {
+      let q = supabase.from(table).select('*', { count: 'exact', head: true }) as any;
+      for (const [k, v] of Object.entries(filters)) {
+        q = q.eq(k, v);
+      }
+      const { count, error } = await q;
+      if (error) return 0;
+      return count || 0;
+    } catch {
+      return 0;
+    }
+  };
 
-  // 2. Golden Reference outputs count
-  const { count: goldenCount } = await supabase
-    .from('golden_reference_outputs')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId)
-    .eq('sub_industry', domainKey);
+  const wsFilter = { workspace_id: workspaceId };
+  const wsIndustryFilter = { workspace_id: workspaceId, sub_industry: domainKey };
 
-  // 3. Audit sessions count (Site Audit)
-  const { count: auditCount } = await supabase
-    .from('audit_sessions')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId);
+  const [benchmarkCount, goldenCount, auditCount, deepDiveCount, tcoCount, kgCount, signalCount, cqCount, sceneCount] = await Promise.all([
+    safeCount('benchmark_audit_results', wsIndustryFilter),
+    safeCount('golden_reference_outputs', wsIndustryFilter),
+    safeCount('audit_sessions', wsFilter),
+    safeCount('deep_dive_sessions', wsFilter),
+    safeCount('tco_concepts', wsFilter),
+    safeCount('brand_ontology_nodes', wsFilter),
+    safeCount('question_signals', wsFilter),
+    safeCount('canonical_questions', wsFilter),
+    safeCount('qis_scenes', wsFilter),
+  ]);
 
-  // 4. Deep Dive sessions count
-  const { count: deepDiveCount } = await supabase
-    .from('deep_dive_sessions')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId);
-
-  // 5. TCO Concepts count
-  const { count: tcoCount } = await supabase
-    .from('tco_concepts')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId);
-
-  // 6. KG nodes count
-  const { count: kgCount } = await supabase
-    .from('brand_ontology_nodes')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId);
-
-  // 7. QIS output counts (signals, cqs, scenes)
-  const { count: signalCount } = await supabase
-    .from('question_signals')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId);
-
-  const { count: cqCount } = await supabase
-    .from('canonical_questions')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId);
-
-  const { count: sceneCount } = await supabase
-    .from('qis_scenes')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId);
-
-  // 8. Recent runs list
-  const { data: recentRuns } = await supabase
-    .from('pipeline_runs')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('started_at', { ascending: false })
-    .limit(10);
+  // Recent runs (graceful)
+  let recentRuns: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from('pipeline_runs')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .order('started_at', { ascending: false })
+      .limit(10);
+    if (!error) recentRuns = data || [];
+  } catch {
+    // pipeline_runs 테이블 미존재 — 무시
+  }
 
   return {
-    benchmarkCount: benchmarkCount || 0,
-    goldenCount: goldenCount || 0,
-    auditCount: auditCount || 0,
-    deepDiveCount: deepDiveCount || 0,
-    tcoCount: tcoCount || 0,
-    kgCount: kgCount || 0,
-    signalCount: signalCount || 0,
-    cqCount: cqCount || 0,
-    sceneCount: sceneCount || 0,
-    recentRuns: recentRuns || []
+    benchmarkCount,
+    goldenCount,
+    auditCount,
+    deepDiveCount,
+    tcoCount,
+    kgCount,
+    signalCount,
+    cqCount,
+    sceneCount,
+    recentRuns
   };
 }
+
 
 /**
  * 36. Seed full demo database
