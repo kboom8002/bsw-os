@@ -12,7 +12,8 @@ class GeminiEmbeddingProvider implements EmbeddingProvider {
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
-    this.ai = new GoogleGenAI({ apiKey: apiKey || 'DUMMY_KEY' });
+    if (!apiKey) console.warn('[Embedding Provider] GEMINI_API_KEY is not set. Embedding calls will fail.');
+    this.ai = new GoogleGenAI({ apiKey: apiKey || '' });
   }
 
   async embed(text: string): Promise<number[]> {

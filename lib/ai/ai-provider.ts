@@ -22,7 +22,7 @@ class GeminiProvider implements AIProvider {
       console.warn("WARNING: GEMINI_API_KEY environment variable is not defined. Falling back to mock-like behavior.");
     }
     // Initialize Google GenAI SDK
-    this.ai = new GoogleGenAI({ apiKey: apiKey || 'DUMMY_KEY' });
+    this.ai = new GoogleGenAI({ apiKey: apiKey || '' });
     this.modelName = 'gemini-2.5-flash';
   }
 
