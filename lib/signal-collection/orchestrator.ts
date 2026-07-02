@@ -182,8 +182,25 @@ export class SignalOrchestrator {
       }
     }
 
-    const totalGenerated = allCandidates.length;
+    let totalGenerated = allCandidates.length;
 
+    // ─── Fallback: LLM 생성 실패 시 패널 데이터에서 시그널 보충 ────────
+    if (totalGenerated === 0 && options.industryKey) {
+      log(`Phase G/D/R LLM 생성 실패. Fallback: 패널 데이터에서 시그널 주입 시작...`);
+      const panelQuestions = INDUSTRY_PANELS_DATA[options.industryKey as keyof typeof INDUSTRY_PANELS_DATA]?.questions || [];
+      const fallbackQuestions = panelQuestions.slice(0, 15); // 최대 15개 주입
+
+      for (const pq of fallbackQuestions) {
+        allCandidates.push({
+          query: pq.question_text.replace('[브랜드]', brandName || domainName),
+          source: 'fallback_panel',
+          volume: PLACEHOLDER_VOLUME
+        });
+        sources.meta++;
+      }
+      totalGenerated = allCandidates.length;
+      log(`Fallback 완료: ${totalGenerated}개 시그널 확보.`);
+    }
     // ─── Phase DD: Semantic Dedup ─────────────────────────
     log(`Phase DD: 시맨틱 중복 제거 시작 (${totalGenerated}개 후보)...`);
     let clusters: SignalCluster[] = [];

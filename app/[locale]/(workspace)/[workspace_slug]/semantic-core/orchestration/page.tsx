@@ -432,15 +432,33 @@ export default function OrchestrationPage() {
               </div>
               <div className="flex justify-between items-center text-xs py-1 border-b border-white/5">
                 <span className="text-slate-400">수집된 시그널</span>
-                <span className="font-mono text-cyan-400 font-bold">{readiness.signalCount}</span>
+                {readiness.signalCount > 0 ? (
+                  <Link href={`/${locale}/${workspaceSlug}/semantic-core/signals`} className="font-mono text-cyan-400 font-bold hover:underline hover:text-cyan-300">
+                    {readiness.signalCount} &rarr;
+                  </Link>
+                ) : (
+                  <span className="font-mono text-cyan-400 font-bold">{readiness.signalCount}</span>
+                )}
               </div>
               <div className="flex justify-between items-center text-xs py-1 border-b border-white/5">
                 <span className="text-slate-400">승격된 질문 (CQ)</span>
-                <span className="font-mono text-cyan-400 font-bold">{readiness.cqCount}</span>
+                {readiness.cqCount > 0 ? (
+                  <Link href={`/${locale}/${workspaceSlug}/semantic-core/question-capital`} className="font-mono text-cyan-400 font-bold hover:underline hover:text-cyan-300">
+                    {readiness.cqCount} &rarr;
+                  </Link>
+                ) : (
+                  <span className="font-mono text-cyan-400 font-bold">{readiness.cqCount}</span>
+                )}
               </div>
               <div className="flex justify-between items-center text-xs py-1">
                 <span className="text-slate-400">생성된 QIS Scene</span>
-                <span className="font-mono text-cyan-400 font-bold">{readiness.sceneCount}</span>
+                {readiness.sceneCount > 0 ? (
+                  <Link href={`/${locale}/${workspaceSlug}/semantic-core/attractors`} className="font-mono text-cyan-400 font-bold hover:underline hover:text-cyan-300">
+                    {readiness.sceneCount} &rarr;
+                  </Link>
+                ) : (
+                  <span className="font-mono text-cyan-400 font-bold">{readiness.sceneCount}</span>
+                )}
               </div>
             </div>
           </div>

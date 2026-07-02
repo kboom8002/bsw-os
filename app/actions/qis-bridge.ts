@@ -234,7 +234,7 @@ export async function autoPromoteSignalToCQ(
     if (options?.industryKey && INDUSTRY_PANELS_DATA[options.industryKey as keyof typeof INDUSTRY_PANELS_DATA]) {
       const questions = INDUSTRY_PANELS_DATA[options.industryKey as keyof typeof INDUSTRY_PANELS_DATA].questions;
       panelMatch = questions.find(q => 
-        q.question_text.toLowerCase().includes(signal.query.toLowerCase().slice(0, 15))
+        signal.query && q.question_text.toLowerCase().includes(signal.query.toLowerCase().slice(0, 15))
       );
     }
 
@@ -452,7 +452,23 @@ export async function runE2EPipeline(
 
       // TCO 개념 20개 자동 도출
       if ((tcoCount.count ?? 0) === 0) {
-        const tcoRes = await generateIndustryConcepts(workspaceId, domainName, brandName, industryKey);
+        let tcoRes = { created: 0 };
+        try {
+          tcoRes = await generateIndustryConcepts(workspaceId, domainName, brandName, industryKey);
+        } catch (e: any) {
+          console.warn('[E2E Pipeline] generateIndustryConcepts failed:', e.message);
+        }
+        
+        // Fallback: TCO 생성이 0개이거나 실패한 경우, 기본 시드 2개 삽입
+        if (tcoRes.created === 0) {
+          console.log('[E2E Pipeline] TCO fallback triggered. Inserting 2 seed concepts.');
+          const seedConcepts = [
+            { workspace_id: workspaceId, concept_name: '핵심 서비스', definition: `${domainName}의 기본 제공 서비스 및 상품성`, is_strategic: true, origin_layer: 'tco', status: 'active' },
+            { workspace_id: workspaceId, concept_name: '고객 경험', definition: `사용자가 체감하는 ${domainName}의 전반적인 서비스 품질과 혜택`, is_strategic: true, origin_layer: 'tco', status: 'active' }
+          ];
+          const { data: insertedTco } = await supabase.from('tco_concepts').insert(seedConcepts).select();
+          tcoRes.created = insertedTco?.length || 0;
+        }
         result.phase0_bootstrap.tcoConcepts = tcoRes.created;
       }
 
