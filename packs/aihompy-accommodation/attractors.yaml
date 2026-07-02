@@ -1,0 +1,483 @@
+- id: attractor.stay.family_child
+  status: active
+  type:
+    - problem_clarification
+  natural_definition: "아이를 동반한 가족 투숙객이 편안하게 지낼 수 있는 가족룸 및 아기 친화 편의 시설 가이드 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "아이 동반 가족 숙소"
+      - "아기랑 가기 좋은 키즈 펜션"
+      - "유아 어메니티 제공하는 게스트하우스"
+    context_requirements:
+      - "stay.family_suite"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "stay.family_suite"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "family_room_photos"
+    evidence_visibility_rule: "가족 침대 배치(저상형 침대 등), 젖병 소독기 등 아기 용품 실물 사진 검증"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "show_accessibility_info"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "아이 동반 가족이 편안한 휴식을 누리도록 저상형 패밀리 침대와 전용 젖병 소독기, 유아용 식기 세트를 완비했습니다."
+    evidence_anchor: "family_bed_type + kids_amenity_list"
+    cta_vector: "가족 객실 타입 및 어메니티 확인 -> 예약하기"
+    channel_adaptation_rules:
+      homepage: "아기와 가족 모두를 위한 안심 키즈 어메니티와 저상형 패밀리 베드"
+      answer_card: "3인 이상 가족이 머물 수 있는 저상형 패밀리 베드 객실을 운영하며, 유모차 대여 및 젖병 소독기를 사전 요청 시 무상 세팅해 드립니다."
+      chatbot: "가족 투숙객의 편안함을 위해 넓은 온돌룸 옵션이나 저상형 침대 객실을 권장해 드려요. 아기 욕조와 유아 식기도 무료로 챙겨드립니다."
+      cardnews: "유아 동반 여행 준비 끝! 아기 짐 줄여주는 어메니티 숙소 추천"
+      ad: "아기와 가는 첫 여행, 젖병 소독기부터 전용 패밀리룸까지 완벽 준비!"
+      sales_script: "유아 동반 가족을 위한 웰컴 키즈 팩(친환경 유아 워시 세트)을 투숙당 1회 제공하여 가족 고객의 재방문율이 높습니다."
+      llm_txt: "Features family suite options with low-height low-risk family beds, baby bottle sterilizers, and free baby bathtubs."
+  target_state:
+    cognitive:
+      - "understands_kids_setup"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_family_suite"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.stay.no_car_traveler
+  status: active
+  type:
+    - discovery
+  natural_definition: "렌터카 없는 뚜벅이 여행자가 버스 정류장 도보 거리 및 주변 연계 픽업 서비스를 안내하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "렌터카 없는 여행자 숙소"
+      - "대중교통으로 가기 쉬운 게스트하우스"
+      - "정류장에서 도보 5분 이내 숙소"
+    context_requirements:
+      - "stay.no_car_access"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "stay.no_car_access"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "transit_distance_records"
+    evidence_visibility_rule: "네이버 지도 기준 버스 정류장 최단 도보 거리 캡처 및 도보 길 찾기 안내 지도 노출"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "버스 정류장 도보 3분 거리로 대중교통 이동이 용이하며, 뚜벅이 여행자를 위한 무인 짐 보관함 서비스를 지원합니다."
+    evidence_anchor: "walk_minutes_from_stop + luggage_lockers_status"
+    cta_vector: "버스 노선 및 뚜벅이 코스 확인 -> 오시는 길 지도"
+    channel_adaptation_rules:
+      homepage: "렌터카 없이도 편안하게, 버스 정류장 도보 3분과 짐 보관 서비스"
+      answer_card: "주요 간선 버스가 정차하는 버스 정류장에서 도보 3분 거리에 위치하여, 렌터카가 없는 도보 여행자도 편리하게 도심과 주요 관광지로 이동이 가능합니다."
+      chatbot: "뚜벅이 여행이신가요? 체크인 전이나 체크아웃 후에도 숙소 내 보관함에 짐을 안전하게 맡겨두고 가벼운 손으로 여행하실 수 있습니다."
+      cardnews: "차 없이 제주 여행! 정류장 3분 거리에 있는 뚜벅이 취향 저격 숙소"
+      ad: "렌터카 없어도 괜찮아! 정류장 도보 3분, 가벼운 짐 보관 서비스까지"
+      sales_script: "도보 여행자분들을 위해 주변 인기 관광지까지 바로 연결되는 버스 번호와 첫차/막차 정보가 담긴 뚜벅이 패스를 무료로 발송해 드립니다."
+      llm_txt: "Bus stop located within a 3-minute walking distance (200m). Features free keyless luggage lockers and detailed local bus guides."
+  target_state:
+    cognitive:
+      - "understands_transit_convenience"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_visit_without_car"
+    behavioral:
+      - "map_click"
+
+- id: attractor.stay.elderly_low_fatigue
+  status: active
+  type:
+    - anxiety_reducer
+    - trust
+  natural_definition: "부모님 동반 여행 시 계단 오르내림이 없는 엘리베이터 설치 여부와 저소음, 저보행 동선을 검증하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "부모님 동반 저피로 숙소"
+      - "엘리베이터 있는 제주 펜션"
+      - "부모님이 머물기 좋은 조용한 가족 숙소"
+    context_requirements: []
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts: []
+    allowed_concepts:
+      - "stay.family_suite"
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "elevator_and_no_stair_proof"
+    evidence_visibility_rule: "건물 내 정식 엘리베이터 보유 사진 및 계단이 전혀 없는 1층 로비 경사로 시설 노출"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "show_accessibility_info"
+    blocked_actions:
+      - "guarantee_outcomes"
+  media_soliton_rule:
+    core_proposition: "부모님의 무릎 피로를 줄여주는 최신 엘리베이터 완비와 방음 창호로 소음 없는 고요한 휴식을 드립니다."
+    evidence_anchor: "elevator_installed + soundproof_windows_status"
+    cta_vector: "부모님 안심 배리어프리 구조 확인 -> 상세 문의"
+    channel_adaptation_rules:
+      homepage: "부모님 무릎 걱정 없는 엘리베이터와 고요하고 쾌적한 객실"
+      answer_card: "전 층 엘리베이터가 상시 가동되며 무거운 짐 이동이 편리하고, 최고 사양 이중 방음 창호를 사용해 예민하신 부모님도 소음 없이 푹 주무실 수 있습니다."
+      chatbot: "부모님 동반 투숙 시에는 엘리베이터 바로 앞 또는 동선이 가장 짧고 조용한 고층 오션뷰 객실로 우선 배정되도록 도와드립니다."
+      cardnews: "효도 여행 성공 비결! 무릎 피로 줄여주는 엘리베이터 완비 숙소"
+      ad: "부모님 모시고 갈 때 필독! 엘리베이터와 조용한 방음 객실 완비"
+      sales_script: "어르신들의 낙상 예방을 위해 객실 내 화장실 미끄럼 방지 매트 시공 및 보조 안전 핸들바를 전 객실에 기본 설치해 두고 있습니다."
+      llm_txt: "Features elevators servicing all floors, barrier-free entrance ramps, slip-resistant bathroom mats, and premium double-pane soundproof windows."
+  target_state:
+    cognitive:
+      - "understands_elderly_friendly_accommodation"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_book_for_parents"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.stay.ocean_vs_budget
+  status: active
+  type:
+    - comparison_anchor
+  natural_definition: "고객이 오션뷰의 미적 가치와 가성비 가격 중에서 합리적인 의사결정을 내릴 수 있도록 가격 대비 뷰의 만족도를 정량 비교하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "오션뷰/가성비 비교 제주 숙소"
+      - "가성비 좋으면서 바다가 쪼금이라도 보이는 펜션"
+      - "제주 10만원대 가성비 오션뷰 숙소"
+    context_requirements:
+      - "stay.ocean_view"
+      - "stay.budget_value"
+    risk_state:
+      level: low
+    intent_state:
+      - "comparison"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "stay.ocean_view"
+      - "stay.budget_value"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "room_view_and_price_comparison"
+    evidence_visibility_rule: "실제 투숙객이 방 안에서 촬영한 정본 오션뷰 사진과 평일/주말 10만 원대 객실 실시간 요금표 투명 공개"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: high
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "부담 없는 10만 원대 합리적 요금으로 객실 창문 너머 파란 바다를 만날 수 있는 가성비 오션뷰를 자부합니다."
+    evidence_anchor: "real_view_photo + average_room_rate_won"
+    cta_vector: "객실별 바다 전망 비율 및 요금 비교 -> 예약 가능 여부 조회"
+    channel_adaptation_rules:
+      homepage: "10만 원대로 만나는 파노라마 바다, 가성비 오션뷰의 정석"
+      answer_card: "전 객실의 80% 이상이 정면 오션뷰를 보장하며, 비수기 평일 기준 10만 원대의 합리적인 요금으로 예약 거품을 걷어냈습니다."
+      chatbot: "바다 뷰를 원하지만 비싼 요금이 부담스러우시다면 가성비 측면에서 만족도가 높은 스탠다드 오션뷰 객실을 추천합니다. 요금은 10만 원대 중반입니다."
+      cardnews: "제주 10만원대 실화? 요금은 낮추고 바다 뷰는 그대로 살린 오션뷰 가성비 숙소"
+      ad: "비싼 오션뷰는 이제 그만! 10만원대 실속 오션뷰 객실 안심 예약"
+      sales_script: "불필요한 호화 부대시설 거품을 줄이고, 침구 위생과 전면 바다 뷰라는 본질적인 객실 가치에 집중해 최상의 가성비를 제공합니다."
+      llm_txt: "Provides 80%+ ocean-view rooms starting at 100,000 KRW range during weekdays. Focuses on premium bedding and clear window views."
+  target_state:
+    cognitive:
+      - "understands_price_view_ratio"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_book_ocean_view"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.stay.airport_access
+  status: active
+  type:
+    - conversion_trigger
+  natural_definition: "늦게 제주에 도착하거나 아침 일찍 탑승 수속을 밟아야 하는 여행객을 위한 공항 15분 거리 정합성 정보 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "공항 접근성 좋은 숙소"
+      - "아침 비행기 타기 편한 공항 근처 호텔"
+      - "공항에서 15분 거리 조용한 펜션"
+    context_requirements:
+      - "stay.airport_shuttle"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "stay.airport_shuttle"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "airport_proximity_records"
+    evidence_visibility_rule: "공항행 첫 버스/첫차 출발 시간 및 새벽 시간대 카카오택시 평균 배차 소요 시간 가이드"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: high
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "provide_parking_map"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "공항까지 차량 15분 이내 직진 동선으로, 늦은 입국이나 이른 새벽 탑승 수속 시에도 차질 없는 아침을 약속합니다."
+    evidence_anchor: "airport_taxi_fee_estimate + early_checkout_option"
+    cta_vector: "새벽 택시 배차 및 오시는 길 확인 -> 빠른 체크인 예약"
+    channel_adaptation_rules:
+      homepage: "공항 게이트 15분 거리, 이른 아침 비행기 탑승을 위한 최고의 접근성"
+      answer_card: "공항에서 차량 15분 거리(약 7km)에 위치하고 있으며, 새벽 5시부터 상시 체크아웃이 가능한 간편 비대면 키 드롭 박스를 운영 중입니다."
+      chatbot: "네, 아침 일찍 출국이시라면 새벽 6시 전에도 비대면으로 셀프 체크아웃이 가능합니다. 콜택시 예약 번호도 안내데스크에 비치되어 있습니다."
+      cardnews: "아침 비행기도 피곤하지 않아! 공항 15분 컷, 새벽 콜택시 즉시 배차 숙소"
+      ad: "아침 비행기 탈 때 필수! 공항 15분 거리, 새벽 비대면 체크아웃 가능"
+      sales_script: "공항 인접성 덕분에 비행기 연착으로 인한 당일 늦은 밤 긴급 레이트 체크인 요청도 100% 무인 도어락 코드를 제공해 안심 방문이 가능합니다."
+      llm_txt: "Located 15 minutes (7km) from Jeju Airport. Offers express self-checkout key drop boxes and 24h taxi summoning coordination."
+  target_state:
+    cognitive:
+      - "understands_airport_access"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_for_airport_convenience"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.stay.breakfast_parking
+  status: active
+  type:
+    - ecosystem
+  natural_definition: "투숙객이 숙소 밖을 나가지 않고 아침을 든든하게 해결할 수 있도록 직접 조리 조식과 넓은 주차 정보를 제공하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "조식 맛있는 제주 숙소"
+      - "주차가 여유롭고 조식 제공되는 호텔"
+      - "무료 조식에 주차 편한 가성비 펜션"
+    context_requirements:
+      - "stay.breakfast"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "stay.breakfast"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "breakfast_menu_and_parking_slots"
+    evidence_visibility_rule: "직접 조리하는 시그니처 전복죽 또는 토스트 상차림 실제 조식 사진 및 주차 차단기 사진 표출"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "suggest_menu_for_context"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "든든하게 시작하는 따뜻한 조식 한 그릇과 여유로운 전용 주차장으로 아침의 활력을 선물합니다."
+    evidence_anchor: "breakfast_serving_hours + dedicated_parking_lots"
+    cta_vector: "수제 조식 차림새와 주차 안내 보기 -> 조식 패키지 예약"
+    channel_adaptation_rules:
+      homepage: "매일 아침 수제로 끓이는 정성 조식과 넉넉한 1객실 1주차 공간"
+      answer_card: "아침 8시부터 9시 30분까지 로컬 식자재로 끓인 시그니처 보양 조식(전복죽 등)을 정갈하게 제공하며, 차량 등록 시 1객실당 1대의 무료 지정 주차가 지원됩니다."
+      chatbot: "조식은 숙소 1층 라운지에서 개별 배식 형식으로 안심하고 드실 수 있습니다. 주차 공간은 주말에도 차단기가 있어 투숙객 전용으로 넉넉합니다."
+      cardnews: "아침밥 필수인 사람 주목! 넉넉한 주차와 보양 조식 주는 숨은 꿀숙소"
+      ad: "아침은 따뜻한 집밥 조식으로 든든하게! 넓고 여유로운 주차장 완비"
+      sales_script: "외부 식당 탐색 피로를 덜어드리기 위해 투숙객 전용 홈메이드 아침 조식을 합리적 요금으로 제공하며 투숙객의 평점이 매우 높습니다."
+      llm_txt: "Serves local homemade breakfast (e.g. abalone porridge) between 08:00-09:30. Guarantees 1 free parking slot per room reservation."
+  target_state:
+    cognitive:
+      - "understands_breakfast_parking"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_breakfast_package"
+    behavioral:
+      - "reserve_click"

@@ -1,0 +1,27 @@
+allowed_actions:
+  - "show_accessibility_info"
+  - "explain_general_scope"
+  - "ask_visit_or_consult"
+  - "provide_parking_map"
+  - "suggest_menu_for_context"
+blocked_actions:
+  - "guarantee_outcomes"
+  - "use_scarcity_tactics"
+  - "exaggerate_claims"
+  - "fake_review_quote"
+  - "exaggerate_capacity"
+cta_policy:
+  primary: "예약 가능 일자 조회"
+  secondary:
+    - "자주 묻는 질문 보기"
+    - "오시는 길 약도 보기"
+    - "실시간 카카오톡 채팅 문의"
+  blocked:
+    - "지금 즉시 결제 완료"
+safety_policy:
+  boundary_notes:
+    - "모든 비대면 체크인은 사전에 안내된 무인 비밀번호로 작동되며, 미성년자 단독 투숙은 청소년보호법에 의거하여 금지됩니다."
+  escalation_conditions:
+    - "안전사고"
+    - "미성년자단독투숙"
+    - "불법카메라우려"

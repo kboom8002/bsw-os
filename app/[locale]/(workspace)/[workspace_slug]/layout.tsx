@@ -23,7 +23,10 @@ import {
   Diamond,
   Target,
   LogOut,
-  Loader2
+  Loader2,
+  Store,
+  Megaphone,
+  MapPin
 } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n/context";
@@ -132,6 +135,11 @@ export default function WorkspaceLayout({
     { name: "nav.fixit", href: `/${locale}/${workspaceSlug}/fixit`, icon: Wrench, badge: "Hypo", module: "fixit" },
     { name: "nav.kculture_studio", href: `/${locale}/${workspaceSlug}/kculture`, icon: Building2, module: "kculture" },
 
+    // ─ Products (진단 상품) ─
+    { name: "nav.aihompy_pack", href: `/${locale}/${workspaceSlug}/aihompy-pack`, icon: Store, badge: "Pack", module: "aihompy-pack" },
+    { name: "nav.sales_automation", href: `/${locale}/${workspaceSlug}/sales-automation`, icon: Megaphone, badge: "Sales", module: "sales-automation" },
+    { name: "nav.regional_report", href: `/${locale}/${workspaceSlug}/regional-report`, icon: MapPin, badge: "지역", module: "regional-report" },
+
     // ─ Reference ─
     { name: "nav.golden_reference", href: `/${locale}/${workspaceSlug}/golden-reference`, icon: Diamond, badge: "GR", module: "golden-reference" },
   ];
@@ -144,6 +152,7 @@ export default function WorkspaceLayout({
     { label: "nav.group_semantic_intel", items: ["truth", "semantic-core", "qis-triaxis", "qis-predictions", "attractors"] },
     { label: "nav.group_execution", items: ["objects", "surfaces", "persona", "website"] },
     { label: "nav.group_monitoring", items: ["observatory", "deep-dive", "reports"] },
+    { label: "nav.group_products", items: ["aihompy-pack", "sales-automation", "regional-report"] },
     { label: "nav.group_tools", items: ["fixit", "kculture"] },
     { label: "nav.group_reference", items: ["golden-reference"] },
   ];

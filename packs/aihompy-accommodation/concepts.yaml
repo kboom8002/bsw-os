@@ -1,0 +1,59 @@
+- id: stay.family_suite
+  name: 가족 패밀리룸 (Family Suite)
+  definition: 3인 이상의 가족/다인원 투숙이 가능한 넓은 객실 공간 및 가족 편의 시설(침대 추가, 식기 등) 제공 여부
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["가족실", "패밀리룸", "가족 숙소", "다인원", "단체룸", "family room"]
+  boundary:
+    scope: "strategic_only"
+
+- id: stay.ocean_view
+  name: 오션뷰 전망 (Ocean View)
+  definition: 객실 창이나 테라스를 통해 바다 전망이 확보되는 입지 환경 및 뷰의 가치
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["오션뷰", "바다전망", "바다가 보이는", "바다뷰", "ocean view"]
+  boundary:
+    scope: "strategic_only"
+
+- id: stay.no_car_access
+  name: 렌터카 없는 뚜벅이 (No Car Traveler)
+  definition: 렌터카 없이 버스, 택시, 버스 정류장 등 도보 연계성 및 숙소 주변 관광지 접근 편의성
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["렌터카없이", "뚜벅이", "차없이", "대중교통", "택시", "no car"]
+  boundary:
+    scope: "operational_only"
+
+- id: stay.breakfast
+  name: 아침 조식 제공 (Breakfast Amenity)
+  definition: 아침 조식 서비스(한식, 서양식, 룸서비스 등)의 제공 여부 및 조식의 특징과 요금 정보
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["조식", "아침식사", "breakfast", "아침밥", "식사제공"]
+  boundary:
+    scope: "operational_only"
+
+- id: stay.airport_shuttle
+  name: 공항 접근성/셔틀 (Airport Access & Shuttle)
+  definition: 제주공항 등 주요 공항과 숙소 간 대중교통 노선, 택시 요금, 셔틀버스 픽업 제공 여부
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["공항근처", "공항셔틀", "공항픽업", "공항버스", "셔틀", "shuttle"]
+  boundary:
+    scope: "operational_only"
+
+- id: stay.budget_value
+  name: 실속 가성비 (Budget Value)
+  definition: 청결하고 조용한 객실 품질 대비 경쟁사보다 합리적이고 뛰어난 가성비 가격 가치
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["가성비", "저렴한", "합리적인 가격", "실속", "싸고 좋은", "budget"]
+  boundary:
+    scope: "strategic_only"

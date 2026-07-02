@@ -1,0 +1,69 @@
+- id: access.parking
+  name: 주차 편의성 (Parking Convenience)
+  definition: 소상공인 매장의 전용 주차장 보유 여부, 주차 면수 및 인근 무료/유료 주차장 지원 수준
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["주차", "parking", "주차장", "주차가능", "차 대기 좋은"]
+  boundary:
+    scope: "operational_only"
+
+- id: access.public_transit
+  name: 대중교통 접근성 (Public Transit Access)
+  definition: 지하철역, 버스 정류장 등 대중교통 거점으로부터 도보 이동 가능 거리 및 노선 편의성
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["버스", "지하철", "정류장", "대중교통", "차 없이", "뚜벅이"]
+  boundary:
+    scope: "operational_only"
+
+- id: companion.elderly
+  name: 부모님/고령 동반 (Elderly Companion Fit)
+  definition: 고령의 부모님이나 어르신 동반 시 휠체어/이동 편의성, 한식/적합한 메뉴 구성 및 안락한 좌석 여부
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["부모님", "어르신", "환갑", "칠순", "가족식사", "할머니", "할아버지"]
+  boundary:
+    scope: "strategic_only"
+
+- id: companion.child
+  name: 아이 동반 (Child Friendly)
+  definition: 유아/어린이 동반 시 유아용 의자(아기의자), 키즈 메뉴, 키즈존 및 안전한 실내 구조 지원 여부
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["아이", "유아", "아기", "키즈", "노키즈존 아님", "아기의자", "어린이"]
+  boundary:
+    scope: "strategic_only"
+
+- id: companion.foreigner
+  name: 외국인 동반 (Foreigner Friendly)
+  definition: 다국어(영어/일본어/중국어) 메뉴판 제공, 다국어 의사소통 가능 여부 및 결제 방식 편의성
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["외국인", "foreign", "English", "Japanese", "Chinese", "번역", "외국친구"]
+  boundary:
+    scope: "strategic_only"
+
+- id: weather.rain
+  name: 비 오는 날 (Rainy Day Fit)
+  definition: 비가 오거나 궂은 날씨에 쾌적하게 머무를 수 있는 실내 분위기, 실내 주차 연계성 및 실내 쾌적성
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["비오는날", "우천", "rainy", "날씨 흐릴 때", "실내 데이트", "장마"]
+  boundary:
+    scope: "operational_only"
+
+- id: time.airport_buffer
+  name: 공항 전후 시간 (Airport Buffer Time)
+  definition: 제주공항 등 주요 거점 공항과의 거리가 가깝고 회전율이 빨라 비행기 탑승 전후 1~2시간 버퍼 타임에 방문하기 좋은 환경
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["공항근처", "공항 전", "비행기", "공항 10분", "출국 전", "입국 직후"]
+  boundary:
+    scope: "operational_only"

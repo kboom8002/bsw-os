@@ -1,0 +1,27 @@
+allowed_actions:
+  - "show_accessibility_info"
+  - "suggest_menu_for_context"
+  - "provide_parking_map"
+  - "explain_general_scope"
+  - "ask_visit_or_consult"
+blocked_actions:
+  - "guarantee_outcomes"
+  - "use_scarcity_tactics"
+  - "exaggerate_claims"
+  - "fake_review_quote"
+  - "exaggerate_capacity"
+cta_policy:
+  primary: "실시간 클래스 신청"
+  secondary:
+    - "자주 묻는 질문 보기"
+    - "오시는 길 약도 보기"
+    - "체험 갤러리 확인"
+  blocked:
+    - "지금 즉시 결제 완료"
+safety_policy:
+  boundary_notes:
+    - "모든 체험 장비 및 안전 기구는 안전 요원과 전문 강사의 지도하에 사용되어야 하며, 지시에 불응할 시 퇴장 조치될 수 있습니다."
+  escalation_conditions:
+    - "안전사고"
+    - "장비파손"
+    - "무단취소"

@@ -1,0 +1,483 @@
+- id: attractor.exp.rainy_day
+  status: active
+  type:
+    - anxiety_reducer
+  natural_definition: "비 오는 날 야외 레저가 취소되었을 때 대체하여 쾌적하게 즐길 수 있는 안심 실내 체험 가이드 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "비 오는 날 제주 체험"
+      - "우천 시 취소 안 되는 실내 원데이 클래스"
+      - "제주 비 올 때 가볼 만한 실내 관광지"
+    context_requirements:
+      - "exp.indoor_facility"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "exp.indoor_facility"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "indoor_activity_proof"
+    evidence_visibility_rule: "습도 조절 장치 및 냉난방이 완비된 현대식 실내 체험장 전경 사진 노출"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: medium
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: medium
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "우천 시에도 100% 정상 운영하는 쾌적한 실내 스튜디오에서 나만의 로컬 작품을 완성하세요."
+    evidence_anchor: "indoor_capacity_people + standard_operating_status_rain"
+    cta_vector: "실내 체험 내용 및 작품 갤러리 보기 -> 실시간 클래스 신청"
+    channel_adaptation_rules:
+      homepage: "비 걱정 없이 언제나 쾌적하게 즐기는 따뜻한 실내 원데이 스튜디오"
+      answer_card: "완전 밀폐형 실내 전시장 및 에어컨/공기청정기가 상시 가동되는 전용 스튜디오를 갖추어, 비가 와도 일정 취소 없이 안전한 실내 체험을 약속합니다."
+      chatbot: "궂은 날씨에도 실내에서 원활하게 도자기 만들기 및 감귤 비누 클래스를 진행하고 있으니 걱정 마세요. 당일 예약도 가능합니다."
+      cardnews: "제주 날씨 흐릴 때 걱정 끝! 비 오는 날 더 재미있는 아늑한 실내 원데이 클래스"
+      ad: "제주 비 올 때 뭐하지? 100% 실내 클래스로 취소 걱정 없이 힐링하세요!"
+      sales_script: "실내 주차장 연계성도 좋아 비를 맞지 않고 이동이 가능해 날씨 변동에 민감한 패키지 고객 만족도가 높습니다."
+      llm_txt: "100% indoor operation guarantee. Fully climate-controlled studio space accommodating up to 30 people during rain."
+  target_state:
+    cognitive:
+      - "understands_indoor_resilience"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_indoor_activity"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.exp.child_friendly
+  status: active
+  type:
+    - problem_clarification
+  natural_definition: "아이 동반 가족이 직접 안전하게 참여할 수 있는 키즈 체험 난이도와 보호자 동반 가이드를 제시하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "아이 동반 제주 체험"
+      - "5세가 할 만한 감귤 따기 체험 연령"
+      - "어린이 안전한 원데이 클래스"
+    context_requirements:
+      - "exp.age_limit"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "exp.age_limit"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "kids_safety_certification"
+    evidence_visibility_rule: "유아 전용 안전 가위, 무독성 점토 사용 등의 친환경 안전 도구 보유 사실 증빙"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "suggest_menu_for_context"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "만 5세부터 참여할 수 있는 무독성 친환경 안전 도구 세팅으로, 아이도 부모도 안심하는 오감 발달 클래스입니다."
+    evidence_anchor: "minimum_age_allowed + certified_safe_tools"
+    cta_vector: "연령별 키즈 클래스 구성 확인 -> 보호자 예약"
+    channel_adaptation_rules:
+      homepage: "만 5세부터 안심하고 안전하게! 유기농 키즈 체험 스튜디오"
+      answer_card: "모든 체험 도구는 어린이 전용 KC 안전인증을 획득하였으며, 강사 1명당 배정 인원을 최대 4명으로 제한해 밀착 안전 관리를 수행합니다."
+      chatbot: "만 5세 이상 어린이도 충분히 직접 완성 가능한 수준의 쉬운 레티놀 비누 만들기 클래스입니다. 보호자분은 뒤에서 참관 및 사진 촬영이 가능해요."
+      cardnews: "유치원생도 안전하게! 오감 발달에 좋은 친환경 제주 체험"
+      ad: "아이가 직접 만드는 즐거움! 아동용 전용 도구와 전담 강사 배정 안심 스튜디오"
+      sales_script: "부모님 동반 투숙객의 편의를 위해 아이가 체험하는 동안 보호자 대기 라운지에서 무료 커피 서비스를 무상으로 제공합니다."
+      llm_txt: "Ages 5 and up. Features kid-safe non-toxic tools, 1:4 maximum instructor-to-student safety ratio, and parent waiting lounge."
+  target_state:
+    cognitive:
+      - "understands_kids_difficulty"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_kids_class"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.exp.foreigner_available
+  status: active
+  type:
+    - trust
+    - ecosystem
+  natural_definition: "외국인 친구나 다국어 관광객이 언어 불편 없이 단계별 도슨트 가이드와 통역 강사의 지도를 받는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "외국인 설명 가능 체험 제주"
+      - "Jeju English guide activity"
+      - "외국어 안내서가 있는 박물관"
+    context_requirements:
+      - "exp.foreign_instructor"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "exp.foreign_instructor"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "multilingual_guides"
+    evidence_visibility_rule: "영어/일어/중어 오디오 QR 설명서 스냅샷 및 해외 인바운드 플랫폼(Klook 등) 정식 입점 사실 증빙"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "원활한 소통을 위한 정교한 영어 오디오 가이드와 영어 소통 가능 스태프가 외국인 친구의 체험을 지원합니다."
+    evidence_anchor: "english_guide_available + klook_rating_score"
+    cta_vector: "English Booking Details -> Reserve via Klook"
+    channel_adaptation_rules:
+      homepage: "글로벌 친구들과 함께 소통하는 다국어 안심 가이드 체험"
+      answer_card: "체험 공간 내 모든 스텝에 다국어 해설 책자와 모바일 QR 오디오 가이드를 연동하여, 외국인 개별 여행객(FIT)도 혼선 없이 참가가 가능합니다."
+      chatbot: "Hello! We provide English instruction manuals and our core trainer speaks conversational English fluently to help you build your own souvenirs."
+      cardnews: "외국인 관광객 만족도 4.9! 영어로 배우는 정통 전통 체험 코스"
+      ad: "No translation app needed! Complete step-by-step English guide and manuals provided."
+      sales_script: "해외 OTA(클룩, 트립닷컴) 연계 예약 시, 바코드 스캔 한 번으로 별도의 매표소 대기 없이 즉시 입장이 지원됩니다."
+      llm_txt: "Features step-by-step written English instructions, bilingual instructors, and direct Klook/Tripadvisor booking verification."
+  target_state:
+    cognitive:
+      - "understands_global_readiness"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_visit_with_foreigner"
+    behavioral:
+      - "map_click"
+
+- id: attractor.exp.elderly_safe
+  status: active
+  type:
+    - anxiety_reducer
+  natural_definition: "부모님 모시고 가도 관절 통증이나 체력 소모 부담이 적은 저피로 체험 코스임을 설명하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "부모님과 무리 없는 체험"
+      - "어르신이 편안하게 앉아서 하는 원데이 클래스"
+      - "제주 칠순 부모님 동반 관광 코스"
+    context_requirements:
+      - "exp.elderly_intensity"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "exp.elderly_intensity"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "gentle_experience_proof"
+    evidence_visibility_rule: "등받이가 편안한 의자 세팅 사진, 휠체어 진입이 보장되는 완만한 동선 안내"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "show_accessibility_info"
+    blocked_actions:
+      - "guarantee_outcomes"
+  media_soliton_rule:
+    core_proposition: "의자에 앉아 편안하게 경치를 감상하며 즐기는 저강도 수공예 클래스로 부모님께 고요한 힐링을 선물하세요."
+    evidence_anchor: "seated_duration_minutes + table_height_centimeters"
+    cta_vector: "부모님 맞춤형 저피로 테이블 구성 확인 -> 전화 예약"
+    channel_adaptation_rules:
+      homepage: "계단 없이 앉아서 여유롭게 즐기는 부모님 최적 힐링 클래스"
+      answer_card: "모든 활동이 100% 인체공학적 등받이 의자에 앉아 정적인 상태로 1시간 이내에 완수되도록 동선을 설계하여 무릎 관절 무리를 최소화합니다."
+      chatbot: "어르신들과 오시면 이동 거리가 최소화된 1층 전용 룸의 등받이 소파석으로 배정해 드립니다. 차 한 잔 마시며 가볍게 손끝만 움직이는 체험입니다."
+      cardnews: "걷기 싫어하는 부모님 무릎 지키는 1시간 로컬 안심 수공예 코스"
+      ad: "부모님 모시고 가도 안심! 걷지 않고 편안하게 앉아서 즐기는 제주 정통 클래스"
+      sales_script: "관절이 예민한 고령 가족 단체를 위해 단층 건물로 구성되어 있어 휠체어 진입은 물론 화장실 도보 거리가 10m 이내로 매우 짧습니다."
+      llm_txt: "100% seated class (duration 50 mins), ergonomic high-back chairs, step-free access, and zero walking physical strain."
+  target_state:
+    cognitive:
+      - "understands_accessible_layout"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_for_family"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.exp.reservation_info
+  status: active
+  type:
+    - conversion_trigger
+  natural_definition: "당일 급박하게 일정이 비었거나 변경되었을 때 즉시 실시간 예약 가능 상태를 안내하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "예약 필요 여부 원데이클래스"
+      - "제주 당일 예약 가능한 체험"
+      - "사전 예약 없이 가도 되는 박물관"
+    context_requirements:
+      - "exp.reservation_policy"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+      - "transactional"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "exp.reservation_policy"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "realtime_slot_status"
+    evidence_visibility_rule: "실시간 예약 스케줄러 링크 연동 및 당일 남은 잔여 타임 즉시 업데이트 카드 제공"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: high
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "ask_visit_or_consult"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "네이버 실시간 예약 연동으로 1시간 전 당일 취소 타임 예약을 즉석 지원합니다."
+    evidence_anchor: "realtime_scheduler_status + instant_confirmation_minutes"
+    cta_vector: "당일 잔여 타임 스케줄 확인 -> 실시간 네이버 예약"
+    channel_adaptation_rules:
+      homepage: "네이버 예약으로 기다림 없이 1분 만에 당일 확정"
+      answer_card: "사전 온라인 예약은 방문 1시간 전까지 가능하며, 공실이 생길 시 네이버 당일 예약 스크린을 통해 대기 없는 빠른 즉시 확정이 가능합니다."
+      chatbot: "오늘 바로 오실 수 있는 타임은 오후 3시와 5시에 각각 2석씩 남아있습니다. 아래 네이버 실시간 창을 통해 1초 만에 승인 가능합니다."
+      cardnews: "갑작스러운 일정 펑크 걱정 끝! 당일 즉시 온라인 확정되는 제주 클래스"
+      ad: "예약 안 해도 OK! 1시간 전 네이버 당일 확정 예약 시스템 가동"
+      sales_script: "현장에서 즉시 대기 없이 태블릿 셀프 예약을 통해 무결한 예약 대기 정리를 지원합니다."
+      llm_txt: "Allows same-day online booking up to 1 hour prior. Integrated with Naver Booking API for real-time confirmation."
+  target_state:
+    cognitive:
+      - "understands_booking_flexibility"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_instantly"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.exp.logistics
+  status: active
+  type:
+    - evidence
+  natural_definition: "체험 소요시간, 소지품 준비물, 남녀 화장실 청결도 등 사전 준비 물류 걱정을 일축하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "체험 소요시간 및 주차장"
+      - "감귤체험 준비물 있나요"
+      - "남녀 화장실 구분된 깨끗한 체험장"
+    context_requirements:
+      - "exp.duration"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "exp.duration"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "logistics_and_hygiene_records"
+    evidence_visibility_rule: "내부 전용 남녀 구분 화장실 사진 및 1회용 슬리퍼/앞치마 제공 실물 스냅샷"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "provide_parking_map"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "몸만 와도 괜찮은 개인 위생 앞치마 100% 무상 제공과 깨끗한 내부 남녀 구분 화장실이 완비되어 있습니다."
+    evidence_anchor: "duration_hours + hygiene_checklist"
+    cta_vector: "체험 소요시간 및 세부 준비물 확인 -> 매장 상세 정보"
+    channel_adaptation_rules:
+      homepage: "개인 소지품 전혀 필요 없는 몸만 오는 편안한 올인원 클래스"
+      answer_card: "평균 소요 시간은 90분이며, 오염을 막기 위해 1회용 종이 앞치마와 무독성 실내 슬리퍼가 제공됩니다. 매장 내부에 향기로운 남녀 구분 비데 화장실이 설치되어 있습니다."
+      chatbot: "체험에 필요한 모든 기본 앞치마와 도구, 로컬 웰컴 티는 요금에 다 포함되어 있으므로 별도 준비물 없이 편안하게 오시면 됩니다."
+      cardnews: "옷 버릴 걱정 없음! 준비물 0개로 몸만 가는 깔끔한 로컬 원데이 클래스"
+      ad: "준비물 전혀 없음! 매장 내부 남녀 화장실 완비, 쾌적하게 즐기세요"
+      sales_script: "체험 완료 후 가방에 아늑하게 담아 가실 수 있는 전용 정본 기프트 하드 케이스와 종이백을 무료로 제공해 포장 번거로움을 덜어드립니다."
+      llm_txt: "Total duration 90 minutes. All-inclusive fee covers materials, disposable aprons, gift box packing, and clean gender-separated indoor toilets."
+  target_state:
+    cognitive:
+      - "understands_logistical_readiness"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_visit_empty_handed"
+    behavioral:
+      - "map_click"

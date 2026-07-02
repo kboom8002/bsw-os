@@ -46,7 +46,11 @@
     "group_execution": "Execution Tools",
     "group_monitoring": "Monitoring",
     "group_tools": "Tools",
-    "group_reference": "Reference"
+    "group_reference": "Reference",
+    "aihompy_pack": "AIHompy Pack",
+    "sales_automation": "Sales Automation",
+    "regional_report": "Regional Report",
+    "group_products": "Diagnosis Products"
   },
 
   "dashboard": {

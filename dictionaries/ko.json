@@ -46,7 +46,11 @@
     "group_execution": "실행 도구",
     "group_monitoring": "모니터링",
     "group_tools": "도구",
-    "group_reference": "레퍼런스"
+    "group_reference": "레퍼런스",
+    "aihompy_pack": "AI홈피 Pack",
+    "sales_automation": "세일즈 자동화",
+    "regional_report": "지자체/협회 리포트",
+    "group_products": "진단 상품"
   },
 
   "dashboard": {

@@ -2290,4 +2290,108 @@ export async function findBestAttractor(
   };
 }
 
+/**
+ * 54. 업체 AI홈피 팩 생성 파이프라인
+ */
+export async function generateAihompyPack(
+  workspaceId: string,
+  businessData: any,
+  tier: 'basic' | 'pro' | 'premium'
+): Promise<any> {
+  await requireAuthOrDemo();
+  
+  const { BusinessIntakeProcessor } = await import('../../lib/aihompy-pack/business-intake');
+  const { HomepageComposer } = await import('../../lib/aihompy-pack/homepage-composer');
+  const { LlmTxtGenerator } = await import('../../lib/aihompy-pack/llm-txt-generator');
+
+  // 1. 해당 워크스페이스 내 로드된 모든 어트랙터 조회
+  const attractors = await getPatternAttractors(workspaceId);
+
+  // 2. 적합 어트랙터 자동 매칭
+  const matchingCandidates = await BusinessIntakeProcessor.findApplicableAttractors(businessData, attractors);
+  
+  // 매칭된 ID를 기반으로 상세 어트랙터 객체 필터링
+  const activeAttractorIds = matchingCandidates.map(c => c.attractor_id);
+  const matchedAttractorSpecs = attractors.filter(a => activeAttractorIds.includes(a.id));
+
+  // 3. 홈페이지 섹션 및 상황형 FAQ 조립
+  const sections = await HomepageComposer.compose(businessData, matchedAttractorSpecs, tier);
+
+  // 4. 이미지 alt text 생성 (사진 데이터가 있을 시)
+  const photosWithAlt = businessData.photos?.length 
+    ? await HomepageComposer.generateAltTexts(businessData.photos, businessData.business_name)
+    : [];
+
+  // 5. llm.txt 파일용 영문 텍스트 생성
+  const llmTxt = await LlmTxtGenerator.generate(businessData, matchedAttractorSpecs);
+
+  return {
+    success: true,
+    tier,
+    matched_attractors: matchingCandidates,
+    sections,
+    photos: photosWithAlt,
+    llm_txt: llmTxt
+  };
+}
+
+/**
+ * 55. 업종별 팩에서 적합 어트랙터 자동 매칭
+ */
+export async function matchBusinessToAttractors(
+  workspaceId: string,
+  businessData: any
+): Promise<any[]> {
+  await requireAuthOrDemo();
+  const { BusinessIntakeProcessor } = await import('../../lib/aihompy-pack/business-intake');
+  const attractors = await getPatternAttractors(workspaceId);
+  return await BusinessIntakeProcessor.findApplicableAttractors(businessData, attractors);
+}
+
+/**
+ * 56. llm.txt 생성 및 저장
+ */
+export async function generateLlmTxt(
+  workspaceId: string,
+  businessId: string,
+  attractorIds: string[]
+): Promise<string> {
+  await requireAuthOrDemo();
+  // Simple AI generate wrapper for a set of attractors
+  const supabase = getSupabaseAdminClient();
+  
+  // Fetch workspace details and business if any table exists, else mock
+  const { data: attractors } = await supabase
+    .from('pattern_attractors')
+    .select('*')
+    .in('id', attractorIds)
+    .eq('workspace_id', workspaceId);
+
+  const { LlmTxtGenerator } = await import('../../lib/aihompy-pack/llm-txt-generator');
+  
+  // Dummy intake data for mapping
+  const dummyIntake = {
+    business_name: '로컬 시그니처 샵',
+    address: '제주도 애월읍',
+    phone: '064-000-0000',
+    business_hours: '09:00 - 18:00',
+    description: '로컬 팩스북 안심 파트너 매장',
+    industry_type: 'restaurant_cafe' as const,
+    facilities: {
+      parking: true,
+      indoor_seats: true,
+      wheelchair_access: true,
+      kids_menu: false,
+      pet_allowed: false,
+      foreign_language_menu: ['en']
+    },
+    menu_items: [],
+    photos: [],
+    faq_entries: []
+  };
+
+  return await LlmTxtGenerator.generate(dummyIntake, attractors || []);
+}
+
+
 

@@ -1,0 +1,29 @@
+allowed_actions:
+  - "show_accessibility_info"
+  - "suggest_menu_for_context"
+  - "provide_parking_map"
+  - "explain_general_scope"
+  - "ask_visit_or_consult"
+blocked_actions:
+  - "guarantee_taste"
+  - "fake_review_quote"
+  - "exaggerate_capacity"
+  - "use_scarcity_tactics"
+  - "guarantee_outcomes"
+  - "exaggerate_claims"
+cta_policy:
+  primary: "카카오맵 길찾기"
+  secondary:
+    - "전화 문의"
+    - "메뉴 보기"
+    - "네이버 예약"
+  blocked:
+    - "무조건 예약하기"
+    - "지금 바로 결제하기"
+safety_policy:
+  boundary_notes:
+    - "모든 식품 영양 성분 및 알레르기 유발 유무 정보는 매장 스태프에게 직접 확인해 주세요."
+  escalation_conditions:
+    - "식중독"
+    - "알레르기"
+    - "위생민원"

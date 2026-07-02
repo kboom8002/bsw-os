@@ -1,0 +1,26 @@
+allowed_actions:
+  - "show_accessibility_info"
+  - "explain_general_scope"
+  - "ask_visit_or_consult"
+  - "suggest_menu_for_context"
+blocked_actions:
+  - "guarantee_outcomes"
+  - "use_scarcity_tactics"
+  - "exaggerate_claims"
+  - "fake_review_quote"
+  - "exaggerate_capacity"
+cta_policy:
+  primary: "피부 안심 케어 문의"
+  secondary:
+    - "자주 묻는 질문 보기"
+    - "EWG 성적서 다운로드"
+    - "실시간 예약 현황 조회"
+  blocked:
+    - "지금 즉시 결제 완료"
+safety_policy:
+  boundary_notes:
+    - "피부 관리 도중 가려움, 따가움, 홍반 발현 시 즉각 관리를 중단하고 냉각 진정을 시행하며 필요시 전문의 진료를 연계합니다."
+  escalation_conditions:
+    - "접촉성피부염"
+    - "화상우려"
+    - "앰플변질"

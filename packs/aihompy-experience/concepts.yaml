@@ -1,0 +1,59 @@
+- id: exp.indoor_facility
+  name: 실내 체험 시설 (Indoor Activity)
+  definition: 우천이나 궂은 날씨에도 취소 없이 상시 쾌적하게 안전한 실내에서 운영되는 체험 환경
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["실내체험", "비올때체험", "실내 액티비티", "안전한 실내", "indoor"]
+  boundary:
+    scope: "operational_only"
+
+- id: exp.age_limit
+  name: 키즈 체험 연령 (Age Limits & Kids Fit)
+  definition: 어린이/유아가 다치지 않고 직접 참여할 수 있는 난이도 장벽 및 유아 맞춤 놀이 안전 지원
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["아이체험", "어린이클래스", "몇살부터", "초등학생", "유아참여", "kids class"]
+  boundary:
+    scope: "strategic_only"
+
+- id: exp.foreign_instructor
+  name: 외국어 통역/가이드 (Foreign Guide Available)
+  definition: 다국어(영어, 일본어, 중국어) 설명서, 오디오 가이드 또는 통역 강사 보유 여부
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["외국인가이드", "English instructor", "Japanese guide", "외국친구체험", "foreign helper"]
+  boundary:
+    scope: "strategic_only"
+
+- id: exp.elderly_intensity
+  name: 무마찰 저강도 코스 (Gentle Activity for Elderly)
+  definition: 과도한 걷기나 가파른 경사 없이, 어르신이나 부모님도 동적 피로도가 낮아 편안하게 즐길 수 있는 코스
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["부모님체험", "어르신관광", "저피로", "앉아서하는", "무리없는", "gentle course"]
+  boundary:
+    scope: "strategic_only"
+
+- id: exp.reservation_policy
+  name: 예약 필수 여부 (Reservation Required)
+  definition: 당일 현장 구매 가능 여부, 사전 온라인 예약 필수성 및 취소 환불 기준 정보
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["예약필수", "현장예약", "당일예약", "사전예약", "환불규정", "booking required"]
+  boundary:
+    scope: "operational_only"
+
+- id: exp.duration
+  name: 소요 시간 및 물류 (Activity Duration & Logistics)
+  definition: 체험에 소요되는 평균 시간, 전용 주차장 여부, 화장실 청결도 등 기본 편의 물류 현황
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["소요시간", "몇시간", "주차", "화장실", "준비물", "duration"]
+  boundary:
+    scope: "operational_only"

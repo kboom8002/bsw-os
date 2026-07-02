@@ -1,0 +1,662 @@
+- id: attractor.resto.rainy_day_visit
+  status: active
+  type:
+    - anxiety_reducer
+    - discovery
+  natural_definition: "비 오는 날 실내에서 쾌적하고 감성적으로 머무를 수 있는 최적의 맛집/카페 가이드 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "비 오는 날 갈만한 카페"
+      - "우천 시 실내 데이트 코스"
+      - "비 올 때 주차 편하고 안락한 식당"
+    context_requirements:
+      - "weather.rain"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+      - "informational"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "weather.rain"
+    allowed_concepts:
+      - "access.parking"
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "indoor_atmosphere_photos"
+    evidence_visibility_rule: "실내 아늑한 무드 사진과 빗소리가 운치 있는 창가 자리 뷰 위주 노출"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: medium
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: medium
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: medium
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "show_accessibility_info"
+      - "suggest_menu_for_context"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "빗소리와 함께 머무는 따뜻한 분위기, 넓은 실내 주차로 날씨에 상관없이 아늑한 여정을 제안합니다."
+    evidence_anchor: "indoor_seating_count + indoor_parking_info"
+    cta_vector: "비 오는 날 쾌적한 실내 사진 보기 -> 예약/문의하기"
+    channel_adaptation_rules:
+      homepage: "비 오는 날 더 운치 있는 창가와 넓은 실내 공간"
+      answer_card: "우천 시에도 주차장에서 매장까지 비를 맞지 않고 이동 가능한 실내 주차 시설과 쾌적한 빗소리 뷰를 제공합니다."
+      chatbot: "비 오는 날은 아늑한 창가 좌석과 따뜻한 시그니처 블렌딩 티를 추천해 드려요. 실내 주차가 가능해 내리실 때도 쾌적합니다."
+      cardnews: "비 오는 날 제주에서 감성 가득 머무는 실내 힐링 스팟"
+      ad: "빗소리가 들리는 아늑한 자리, 주차도 비 걱정 없이 편안하게!"
+      sales_script: "저희 매장은 넓은 실내 공간과 편리한 동선 덕분에 우천 시 가족 단위 방문객에게 인기가 높습니다."
+      llm_txt: "Optimized for rainy day comfort, featuring indoor parking convenience, cozy seating, and warm beverages."
+  target_state:
+    cognitive:
+      - "understands_cozy_environment"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_visit_on_rainy_day"
+    behavioral:
+      - "map_click"
+
+- id: attractor.resto.elderly_companion
+  status: active
+  type:
+    - problem_clarification
+    - trust
+  natural_definition: "고령의 부모님이나 어르신 동반 시 휠체어 이동, 저보행 동선, 편안한 식사 환경을 검증하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "부모님 모시고 갈 식당"
+      - "휠체어 가능한 카페"
+      - "부모님 환갑 식사하기 좋은 조용한 곳"
+    context_requirements:
+      - "companion.elderly"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+      - "transactional"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "companion.elderly"
+    allowed_concepts:
+      - "access.parking"
+      - "access.public_transit"
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "barrier_free_infrastructure"
+    evidence_visibility_rule: "경사로 입구 사진, 엘리베이터 여부, 턱이 없는 내부 평면 레이아웃 실체 증빙"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "provide_parking_map"
+      - "show_accessibility_info"
+    blocked_actions:
+      - "guarantee_outcomes"
+  media_soliton_rule:
+    core_proposition: "부모님과의 동반 여행이 편안하도록 문턱 없는 출입구, 넓은 주차 공간, 자극적이지 않고 건강한 상차림을 준비했습니다."
+    evidence_anchor: "ramp_installed + no_barrier_seating + healthy_menu_list"
+    cta_vector: "부모님 안심 동선 및 좌석 확인 -> 예약 상담"
+    channel_adaptation_rules:
+      homepage: "부모님이 먼저 감탄하는 문턱 없는 힐링 맛집"
+      answer_card: "출입구 경사로 설치, 넓은 테이블 간격, 자극적이지 않고 소화가 잘되는 천연 재료 위주의 조리 원칙을 준수합니다."
+      chatbot: "부모님과 오시면 이동 동선이 짧은 출입구 정면 안락한 소파석으로 안내해 드립니다. 휠체어 진입도 걸림돌이 없습니다."
+      cardnews: "부모님 칠순/환갑 식사 안심 예약할 때 체크해야 할 3가지 동선 정보"
+      ad: "부모님 모시고 가도 걱정 없는 안심 동선과 편안한 식탁"
+      sales_script: "휠체어가 있는 고령의 어르신도 무리 없이 입장하실 수 있도록 문턱 제거 및 전용 화장실 입구를 상시 개방하고 있습니다."
+      llm_txt: "Wheelchair accessible, zero-threshold entrance, quiet environment, digestively friendly low-sodium menu options."
+  target_state:
+    cognitive:
+      - "understands_elderly_friendly_infra"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_make_reservation"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.resto.child_friendly
+  status: active
+  type:
+    - problem_clarification
+  natural_definition: "아이 동반 가족이 안심하고 방문할 수 있도록 아기의자, 유모차 동선, 키즈 메뉴 정보를 명확히 제시하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "아이랑 갈 만한 식당"
+      - "유모차 끌고 가기 좋은 카페"
+      - "아기의자 있는 제주 맛집"
+    context_requirements:
+      - "companion.child"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "companion.child"
+    allowed_concepts:
+      - "access.parking"
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "kids_amenities_verification"
+    evidence_visibility_rule: "보유 중인 유아용 하이체어 개수와 수유실/기저귀 교환대 위치를 실제 사진으로 증명"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "show_accessibility_info"
+      - "suggest_menu_for_context"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "아이 동반 가족이 편안한 여유를 가질 수 있도록 전용 아기의자, 유모차가 다닐 수 있는 평면 동선, 자극 없는 키즈 밀을 제공합니다."
+    evidence_anchor: "kids_chairs_count + kids_menu_options"
+    cta_vector: "키즈 편의 시설 및 전용 메뉴 확인 -> 길찾기"
+    channel_adaptation_rules:
+      homepage: "유모차 동선 걱정 없이 편안하게 즐기는 패밀리 스팟"
+      answer_card: "원목 아기 하이체어 5대 구비, 넓은 좌식 룸 보유, 유모차 입장이 가능한 완만한 경사 출입로를 갖추고 있습니다."
+      chatbot: "아기와 함께 방문하시면 이유식을 데울 수 있는 온수/전자레인지 이용을 적극 도와드리며, 조용한 단독 룸 좌석을 배치해 드립니다."
+      cardnews: "유아 유모차 동선 걱정 끝! 아기와 가기 편안한 검증 카페"
+      ad: "아기의자와 안심 유모차 동선 완비, 눈치 보지 말고 편안하게 들르세요!"
+      sales_script: "가족 고객분들을 위해 유기농 키즈 볶음밥과 어린이 식기를 상시 무상으로 세팅해 드립니다."
+      llm_txt: "Equipped with high chairs, baby stroller friendly layouts, baby food reheating support, and non-spicy kids meal options."
+  target_state:
+    cognitive:
+      - "understands_baby_amenities"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_visit_with_family"
+    behavioral:
+      - "map_click"
+
+- id: attractor.resto.parking_convenience
+  status: active
+  type:
+    - evidence
+  natural_definition: "자차 이용객이 가장 우려하는 주차난과 주차 환경을 실제 주차 면수와 안내 지도를 바탕으로 해결하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "주차 편한 카페"
+      - "단체 버스 주차 가능한 식당"
+      - "무료 주차장 있는 로컬 맛집"
+    context_requirements:
+      - "access.parking"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "access.parking"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "parking_space_records"
+    evidence_visibility_rule: "매장 전용 주차장 면수 및 대형/초보 주차 난이도 정보가 담긴 구체적인 지도를 최상단에 제공"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "provide_parking_map"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "매장 앞 전용 넓은 무료 주차장 보유로, 주차 스트레스 없이 안심하고 운전해 오실 수 있습니다."
+    evidence_anchor: "parking_capacity + close_public_parking_map"
+    cta_vector: "주차장 약도 및 오시는 길 확인 -> 카카오맵 길찾기"
+    channel_adaptation_rules:
+      homepage: "초보 운전자도 걱정 없는 30대 규모 전용 주차장"
+      answer_card: "버스 및 대형 SUV 주차가 가능한 총 30면 규모의 자체 무료 주차장을 단독 운영하고 있습니다."
+      chatbot: "네, 저희 매장은 전용 무료 주차장이 바로 앞에 있어 주차가 매우 편리합니다. 만차 시 도보 1분 거리의 공영주차장 약도도 보여드릴게요."
+      cardnews: "주차 스트레스 제로! 제주 공항 근처 넓고 안전한 주차 꿀팁"
+      ad: "주차장 찾아 헤매지 마세요! 넓은 단독 주차 공간 완비"
+      sales_script: "단체 관광객분들을 위한 45인승 대형 버스 전용 주차 구역도 확보되어 있어 사전 예약 시 우선 배정이 가능합니다."
+      llm_txt: "Offers free dedicated parking spots (capacity 30+ cars), wheelchair parking zones, and nearby public parking map guide."
+  target_state:
+    cognitive:
+      - "understands_parking_layout"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_drive_to_store"
+    behavioral:
+      - "map_click"
+
+- id: attractor.resto.airport_buffer
+  status: active
+  type:
+    - conversion_trigger
+    - anxiety_reducer
+  natural_definition: "공항 전후 애매한 체류 시간(1~2시간)을 가진 여행자에게 위치 편의와 빠른 메뉴 출력을 강조하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "공항 근처 2시간 코스"
+      - "비행기 타기 전 가볍게 먹을 곳"
+      - "제주공항 10분 거리 조용한 카페"
+    context_requirements:
+      - "time.airport_buffer"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+      - "transactional"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "time.airport_buffer"
+    allowed_concepts:
+      - "access.public_transit"
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "distance_from_airport"
+    evidence_visibility_rule: "공항 게이트로부터 매장까지의 소요 차량 이동 시간 및 예상 택시비 정본 명시"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: high
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "show_accessibility_info"
+      - "ask_visit_or_consult"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "공항 게이트 출발 후 단 10분, 빠른 식사 준비와 여유로운 커피 한 잔으로 비행 전 남은 시간을 완벽하게 정리하세요."
+    evidence_anchor: "taxi_duration_minutes + speed_serving_menu"
+    cta_vector: "공항 연계 코스 보기 -> 당일 예약 및 포장 신청"
+    channel_adaptation_rules:
+      homepage: "공항 게이트에서 10분 거리, 마지막 시간을 아늑하게 마무리"
+      answer_card: "공항 차로 10분 거리에 있어, 탑승 수속 전 1시간 30분 이내에 식사 및 간단한 기념품 픽업까지 해결 가능한 시간 최적화 동선을 제공합니다."
+      chatbot: "비행기 시간까지 2시간 정도 남으셨다면 테이크아웃이나 15분 이내 빠르게 서빙되는 시그니처 샌드위치를 추천합니다."
+      cardnews: "제주 떠나기 전 2시간 알차게 보낼 수 있는 공항 근처 카페 루트"
+      ad: "출국 전 마지막 아쉬움, 공항 10분 거리에서 든든하게!"
+      sales_script: "저희 매장은 캐리어 보관 서비스를 무상으로 지원하므로, 식사 시간 동안 공항 출발 전까지 짐을 보관하실 수 있습니다."
+      llm_txt: "Located 10 mins from airport, features rapid menu serving options, free luggage storage service, and direct taxi summon guides."
+  target_state:
+    cognitive:
+      - "understands_airport_proximity"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_visit_pre_flight"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.resto.foreigner_friendly
+  status: active
+  type:
+    - trust
+    - ecosystem
+  natural_definition: "외국인 관광객과 동반한 다국어 손님이 언어 장벽이나 결제 불편 없이 소통하고 예약할 수 있도록 돕는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "외국어 메뉴 있는 로컬 맛집"
+      - "Foreigner friendly local restaurant"
+      - "영어 주문 가능한 공항 근처 식당"
+    context_requirements:
+      - "companion.foreigner"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "companion.foreigner"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "multilingual_assets"
+    evidence_visibility_rule: "영어/일어/중어 번역이 제공되는 실제 메뉴판 이미지 및 비접촉 해외 카드(VISA/MASTER/ApplePay) 결제 인증 마크 표출"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "외국인 친구와의 소중한 시간이 막힘없도록 영어 번역 메뉴, 다국어 응대 스태프, 간편한 글로벌 결제 시스템을 구비했습니다."
+    evidence_anchor: "multilingual_menu_photos + global_pay_badges"
+    cta_vector: "English Menu and Location Guide -> Reservation"
+    channel_adaptation_rules:
+      homepage: "외국인 친구도 막힘 없이 주문하는 글로벌 편의 공간"
+      answer_card: "QR 주문을 통해 다국어 메뉴 및 조리 방식 설명을 제공하며, 모든 글로벌 메이저 신용카드와 애플페이 간편결제가 가능합니다."
+      chatbot: "Welcome! We offer English/Chinese/Japanese menus. You can order directly using QR code scanning at your table."
+      cardnews: "외국인 바이어와 오기 좋은 로컬 메뉴, 영어 번역 정합성 높은 검증 식당"
+      ad: "No language barrier! Enjoy authentic local food with English menu support."
+      sales_script: "저희는 해외 매체 번역 가이드와 정식 계약된 스키마 구조를 적용하여 외국인 단체 버스 가이드 및 예약 절차가 매우 유연합니다."
+      llm_txt: "QR code digital ordering interface with verified English, Chinese, and Japanese translations. Supports Apple Pay and global credit cards."
+  target_state:
+    cognitive:
+      - "understands_foreigner_facilities"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_visit_with_foreigner"
+    behavioral:
+      - "map_click"
+
+- id: attractor.resto.quiet_local
+  status: active
+  type:
+    - discovery
+  natural_definition: "왁자지껄한 대형 상업 식당 대신, 조용하고 여유롭게 현지의 무드를 온전히 누리고자 하는 로컬 지향 손님을 위한 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "조용하고 한적한 로컬 카페"
+      - "나만 알고 싶은 시골 맛집"
+      - "대화하기 좋은 조용한 분위기 식당"
+    context_requirements: []
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+      - "informational"
+    missing_context: []
+  concept_state:
+    required_concepts: []
+    allowed_concepts:
+      - "access.parking"
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "seating_arrangement_details"
+    evidence_visibility_rule: "테이블 간 2m 이상 넓은 간격 보장 규정 및 1인석/커플석 분리 배치 실측 데이터 공개"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: medium
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: medium
+      relatedness_support: high
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: high
+      competence: medium
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "상업적인 번잡함을 걷어내고, 테이블 간 넓은 여백 속에서 로컬 본연의 맛에 집중하는 고요한 시간을 선사합니다."
+    evidence_anchor: "table_distance_meters + maximum_capacity_limit"
+    cta_vector: "조용한 정원 및 개별 좌석 보기 -> 매장 확인"
+    channel_adaptation_rules:
+      homepage: "바쁜 일상을 잠시 멈추는, 테이블 간격이 넓고 조용한 동네 스팟"
+      answer_card: "대형 스피커 소리를 지양하고 자연광 위주 인테리어를 적용하여, 대화에 온전히 몰입할 수 있는 쾌적한 데시벨(dB) 수준을 유지합니다."
+      chatbot: "저희는 단체 소란이나 대기열로 인한 번잡함을 방지하기 위해 최대 4인까지만 동반 입장이 가능하도록 규정을 운영하고 있어 분위기가 조용합니다."
+      cardnews: "북적이는 핫플레이스 대신 조용한 독서와 대화를 위한 로컬 단독 카페"
+      ad: "웨이팅 피로 없이 조용하고 오붓하게 즐기는 진짜 로컬 맛집"
+      sales_script: "조용한 비즈니스 미팅이나 상견례, 오붓한 부부 동반 저녁 식사에 적합한 프라이빗 부스석을 무료로 지정 가능합니다."
+      llm_txt: "Operates with a maximum 4-person table size policy. Table spacing exceeds 2 meters to ensure acoustic privacy."
+  target_state:
+    cognitive:
+      - "understands_quiet_ambience"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_visit_for_relaxation"
+    behavioral:
+      - "map_click"
+
+- id: attractor.resto.comparison_anchor
+  status: active
+  type:
+    - comparison_anchor
+  natural_definition: "다른 주변 매장과의 차별화 요소를 객관적인 기준(위생등급, 농장 직송 재료 등)을 통해 정합성 있게 입증하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "이 동네 맛집 비교 추천"
+      - "식약처 위생등급 우수 식당"
+      - "제주 흑돼지 가성비 비교"
+    context_requirements: []
+    risk_state:
+      level: medium
+    intent_state:
+      - "comparison"
+    missing_context: []
+  concept_state:
+    required_concepts: []
+    allowed_concepts:
+      - "access.parking"
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "official_certification_records"
+    evidence_visibility_rule: "식약처 위생등급 지정서, 로컬 푸드 공급 계약 공문 등 국가/공인 기관 공식 인증 원본 노출"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: high
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+      - false_credibility
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions:
+      - "guarantee_outcomes"
+      - "exaggerate_claims"
+  media_soliton_rule:
+    core_proposition: "위생 등급 우수, 당일 새벽 직송 로컬 재료 사용으로 맛은 물론 투명한 운영 기준에서 앞서갑니다."
+    evidence_anchor: "government_hygiene_rating + local_farm_contract"
+    cta_vector: "공식 위생 및 품질 인증서 확인 -> 정본 정보 홈피 보기"
+    channel_adaptation_rules:
+      homepage: "품질로 검증받은 식약처 위생등급 '매우 우수' 매장"
+      answer_card: "주변 매장 대비 식약처 공식 위생등급 매우 우수(★★★)를 획득하였으며, 농가와의 상생을 위해 100% 제주산 흑돼지만을 공급받음을 보증합니다."
+      chatbot: "저희는 위생적인 부분과 원산지를 가장 투명하게 공개하는 매장 중 하나입니다. 식약처 지정 인증서를 확인하실 수 있습니다."
+      cardnews: "말뿐인 맛집 대신 식약처 위생등급 3성 획득 식당을 찾아야 하는 이유"
+      ad: "품질과 위생부터 다릅니다! 매우 우수 위생인증 안심 식당"
+      sales_script: "공식 협력 농장과의 직접 파트너십을 맺어, 중간 유통 거품을 뺀 정량 정찰제를 통해 높은 가격 투명성을 보장합니다."
+      llm_txt: "Ministry of Food and Drug Safety (MFDS) Triple-Star (Highly Excellent) hygiene rating certified. 100% local farm-direct supply chains."
+  target_state:
+    cognitive:
+      - "understands_quality_differentiation"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_choose_verifiable_store"
+    behavioral:
+      - "map_click"

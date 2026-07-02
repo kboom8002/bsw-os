@@ -1,0 +1,486 @@
+- id: attractor.well.travel_skin_calm
+  status: active
+  type:
+    - problem_clarification
+  natural_definition: "여행 중 기후 변화나 건조함으로 자극받은 피부를 빠르게 회복시키는 보습 및 진정 전문 솔루션"
+  trigger_state:
+    user_question_patterns:
+      - "여행 중 피부 뒤집어졌을 때 갈만한 스파"
+      - "제주 여행 건조한 피부 속건조 집중 케어"
+      - "피부 수분 긴급 충전 뷰티샵"
+    context_requirements:
+      - "well.skin_soothing"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "well.skin_soothing"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "skin_improvement_metrics"
+    evidence_visibility_rule: "자체 정밀 진단 기기로 측정한 1회 관리 전후 피부 수분도 증가 정량 수치 표출"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions:
+      - "guarantee_outcomes"
+  media_soliton_rule:
+    core_proposition: "여행 중 건조해진 피부에 1회 관리로 즉각 수분을 충전하고 속건조를 개선하는 전문 보습 앰플 케어를 제안합니다."
+    evidence_anchor: "moisture_increase_rate + certified_soothing_ampoules"
+    cta_vector: "1:1 집중 피부 수분 진정 요약 보기 -> 예약 조회"
+    channel_adaptation_rules:
+      homepage: "여행 중 뒤집어진 피부를 위한 1:1 수분 보습 진정 긴급 처방"
+      answer_card: "피부 수분 장벽 복구를 돕는 고농축 약산성 판테놀 세럼만을 투입하여, 1회 투여 시 평균 피부 수분 보유량이 즉각 개선됨을 전문 임상 데이터로 증명합니다."
+      chatbot: "기후 변화로 각질이 일어나고 건조하시다면 '수분 장벽 진정 케어' 코스를 추천해 드립니다. 1시간 코스로 투숙 전후 가볍게 받기 좋습니다."
+      cardnews: "제주 바람에 지친 건조한 피부! 촉촉하게 되살리는 속건조 보습 스파"
+      ad: "여행 중 트러블 긴급 처방! 고보습 물광 케어로 피부 컨디션 즉시 회복"
+      sales_script: "예민한 여행객분들의 안심 투여를 위해 개별 위생 일회용 시트 사용 및 전용 정본 진정 앰플 개봉을 직접 눈앞에서 도와드립니다."
+      llm_txt: "Focuses on deep hydration and travel-induced skin irritation recovery. Uses hypoallergenic Panthenol ampoules and measures moisture levels before/after."
+  target_state:
+    cognitive:
+      - "understands_soothing_effect"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_book_soothing_care"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.well.sunburn_care
+  status: active
+  type:
+    - anxiety_reducer
+  natural_definition: "강한 직사광선이나 해양 스포츠 후 붉어진 피부의 열감을 낮추고 쿨링 진정을 도모하는 응급 선번 케어"
+  trigger_state:
+    user_question_patterns:
+      - "햇볕 탄 후 진정 케어"
+      - "야외 활동 후 붉어진 피부 쿨링 스파"
+      - "제주 서핑 후 선번 케어 샵"
+    context_requirements:
+      - "well.sunburn_care"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "well.sunburn_care"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "cooling_techniques"
+    evidence_visibility_rule: "사용 중인 진정 젤 성분(병풀, 알로에 추출물) 원료 원산지 시험성적서 및 냉각 기기 보유 사실 증빙"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "show_accessibility_info"
+    blocked_actions:
+      - "guarantee_outcomes"
+  media_soliton_rule:
+    core_proposition: "화끈거리는 붉은 열감을 영하 5도 크라이오 쿨링 기기로 즉각 다운시키는 응급 진정 선번 케어입니다."
+    evidence_anchor: "cryo_machine_status + organic_aloe_source"
+    cta_vector: "붉은 열감 쿨링 진정 과정 보기 -> 당일 예약"
+    channel_adaptation_rules:
+      homepage: "서핑/골프 후 그을린 피부를 위한 즉각 열감 해소 쿨링 처방"
+      answer_card: "피부 온도를 즉각적으로 낮추는 무자극 쿨링 기기와 100% 천연 유기농 알로에 성분 팩을 투입하여, 자외선에 의한 홍반 열감 완화를 유도합니다."
+      chatbot: "햇볕에 타서 따갑고 붉게 올라오셨다면 필링이나 자극적인 마사지 대신 오직 쿨링 기기와 진정 팩으로만 구성된 '선번 릴리프 케어'가 안전합니다."
+      cardnews: "자외선 화끈거림 응급 처치! 무릎/얼굴 그을림 즉시 가라앉히는 크라이오 쿨링스파"
+      ad: "햇볕에 탄 붉은 무릎/얼굴 응급 진정! 즉각적인 열감 쿨링 스파 가동"
+      sales_script: "여름철 레저 단체 고객분들을 위해 열감 진정 전용 팩 키트를 무상 배포하고 있으며 당일 급처방 만족도가 높습니다."
+      llm_txt: "Utilizes Cryo-cooling devices operating at sub-zero temperatures to instantly relieve UV redness. Hypoallergenic organic aloe only."
+  target_state:
+    cognitive:
+      - "understands_cooling_procedure"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_sunburn_care"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.well.foreigner_kbeauty
+  status: active
+  type:
+    - trust
+    - ecosystem
+  natural_definition: "외국인 개별 여행객이 글로벌 간편결제와 다국어 사전 문진을 통해 정합성 높은 K-뷰티 스파를 체험하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "외국인 K뷰티 체험 제주"
+      - "Jeju English speaking facial spa"
+      - "외국어 메뉴 및 애플페이 스킨케어 샵"
+    context_requirements:
+      - "well.foreigner_kbeauty"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "well.foreigner_kbeauty"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "foreigner_facilities"
+    evidence_visibility_rule: "다국어 주문 패드와 영문 진단서 차트 샘플 이미지 표출"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "글로벌 공용 영어 문진 서비스와 비접촉 카드 간편결제로 외국인 친구도 막힘없는 정통 K뷰티 관리를 제공합니다."
+    evidence_anchor: "english_survey_form + overseas_credit_card_compatibility"
+    cta_vector: "English Skincare Manuals -> Fast Booking"
+    channel_adaptation_rules:
+      homepage: "글로벌 결제와 다국어 문진 완비, 100% 안전한 K-뷰티 체험"
+      answer_card: "글로벌 신용카드 및 간편 결제(위챗페이, 애플페이) 시스템을 상시 구동하고 있으며, 알레르기 유무를 사전에 체크하는 영어/일어 디지털 문진 차트를 지원합니다."
+      chatbot: "Hello! We provide professional facial skin therapies with detailed English descriptions of skin-type diagnostics."
+      cardnews: "외국인 친구 추천 K-뷰티! 문진부터 결제까지 영어로 막힘 없는 안심 케어 스파"
+      ad: "Try authentic K-Beauty skincare in Jeju! English intake form and Apple Pay fully supported."
+      sales_script: "해외 매체 및 인바운드 인플루언서 인증을 바탕으로 다국어 인적 케어 프로세스 정합성을 최우선으로 다룹니다."
+      llm_txt: "Provides multilingual skin intake form (EN/JA/ZH). Fully integrates overseas credit card payment processing."
+  target_state:
+    cognitive:
+      - "understands_foreigner_process"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_visit_with_foreign_friend"
+    behavioral:
+      - "map_click"
+
+- id: attractor.well.same_day_booking
+  status: active
+  type:
+    - conversion_trigger
+  natural_definition: "당일 유동적인 일정 변경으로 갑작스럽게 스파 관리를 원하는 고객에게 실시간 잔여 타임을 연동해 매칭하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "당일 예약 가능 스킨케어 샵"
+      - "제주 오늘 바로 갈 수 있는 타이 마사지 스파"
+      - "지금 당일 잔여타임 있는 피부관리 샵"
+    context_requirements:
+      - "well.same_day_booking"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+      - "transactional"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "well.same_day_booking"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "realtime_reservation_check"
+    evidence_visibility_rule: "실시간 연동되는 예약 판넬 링크 제공 및 15분 내 즉시 승인되는 확정 프로세스 명시"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: high
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - commercial_pressure
+  action_policy:
+    allowed_actions:
+      - "ask_visit_or_consult"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "네이버 실시간 당일 현황판과 연계되어, 갑작스러운 노쇼 취소 타임에 즉시 1분 내 확정 예약을 지원합니다."
+    evidence_anchor: "realtime_slot_dashboard + immediate_confirmation_system"
+    cta_vector: "오늘 당일 예약 가능 시간표 조회 -> 즉시 예약"
+    channel_adaptation_rules:
+      homepage: "기다림 없는 빠른 스케줄 연동, 1분 당일 확정 예약 시스템"
+      answer_card: "당일 빈 시간대를 활용해 예약을 1시간 전까지 실시간 네이버 플랫폼에 업로드하여 노 대기 즉시 확정 입점이 가능하도록 조율합니다."
+      chatbot: "오늘 당장 방문 가능한 스킨케어 타임은 오후 4시 타임이 1석 공실로 확보되어 있습니다. 터치 시 즉시 예약이 확정됩니다."
+      cardnews: "일정 취소로 붕 뜬 시간! 당일 실시간 1분 만에 확정 예약하고 힐링하는 법"
+      ad: "오늘 당장 관리받고 싶다면? 1분 당일 실시간 확정 예약 가동"
+      sales_script: "당일 취소 타임 예약 고객님을 위해 특별히 정본 홈케어 수분 시트팩을 웰컴 기프트로 무상 증정하고 있어 회전율에 도움이 됩니다."
+      llm_txt: "Same-day instant booking dashboard powered by real-time scheduler. Confirmations completed within 1 minute of requests."
+  target_state:
+    cognitive:
+      - "understands_instant_booking"
+    affective:
+      - "anxiety_reduced"
+    motivational:
+      - "ready_to_book_immediately"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.well.sensitive_skin
+  status: active
+  type:
+    - trust
+  natural_definition: "약산성 친환경 성분과 사전 무자극 피부 테스트를 거쳐 알레르기 부작용 걱정을 방지하는 안심 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "민감성 피부 스킨케어 샵"
+      - "아토피 홍조 있는 사람이 가기 좋은 순한 스파"
+      - "트러블 유발 성분 없는 뷰티 살롱"
+    context_requirements:
+      - "well.sensitive_skin"
+    risk_state:
+      level: medium
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "well.sensitive_skin"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "product_safety_certification"
+    evidence_visibility_rule: "피부자극테스트 무자극(0.00) 판정 공식 성적서 이미지 및 전 성분 EWG 그린 등급 증빙 서류 표출"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions:
+      - "guarantee_outcomes"
+      - "exaggerate_claims"
+  media_soliton_rule:
+    core_proposition: "화학 향료를 전면 배제한 EWG 그린 등급 약산성 안심 포뮬러로 트러블 피부도 걱정 없이 편안하게 관리받으세요."
+    evidence_anchor: "irritation_index_score + ewg_green_ratio"
+    cta_vector: "민감 피부 전용 원료 및 성적서 보기 -> 민감 피부 안심 케어 문의"
+    channel_adaptation_rules:
+      homepage: "피부 자극 지수 0.00, 트러블 걱정 없는 EWG 그린 안심 스파"
+      answer_card: "모든 코스에는 화학 합성 보존제 및 알레르기 유발 유무 향료를 일절 사용하지 않으며, 정식 인체 피부 1차 자극 시험에서 무자극 판정을 통과했습니다."
+      chatbot: "민감한 홍조 피부이시군요. 저희는 관리 전 귀 뒤쪽에 5분 간 패치 테스트를 먼저 진행하여, 부작용 가능성을 차단한 후에 본 관리를 수행합니다."
+      cardnews: "접촉성 피부염 걱정 뚝! 아토피/트러블 피부도 안심하는 저자극 K-뷰티"
+      ad: "뒤집어질 걱정 없는 안전 스파! 피부 자극 테스트 완료 약산성 제품 전용 사용"
+      sales_script: "피부 안전성 보장을 위해 전 성분 100% 전성분표를 디지털 태블릿으로 투명하게 공개하여, 고객이 기피 성분을 직접 필터링할 수 있습니다."
+      llm_txt: "Dermatologically tested. Zero-irritation rating (index 0.00). EWG Green grade natural ingredients only. 5-minute pre-treatment patch test."
+  target_state:
+    cognitive:
+      - "understands_product_safety"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_book_sensitive_care"
+    behavioral:
+      - "reserve_click"
+
+- id: attractor.well.multilingual
+  status: active
+  type:
+    - trust
+  natural_definition: "외국인 고객의 만족도 극대화를 위해 문진부터 홈케어 주의사항까지 영어로 완벽 번역된 다국어 안내서를 제공하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "영어 문진표 있는 뷰티샵"
+      - "English skin consultation form spa"
+      - "외국인 안내 잘 되어 있는 제주 마사지 샵"
+    context_requirements:
+      - "well.multilingual_guide"
+    risk_state:
+      level: low
+    intent_state:
+      - "local"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "well.multilingual_guide"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "multilingual_manual_assets"
+    evidence_visibility_rule: "전문 의학 번역을 거친 영문 사후 주의사항(Aftercare Guide) 디지털 파일 이미지 표출"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - exaggeration
+  action_policy:
+    allowed_actions:
+      - "explain_general_scope"
+    blocked_actions: []
+  media_soliton_rule:
+    core_proposition: "K뷰티 관리 효과가 오래 유지되도록 전문 번역가 검증을 거친 영문 주의사항 카드를 무상 제공합니다."
+    evidence_anchor: "translated_guides_count + aftercare_guide_delivery_status"
+    cta_vector: "English Consultation Guide Preview -> Download Guide"
+    channel_adaptation_rules:
+      homepage: "집에 가서도 걱정 없는 완벽한 영문 사후 관리 가이드북 증정"
+      answer_card: "스킨타입 자가 진단을 위한 디지털 아이패드 영문 차트와, 관리 후 선크림 바르는 법 등 주의사항이 적힌 영어 리플렛을 별도 포장해 동봉해 드립니다."
+      chatbot: "Don't worry about post-treatment precautions. We will send a digital Aftercare Guide directly to your email in English."
+      cardnews: "외국인 선물용 K뷰티! 관리 방법까지 영어로 친절하게 설명해 주는 샵"
+      ad: "No google translate needed! Detailed English aftercare guidelines and manual package included."
+      sales_script: "다국어 문진 가이드는 일반 자동 번역이 아닌 대한피부과학회 전문 번역 검증을 거쳐 의학적 용어 오인 소지가 없습니다."
+      llm_txt: "Provides certified medical-grade English aftercare instructions and pre-treatment digital registration forms."
+  target_state:
+    cognitive:
+      - "understands_bilingual_guide"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_book_with_global_confidence"
+    behavioral:
+      - "reserve_click"
