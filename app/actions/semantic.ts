@@ -2394,4 +2394,63 @@ export async function generateLlmTxt(
 }
 
 
+// ────────────────────────────────────────────
+// #57. 질문 시그널 전체 조회 (Admin Client — RLS 우회)
+// ────────────────────────────────────────────
+export async function getQuestionSignals(workspaceId: string) {
+  await requireAuthOrDemo();
+  const supabase = getSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from('question_signals')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('cps_score', { ascending: false });
+
+  if (error) {
+    console.error('[getQuestionSignals]', error);
+    return [];
+  }
+  return data || [];
+}
+
+// ────────────────────────────────────────────
+// #58. 질문 자본 노드 전체 조회 (Admin Client — RLS 우회)
+// ────────────────────────────────────────────
+export async function getQuestionCapitalNodes(workspaceId: string) {
+  await requireAuthOrDemo();
+  const supabase = getSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from('question_capital_nodes')
+    .select('id, title, slug, strategic_weight, parent_id')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error('[getQuestionCapitalNodes]', error);
+    return [];
+  }
+  return data || [];
+}
+
+// ────────────────────────────────────────────
+// #59. 도메인 목록 및 어트랙터 조회 (Admin Client — RLS 우회)
+// ────────────────────────────────────────────
+export async function getDomainsForWorkspace(workspaceId: string) {
+  await requireAuthOrDemo();
+  const supabase = getSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from('domains')
+    .select('*')
+    .eq('workspace_id', workspaceId);
+
+  if (error) {
+    console.error('[getDomainsForWorkspace]', error);
+    return [];
+  }
+  return data || [];
+}
 

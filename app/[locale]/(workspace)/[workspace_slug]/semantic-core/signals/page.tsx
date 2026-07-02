@@ -68,18 +68,15 @@ export default function SignalsPage() {
     setLoading(true);
     setDbError(null);
     try {
-      const { getSupabaseClient } = await import("@/lib/supabase");
-      const supabase = getSupabaseClient();
+      // 서버 액션으로 워크스페이스 해석 (Admin Client — RLS 우회)
+      const { resolveWorkspaceSlug } = await import("@/app/actions/workspace");
+      const resolvedId = await resolveWorkspaceSlug(workspaceSlug);
 
-      const { data: ws } = await supabase
-        .from("workspaces")
-        .select("id")
-        .eq("slug", workspaceSlug)
-        .single();
-
-      if (ws?.id) {
-        setWsId(ws.id);
-        await loadSignals(ws.id);
+      if (resolvedId) {
+        setWsId(resolvedId);
+        await loadSignals(resolvedId);
+      } else {
+        setDbError("워크스페이스 ID를 찾을 수 없습니다. 시드 데이터가 올바르게 실행되었는지 확인해 주세요.");
       }
     } catch (err: any) {
       console.error("Failed to initialize signals page:", err);
@@ -92,16 +89,9 @@ export default function SignalsPage() {
   const loadSignals = async (currentWsId: string) => {
     setDbError(null);
     try {
-      const { getSupabaseClient } = await import("@/lib/supabase");
-      const supabase = getSupabaseClient();
-
-      const { data, error } = await supabase
-        .from("question_signals")
-        .select("*")
-        .eq("workspace_id", currentWsId)
-        .order("cps_score", { ascending: false });
-
-      if (error) throw error;
+      // 서버 액션으로 시그널 데이터 로드 (Admin Client — RLS 우회)
+      const { getQuestionSignals } = await import("@/app/actions/semantic");
+      const data = await getQuestionSignals(currentWsId);
 
       setSignals(
         (data || []).map((s: any) => ({

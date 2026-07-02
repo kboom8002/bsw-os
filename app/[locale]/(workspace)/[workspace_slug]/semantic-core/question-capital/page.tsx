@@ -49,27 +49,15 @@ export default function QuestionCapitalPage() {
     setDbLoading(true);
     setDbError(null);
     try {
-      const { getSupabaseClient } = await import('@/lib/supabase');
-      const supabase = getSupabaseClient();
-
-      // 워크스페이스 ID 조회
-      const { data: ws } = await supabase
-        .from('workspaces')
-        .select('id')
-        .eq('slug', workspaceSlug)
-        .single();
-
-      const resolvedWsId = ws?.id || '11111111-1111-1111-1111-111111111111';
+      // 서버 액션으로 워크스페이스 해석 (Admin Client — RLS 우회)
+      const { resolveWorkspaceSlug } = await import('@/app/actions/workspace');
+      const resolvedId = await resolveWorkspaceSlug(workspaceSlug);
+      const resolvedWsId = resolvedId || '11111111-1111-1111-1111-111111111111';
       setWorkspaceId(resolvedWsId);
 
-      // Question Capital Nodes 조회
-      const { data: qcNodes } = await supabase
-        .from('question_capital_nodes')
-        .select('id, title, slug, strategic_weight, parent_id')
-        .eq('workspace_id', resolvedWsId)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
+      // 서버 액션으로 질문 자본 노드 조회 (Admin Client — RLS 우회)
+      const { getQuestionCapitalNodes } = await import('@/app/actions/semantic');
+      const qcNodes = await getQuestionCapitalNodes(resolvedWsId);
       setNodes(qcNodes || []);
     } catch (err: unknown) {
       console.error('Question Capital DB 조회 실패:', err);

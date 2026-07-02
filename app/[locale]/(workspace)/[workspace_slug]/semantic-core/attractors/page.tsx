@@ -46,28 +46,21 @@ export default function AttractorsPage() {
     setLoading(true);
     setDbError(null);
     try {
-      const { getSupabaseClient } = await import("@/lib/supabase");
-      const supabase = getSupabaseClient();
+      // 서버 액션으로 워크스페이스 해석 (Admin Client — RLS 우회)
+      const { resolveWorkspaceSlug } = await import("@/app/actions/workspace");
+      const resolvedId = await resolveWorkspaceSlug(workspaceSlug);
 
-      const { data: ws } = await supabase
-        .from("workspaces")
-        .select("id")
-        .eq("slug", workspaceSlug)
-        .single();
-
-      if (ws?.id) {
-        setWsId(ws.id);
+      if (resolvedId) {
+        setWsId(resolvedId);
         
-        // Load domains
-        const { data: domainList } = await supabase
-          .from("domains")
-          .select("*")
-          .eq("workspace_id", ws.id);
+        // 서버 액션으로 도메인 목록 로드 (Admin Client — RLS 우회)
+        const { getDomainsForWorkspace } = await import("@/app/actions/semantic");
+        const domainList = await getDomainsForWorkspace(resolvedId);
         
         if (domainList && domainList.length > 0) {
           setDomains(domainList);
           setSelectedDomainId(domainList[0].id);
-          await loadAttractors(ws.id, domainList[0].id);
+          await loadAttractors(resolvedId, domainList[0].id);
         } else {
           setLoading(false);
         }
