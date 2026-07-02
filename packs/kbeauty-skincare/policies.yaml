@@ -1,0 +1,23 @@
+allowed_actions:
+  - "ask_frequency_and_severity"
+  - "explain_cautious_homecare"
+  - "offer_routine_info_if_low_risk"
+  - "suggest_safer_expression"
+blocked_actions:
+  - "unconditional_product_permission"
+  - "push_product_purchase"
+  - "diagnose_condition"
+cta_policy:
+  primary: "장벽 진정 루틴 보기"
+  secondary:
+    - "성분 안전 정보 확인"
+    - "1:1 피부 상담 신청"
+  blocked:
+    - "바로 구매하기"
+safety_policy:
+  boundary_notes:
+    - "상태가 지속되거나 진물이 나는 경우 즉시 사용을 중단하고 전문의와 상담하세요."
+  escalation_conditions:
+    - "진물"
+    - "심한 붉은기"
+    - "지속적인 화끈거림"

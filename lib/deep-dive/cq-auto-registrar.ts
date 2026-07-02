@@ -43,6 +43,12 @@ export class CqAutoRegistrar {
     }
 
     // 2. Create Canonical Question
+    const signature = crypto
+      .createHash('sha256')
+      .update(candidate.question_text)
+      .digest('hex')
+      .substring(0, 64);
+
     const { data: newCq, error: cqErr } = await supabase
       .from('canonical_questions')
       .insert({
@@ -50,16 +56,31 @@ export class CqAutoRegistrar {
         workspace_id: workspaceId,
         question_capital_node_id: capitalNodeId,
         normalized_question: candidate.question_text,
-        slug: `cq-${Date.now()}`,
-        signature: `hash-${Date.now()}` // Mock hash
+        slug: `cq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        signature
       })
       .select('id')
       .single();
       
-    if (cqErr || !newCq) throw new Error('Failed to create canonical question');
+    if (cqErr || !newCq) throw new Error('Failed to create canonical question: ' + cqErr?.message);
     
-    // 3. (Optional) Run runQisGenAgent() to auto-generate QIS scenes.
-    // In a real implementation, we would import the agent from semantic_agents.ts.
+    // 3. QIS Scene 자동 생성
+    try {
+      await supabase
+        .from('qis_scenes')
+        .insert({
+          id: crypto.randomUUID(),
+          workspace_id: workspaceId,
+          canonical_question_id: newCq.id,
+          scene_name: `${candidate.question_text.slice(0, 30)} Scene`,
+          query_template: candidate.question_text,
+          intent_model: 'informational',
+          scenario_context: `Auto-generated from deep-dive target (priority: ${candidate.composite_priority})`,
+          risk_level: (candidate.eeat_dimension as string) === 'trust' ? 'high' : 'medium',
+        });
+    } catch (sceneErr: any) {
+      console.warn('[CqAutoRegistrar] QIS scene creation skipped:', sceneErr.message);
+    }
     
     // Update the candidate to mark it as registered
     await supabase

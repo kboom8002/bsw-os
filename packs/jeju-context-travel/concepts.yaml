@@ -1,0 +1,33 @@
+- id: weather.rain
+  name: 우천 (Rainy Weather)
+  definition: 제주도에 비가 내려 야외 활동(오름, 해안가 걷기 등)이 제한되는 기상 상태
+  is_strategic: true
+  concept_type: weather
+  activation_condition:
+    keywords: ["비가 올 때", "비오는 날", "비오는데", "우천", "rainy"]
+  boundary:
+    drizzle: "outdoor_possible_with_umbrella"
+    heavy_rain: "indoor_only"
+  operator:
+    combine_with_elderly: "require_no_slippery"
+
+- id: traveler.elderly_parents
+  name: 고령 부모님 동반
+  definition: 65세 이상의 부모님과 함께하는 가족 여행으로 걷기 강도와 화장실 접근성이 중요한 상태
+  is_strategic: true
+  concept_type: traveler
+  activation_condition:
+    keywords: ["부모님 모시고", "부모님과", "환갑여행", "칠순", "elderly parents"]
+  boundary:
+    high_mobility: "short_walks_allowed"
+    low_mobility: "wheelchair_accessible_only"
+
+- id: policy.low_walk_route
+  name: 저보행 동선 (Low Walk Route)
+  definition: 주차장에서 목적지까지의 도보 거리가 200m 이내이며 계단이나 경사로가 없는 동선 정책
+  is_strategic: true
+  concept_type: policy
+  activation_condition:
+    keywords: ["많이 안걷는", "덜 걷는", "휠체어", "저보행"]
+  boundary:
+    max_walking_meters: 200

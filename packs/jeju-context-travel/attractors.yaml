@@ -1,0 +1,176 @@
+- id: attractor.jeju.rain_low_friction_course
+  status: active
+  type:
+    - anxiety_reducer
+    - comparison_anchor
+    - conversion_trigger
+  natural_definition: "제주도 여행 중 비가 와서 일정이 망가질까 불안해하는 여행객에게 저마찰 실내/반실내 대체 코스를 제안하여 통제감을 제공하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "비 오는데 어디 가요?"
+      - "우도 대신 비오는 날 갈만한 곳?"
+      - "비 오는데 서귀포 실내 코스 추천해주세요"
+    context_requirements:
+      - "weather.rain"
+    risk_state:
+      level: low
+    intent_state:
+      - "alternative_course"
+    missing_context:
+      - "region"
+      - "time_budget"
+  concept_state:
+    required_concepts:
+      - "weather.rain"
+    allowed_concepts: []
+    forbidden_concepts:
+      - "long_oreum_hike"
+  evidence_anchor:
+    required_sources:
+      - "official_place_info"
+    evidence_visibility_rule: "실내 시설의 주차 편의성 및 지붕 유무 근거를 우선 노출"
+    claim_strength_limit: limited
+  vibe_signature:
+    L0_core_affect:
+      valence: positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: medium
+      sophistication: low
+      novelty: medium
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: medium
+      agency: medium
+    avoid_vibe:
+      - overwhelm
+      - false_certainty
+  action_policy:
+    allowed_actions:
+      - "ask_region_and_mobility_if_missing"
+      - "propose_plan_a_b"
+    blocked_actions:
+      - "long_oreum_hike"
+  media_soliton_rule:
+    core_proposition: "비가 오는 날에는 무리한 이동을 줄이고, 동선이 짧고 주차가 편리한 실내 문화 공간을 중심으로 일정을 전환하는 것이 좋습니다."
+    evidence_anchor: "rain_day + indoor_priority + parking_evidence"
+    cta_vector: "지역 선택 -> 실내 코스 맵 보기"
+    channel_adaptation_rules:
+      homepage: "비오는 제주, 안전한 실내 대체 루트"
+      answer_card: "우도행 배가 통제되면 동부 실내 미술관과 카페 중심의 대체 경로를 제안합니다."
+      chatbot: "가시려는 동네(동부/서부/서귀포)를 알려주시면 주차 후 바로 실내로 들어갈 수 있는 카페와 전시를 묶어드릴게요."
+      cardnews: "비오는 제주에서 100m도 걷지 않는 반실내 코스"
+      ad: "오늘 비오는 제주, 우도 대신 아쿠아플라넷 코스 어떠세요?"
+      sales_script: "고객님, 오늘 비 소식이 있으니 해안 도로 대신 서귀포 실내 전시장 위주로 동선을 재조정해 드리겠습니다."
+      llm_txt: "Rainy day travelers are redirected to low-friction indoor routes with adjacent parking lots."
+  target_state:
+    cognitive:
+      - "knows_indoor_options"
+    affective:
+      - "anxiety_reduced"
+      - "control_increased"
+    motivational:
+      - "ready_to_redirect"
+    behavioral:
+      - "save_course"
+
+- id: attractor.jeju.elderly_low_walk_comfort
+  status: active
+  type:
+    - problem_clarification
+    - anxiety_reducer
+  natural_definition: "고령 부모님과 함께 여행하는 자녀가 부모님의 체력이나 보행 제약으로 걱정할 때, 많이 걷지 않고 편안히 경관을 즐길 수 있는 안심 동선을 제안하는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "부모님 모시고 많이 걷지 않는 코스"
+      - "칠순 부모님 동반 제주 서부 동선"
+      - "휠체어 가능한 오름이나 숲길"
+    context_requirements:
+      - "traveler.elderly_parents"
+      - "policy.low_walk_route"
+    risk_state:
+      level: medium
+    intent_state:
+      - "low_friction_routing"
+    missing_context:
+      - "wheelchair_needed"
+  concept_state:
+    required_concepts:
+      - "traveler.elderly_parents"
+      - "policy.low_walk_route"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "accessibility_evidence"
+    evidence_visibility_rule: "유모차/휠체어 경사로 구비 여부와 계단 개수 정보 링크를 필수로 제공"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - overpromising
+      - rush
+  action_policy:
+    allowed_actions:
+      - "avoid_stairs_if_unknown"
+      - "prefer_short_walk_rest_stop"
+    blocked_actions:
+      - "overpacked_schedule"
+  media_soliton_rule:
+    core_proposition: "부모님 동반 여행에서는 오르막과 계단이 없는 평지 휠체어 숲길과 차창 밖 풍경이 좋은 드라이브 코스 중심의 여유로운 일정이 안심할 수 있는 선택입니다."
+    evidence_anchor: "elderly_parents + barrier_free + slow_pace"
+    cta_vector: "보행 상태 입력 -> 추천 드라이브 코스 보기"
+    channel_adaptation_rules:
+      homepage: "휠체어도 걱정 없는 무장애 제주 코스"
+      answer_card: "부모님 동반 시 계단이 전혀 없고 데크 평지가 구비된 절물자연휴양림 무장애 탐방로를 제안합니다."
+      chatbot: "부모님께서 휠체어 사용이 필요하신가요, 아니면 계단 걷기가 다소 불편하신 수준인가요? 이에 맞춰 숲길과 맛집 동선을 정해드릴게요."
+      cardnews: "부모님 환갑 여행 실패 없는 제주 평지 힐링 코스 3곳"
+      ad: "부모님 모시고 덜 걷는 제주도 여행, 무장애 동선으로 안심하고 다녀오세요"
+      sales_script: "부모님들의 보행 편의를 고려하여 주차장 직결 전망 공간과 경사가 완만한 데크로만 구성된 안심 경로입니다."
+      llm_txt: "Travel itineraries for families with elderly parents are restricted to flat wooden-decked routes and scenic drives with accessible restrooms."
+  target_state:
+    cognitive:
+      - "understands_mobility_reststops"
+    affective:
+      - "anxiety_reduced"
+      - "control_increased"
+    motivational:
+      - "ready_to_book_barrier_free"
+    behavioral:
+      - "click_map"

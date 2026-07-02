@@ -5,14 +5,16 @@ interface LayerScoreCardsProps {
   techScore: number;
   schemaScore: number;
   contentScore: number;
-  reflectionScore: number;
+  reflectionScore: number | null;  // null = 미측정
+  stepErrors?: Record<string, { message: string; timestamp: string }>;
 }
 
 export default function LayerScoreCards({
   techScore,
   schemaScore,
   contentScore,
-  reflectionScore
+  reflectionScore,
+  stepErrors
 }: LayerScoreCardsProps) {
   const getGrade = (score: number) => {
     if (score >= 90) return { label: 'Optimal', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' };
@@ -28,7 +30,8 @@ export default function LayerScoreCards({
       score: techScore,
       icon: Layers,
       color: 'from-violet-500 to-indigo-600',
-      description: 'robots.txt 정책, SSL/HTTPS 보안, TTFB 속도, 사이트맵 갱신성'
+      description: 'robots.txt 정책, SSL/HTTPS 보안, TTFB 속도, 사이트맵 갱신성',
+      unmeasured: false,
     },
     {
       title: 'L2: 구조화 시맨틱',
@@ -36,7 +39,8 @@ export default function LayerScoreCards({
       score: schemaScore,
       icon: FileJson,
       color: 'from-fuchsia-500 to-pink-600',
-      description: 'Organization, Product, FAQ, Article 스키마 구조 및 OG 완성도'
+      description: 'Organization, Product, FAQ, Article 스키마 구조 및 OG 완성도',
+      unmeasured: false,
     },
     {
       title: 'L3: 콘텐츠 시맨틱',
@@ -44,15 +48,17 @@ export default function LayerScoreCards({
       score: contentScore,
       icon: FileText,
       color: 'from-cyan-500 to-blue-600',
-      description: 'E-E-A-T 4축 신호, 첫 문장 두괄식, 토픽 클러스터 내부링크 깊이'
+      description: 'E-E-A-T 4축 신호, 첫 문장 두괄식, 토픽 클러스터 내부링크 깊이',
+      unmeasured: false,
     },
     {
       title: 'L4: AI 반영 검증',
       subtitle: 'Engine Reflection Rate',
-      score: reflectionScore,
+      score: reflectionScore ?? 0,
       icon: CheckCircle,
       color: 'from-emerald-500 to-teal-600',
-      description: 'ChatGPT·Gemini 실측 가시성 지수(AEPI) 및 경쟁사 대체 노출률'
+      description: 'ChatGPT·Gemini 실측 가시성 지수(AEPI) 및 경쟁사 대체 노출률',
+      unmeasured: reflectionScore === null,
     }
   ];
 
@@ -97,14 +103,21 @@ export default function LayerScoreCards({
             <div className="mt-5 space-y-2">
               <div className="flex items-baseline justify-between">
                 <span className="text-slate-500 text-[10px] font-semibold">진단 점수</span>
-                <span className="text-2xl font-black text-slate-100 group-hover:scale-105 transition-transform duration-300">
-                  {layer.score}%
-                </span>
+                {layer.unmeasured ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-lg font-black text-slate-500">N/A</span>
+                    <span className="text-[9px] text-amber-400/80">⚠️ 미측정 (프로브 생성 실패)</span>
+                  </div>
+                ) : (
+                  <span className="text-2xl font-black text-slate-100 group-hover:scale-105 transition-transform duration-300">
+                    {layer.score}%
+                  </span>
+                )}
               </div>
               <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className={`h-1.5 rounded-full bg-gradient-to-r ${layer.color}`}
-                  style={{ width: `${layer.score}%` }}
+                  className={`h-1.5 rounded-full bg-gradient-to-r ${layer.unmeasured ? 'from-slate-700 to-slate-600' : layer.color}`}
+                  style={{ width: layer.unmeasured ? '0%' : `${layer.score}%` }}
                 />
               </div>
             </div>

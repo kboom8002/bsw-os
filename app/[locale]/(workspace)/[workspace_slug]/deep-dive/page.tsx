@@ -62,6 +62,7 @@ export default function DeepDivePage() {
   const [simulation, setSimulation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
+  const [registeredCount, setRegisteredCount] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Session history state
@@ -289,6 +290,7 @@ export default function DeepDivePage() {
       const data = await res.json();
       if (data.success) {
         setApprovalStatus(approved ? 'Approved' : 'Rejected');
+        setRegisteredCount(data.registeredCount || 0);
       }
     } catch (e) {
       console.error(e);
@@ -643,9 +645,22 @@ export default function DeepDivePage() {
             </div>
 
             {approvalStatus ? (
-              <div className={`p-4 rounded-lg font-bold text-center ${approvalStatus === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                Status: {approvalStatus}
-                {approvalStatus === 'Approved' && <div className="text-sm font-normal mt-1">CQ automatically registered. Task scheduled.</div>}
+              <div className="space-y-4">
+                <div className={`p-4 rounded-lg font-bold text-center ${approvalStatus === 'Approved' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                  상태: {approvalStatus === 'Approved' ? '승인됨 (Approved)' : '반려됨 (Rejected)'}
+                  {approvalStatus === 'Approved' && (
+                    <div className="text-sm font-normal mt-1 text-slate-300">
+                      총 {registeredCount}개의 질문자산(CQ) 및 QIS 시나리오가 성공적으로 등록되었습니다.
+                    </div>
+                  )}
+                </div>
+                {approvalStatus === 'Approved' && (
+                  <div className="flex justify-center">
+                    <Button onClick={() => { window.location.href = `/${params.locale || 'ko'}/${workspaceId}/semantic-core`; }} className="bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-bold px-6 py-2 rounded-lg shadow-lg hover:opacity-90">
+                      QIS 대시보드로 이동
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex gap-4 pt-4 border-t">

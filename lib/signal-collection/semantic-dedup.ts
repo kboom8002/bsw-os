@@ -140,36 +140,82 @@ export class SemanticDedup {
   }
 
   /**
-   * Single-linkage Agglomerative Clustering.
-   * threshold 이상의 유사도를 가진 노드들을 같은 클러스터로 묶습니다.
-   *
-   * Union-Find 알고리즘으로 구현 (O(n² α(n)) ≈ O(n²)).
+   * Average-linkage Agglomerative Clustering.
+   * 클러스터 간 평균 유사도가 threshold 이상일 때만 병합하여 체이닝 효과를 방지합니다.
    */
   private cluster(simMatrix: number[][], n: number): number[] {
-    // Union-Find
     const parent = Array.from({ length: n }, (_, i) => i);
 
     const find = (x: number): number => {
-      if (parent[x] !== x) parent[x] = find(parent[x]);
-      return parent[x];
+      let root = x;
+      while (root !== parent[root]) {
+        root = parent[root];
+      }
+      // Path compression
+      let curr = x;
+      while (curr !== root) {
+        const nxt = parent[curr];
+        parent[curr] = root;
+        curr = nxt;
+      }
+      return root;
     };
 
     const union = (x: number, y: number): void => {
       const px = find(x);
       const py = find(y);
-      if (px !== py) parent[px] = py;
+      if (px !== py) {
+        parent[px] = py;
+      }
     };
 
-    // threshold 이상인 쌍을 모두 합침
+    // 처음에는 각각 단일 노드로 시작하여, 임계값 이상인 그룹 중
+    // 그룹 간의 평균 유사도가 threshold를 넘는 경우에만 병합합니다.
+    const activeClusters = new Map<number, number[]>();
+    for (let i = 0; i < n; i++) {
+      activeClusters.set(i, [i]);
+    }
+
+    // 유사도가 높은 쌍부터 정렬하여 그리디하게 검사
+    const pairs: Array<{ i: number; j: number; sim: number }> = [];
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
-        if (simMatrix[i][j] >= this.threshold) {
-          union(i, j);
+        pairs.push({ i, j, sim: simMatrix[i][j] });
+      }
+    }
+    pairs.sort((a, b) => b.sim - a.sim);
+
+    for (const pair of pairs) {
+      if (pair.sim < this.threshold) break;
+
+      const rootI = find(pair.i);
+      const rootJ = find(pair.j);
+      if (rootI === rootJ) continue;
+
+      // 두 클러스터 간의 모든 쌍의 평균 유사도 계산
+      const groupI = activeClusters.get(rootI) || [];
+      const groupJ = activeClusters.get(rootJ) || [];
+      
+      let sumSim = 0;
+      let count = 0;
+      for (const idxI of groupI) {
+        for (const idxJ of groupJ) {
+          sumSim += simMatrix[idxI][idxJ];
+          count++;
         }
+      }
+
+      const avgSim = count > 0 ? sumSim / count : 0;
+      if (avgSim >= this.threshold) {
+        union(rootI, rootJ);
+        const newRoot = find(rootI);
+        const merged = [...groupI, ...groupJ];
+        activeClusters.delete(rootI);
+        activeClusters.delete(rootJ);
+        activeClusters.set(newRoot, merged);
       }
     }
 
-    // 클러스터 ID 정규화
     return Array.from({ length: n }, (_, i) => find(i));
   }
 

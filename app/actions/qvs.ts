@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { questionValueScoreSchema } from "../../lib/schema";
 
 
@@ -24,9 +24,9 @@ export async function scoreQuestionValue(
     scoring_method?: "auto" | "manual";
   }
 ) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner",
     "admin",
     "brand_strategist",
@@ -132,9 +132,9 @@ export async function getTopValueQuestions(
   industry: string,
   limit: number = 10
 ) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner",
     "admin",
     "brand_strategist",
@@ -164,9 +164,9 @@ export async function getTopValueQuestions(
  * 3. Find preemption opportunities: High value, low competition questions.
  */
 export async function getPreemptionOpportunities(workspaceId: string, limit: number = 5) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner",
     "admin",
     "brand_strategist",

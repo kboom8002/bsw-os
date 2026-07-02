@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { qisPredictedQuestionSchema } from "../../lib/qis-shared-schemas";
 import { QuestionPredictor } from "../../lib/prediction/question-predictor";
 import { scoreQuestionValue } from "./qvs";
@@ -13,9 +13,9 @@ const KWEDDINGHUB_API_KEY = process.env.KWEDDINGHUB_API_KEY || 'mock-kweddinghub
  * 1. BSW의 최신 예측 질문들을 KWeddingHub로 전송 (Push Predictions)
  */
 export async function pushPredictionsToKWeddingHub(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -86,9 +86,9 @@ export async function pushPredictionsToKWeddingHub(workspaceId: string) {
  * 2. KWeddingHub의 실시간 예측 검증 피드백을 수집하여 AccuracyTracker에 반영 (Pull Feedback)
  */
 export async function pullFeedbackFromKWeddingHub(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -141,9 +141,9 @@ export async function pullFeedbackFromKWeddingHub(workspaceId: string) {
  * 3. KWeddingHub의 실시간 실측 메트릭을 Pull 하여 BSW QVS 산출 가중치에 주입
  */
 export async function pullRealMetricsFromKWeddingHub(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {

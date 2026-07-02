@@ -60,6 +60,12 @@ async function saveCheckpoint(db: ReturnType<typeof getSupabaseAdminClient>, sid
   }).eq("id", sid);
 }
 
+// ─── Helper: record step error (FIX-1) ───
+function recordStepError(cp: Record<string, any>, stepNum: number, errorMessage: string): void {
+  if (!cp.stepErrors) cp.stepErrors = {};
+  cp.stepErrors[`step_${stepNum}`] = { message: errorMessage, timestamp: new Date().toISOString() };
+}
+
 // ─── Default fallback values ───
 const DEFAULT_TECH_INFRA = {
   robotsBotMatrix: [], aiCrawlerAccessScore: 50, httpsEnabled: false, sslCertValid: false,
@@ -137,6 +143,7 @@ export async function POST(request: Request) {
             quickResult = await new QuickSiteAnalyzer().analyze(wid, websiteUrl, brandName);
           } catch (e: any) {
             console.warn("[S0]", e.message);
+            recordStepError(cp, 0, e.message);
           }
           await saveCheckpoint(db, sessionId, 0, { ...cp, quickResult });
           return NextResponse.json({ ok: true, step: 0, message: "Quick baseline done" });
@@ -152,6 +159,7 @@ export async function POST(request: Request) {
             crawledPages = crawlResult.pages || [];
           } catch (e: any) {
             console.warn("[S1]", e.message);
+            recordStepError(cp, 1, e.message);
             // If crawl fails but we have quickResult, save and continue
             if (!cp.quickResult) throw e;
           }
@@ -169,6 +177,7 @@ export async function POST(request: Request) {
             }
           } catch (e: any) {
             console.warn("[S2]", e.message);
+            recordStepError(cp, 2, e.message);
           }
           await saveCheckpoint(db, sessionId, 2, { ...cp, techInfra });
           return NextResponse.json({ ok: true, step: 2, message: `Tech Infra Score: ${techInfra.techInfraScore}` });
@@ -184,6 +193,7 @@ export async function POST(request: Request) {
             }
           } catch (e: any) {
             console.warn("[S3]", e.message);
+            recordStepError(cp, 3, e.message);
           }
           await saveCheckpoint(db, sessionId, 3, { ...cp, schemaQuality });
           return NextResponse.json({ ok: true, step: 3, message: `Schema Quality Score: ${schemaQuality.schemaQualityScore}` });
@@ -200,6 +210,7 @@ export async function POST(request: Request) {
               if (extracted.length > 0) { allEntities = extracted; hasLlmEntities = true; }
             } catch (e: any) {
               console.warn("[S4]", e.message);
+              recordStepError(cp, 4, e.message);
             }
           }
           if (allEntities.length === 0 && cp.quickResult?.entities?.length > 0) {
@@ -218,6 +229,7 @@ export async function POST(request: Request) {
             kg = await new KnowledgeGraphBuilder().build(wid, websiteUrl, entities);
           } catch (e: any) {
             console.warn("[S5]", e.message);
+            recordStepError(cp, 5, e.message);
           }
           await saveCheckpoint(db, sessionId, 5, { ...cp, kg });
           return NextResponse.json({ ok: true, step: 5, message: `KG with ${kg.entities?.length || 0} entities` });
@@ -227,14 +239,21 @@ export async function POST(request: Request) {
         case 6: {
           await upd(db, sessionId, 6, "AI 앤서카드 역설계 중...");
           let cards: any[] = cp.quickResult?.cards || [];
+          let canonicalQuestions: any[] = [];
+          let qisScenes: any[] = [];
           try {
             const kg = cp.kg || { entities: cp.allEntities || [], nodes: [], edges: [], concepts: [] };
             const reversed = await new AnswerCardReverser().reverse(wid, websiteUrl, kg);
-            if (reversed.cards?.length > 0) cards = reversed.cards;
+            if (reversed.cards?.length > 0) {
+              cards = reversed.cards;
+              canonicalQuestions = reversed.canonicalQuestions;
+              qisScenes = reversed.qisScenes;
+            }
           } catch (e: any) {
             console.warn("[S6]", e.message);
+            recordStepError(cp, 6, e.message);
           }
-          await saveCheckpoint(db, sessionId, 6, { ...cp, cards });
+          await saveCheckpoint(db, sessionId, 6, { ...cp, cards, canonicalQuestions, qisScenes });
           return NextResponse.json({ ok: true, step: 6, message: `${cards.length} answer cards` });
         }
 
@@ -246,9 +265,27 @@ export async function POST(request: Request) {
             customProbes = await new ProbeGenerator().generateProbes(cp.cards || [], brandName, competitors);
           } catch (e: any) {
             console.warn("[S7]", e.message);
+            recordStepError(cp, 7, e.message);
+          }
+          // FIX-3: Probe 실패 시 브랜드명 기반 폴백 프로브 생성
+          if (customProbes.length === 0 && brandName) {
+            console.log("[S7] Generating fallback probes for:", brandName);
+            const fallbackQueries = [
+              `${brandName} 추천`, `${brandName} 후기`, `${brandName} 가격`,
+              `${brandName} 성분 분석`, `${brandName} 부작용`,
+              `${brandName} vs 경쟁사 비교`, `${brandName} 사용법`,
+              `${brandName} 효과`, `${brandName} 장단점`, `${brandName} 실제 사용 후기`
+            ];
+            customProbes = fallbackQueries.map((q, i) => ({
+              id: `fallback-probe-${i}`,
+              question: q,
+              type: i < 3 ? 'brand_query' : (i < 6 ? 'comparison' : 'experience'),
+              source: 'fallback_generator',
+            }));
+            recordStepError(cp, 7, 'LLM probe generation failed — using brand-name fallback probes');
           }
           await saveCheckpoint(db, sessionId, 7, { ...cp, customProbes });
-          return NextResponse.json({ ok: true, step: 7, message: `${customProbes.length} probes` });
+          return NextResponse.json({ ok: true, step: 7, message: `${customProbes.length} probes${cp.stepErrors?.step_7 ? ' (fallback)' : ''}` });
         }
 
         // ── Step 8: QIS Cross Map ──
@@ -265,6 +302,7 @@ export async function POST(request: Request) {
             }
           } catch (e: any) {
             console.warn("[S8]", e.message);
+            recordStepError(cp, 8, e.message);
           }
           await saveCheckpoint(db, sessionId, 8, { ...cp, mappings, detectedIndustry });
           return NextResponse.json({ ok: true, step: 8, message: `${mappings.length} mappings (industry: ${detectedIndustry})` });
@@ -282,6 +320,7 @@ export async function POST(request: Request) {
             }
           } catch (e: any) {
             console.warn("[S9]", e.message);
+            recordStepError(cp, 9, e.message);
           }
           await saveCheckpoint(db, sessionId, 9, { ...cp, contentSemantic });
           return NextResponse.json({ ok: true, step: 9, message: `Content Semantic Score: ${contentSemantic.contentSemanticScore}` });
@@ -311,6 +350,7 @@ export async function POST(request: Request) {
               hasReflection = true;
             } catch (e: any) {
               console.warn("[S10]", e.message);
+              recordStepError(cp, 10, e.message);
             }
           }
           // Apply L1/L2/L3 mod scores
@@ -337,6 +377,7 @@ export async function POST(request: Request) {
               return NextResponse.json({ ok: true, step: 11, message: `AEPI = ${aepi}` });
             } catch (e: any) {
               console.warn("[S11]", e.message);
+              recordStepError(cp, 11, e.message);
             }
           }
           await saveCheckpoint(db, sessionId, 11, cp);
@@ -354,10 +395,16 @@ export async function POST(request: Request) {
               observedPersona = await pe.analyze(wid, websiteUrl, brandName, cp.rawResponses);
             } else if (tier !== "tier1" && tier !== "free") {
               const detectedIndustry = cp.detectedIndustry || "default";
-              parametricSnapshot = await pe.runFullPersonaAudit(wid, websiteUrl, brandName, detectedIndustry, tier as any);
+              // FIX-4: Persona LLM 호출에 타임아웃 보호 (4분)
+              const personaPromise = pe.runFullPersonaAudit(wid, websiteUrl, brandName, detectedIndustry, tier as any);
+              const timeoutPromise = new Promise<null>((_, reject) =>
+                setTimeout(() => reject(new Error('Persona audit timed out after 240s')), 240_000)
+              );
+              parametricSnapshot = await Promise.race([personaPromise, timeoutPromise]);
             }
           } catch (e: any) {
             console.warn("[S12]", e.message);
+            recordStepError(cp, 12, e.message);
           }
           await saveCheckpoint(db, sessionId, 12, { ...cp, observedPersona, parametricSnapshot });
           return NextResponse.json({ ok: true, step: 12, message: "Persona analysis done" });
@@ -398,6 +445,7 @@ export async function POST(request: Request) {
             }
           } catch (e: any) {
             console.warn("[S13]", e.message);
+            recordStepError(cp, 13, e.message);
           }
           await saveCheckpoint(db, sessionId, 13, { ...cp, relativePosition, improvementStrategy, gaps });
           return NextResponse.json({ ok: true, step: 13, message: `${gaps.length} gaps analyzed` });
@@ -413,6 +461,7 @@ export async function POST(request: Request) {
             }
           } catch (e: any) {
             console.warn("[S14]", e.message);
+            recordStepError(cp, 14, e.message);
           }
 
           // Determine audit mode
@@ -433,6 +482,7 @@ export async function POST(request: Request) {
             contentSemantic: cp.contentSemantic || DEFAULT_CONTENT_SEMANTIC,
             relativePosition: cp.relativePosition || null,
             improvementStrategy: cp.improvementStrategy || null,
+            stepErrors: cp.stepErrors || null,
           };
 
           // Save L1/L2/L3 snapshots

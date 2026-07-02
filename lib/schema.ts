@@ -270,8 +270,19 @@ export const questionSignalSchema = z.object({
   workspace_id: z.string().uuid(),
   query: z.string().min(2),
   volume: z.number().min(0).default(0),
-  intent: z.enum(['informational', 'transactional', 'commercial', 'local']).default('informational'),
+  intent: z.string().default('informational'), // string으로 확장하여 AHP 등 다양한 인텐트 커증
   status: z.enum(['mined', 'ignored', 'promoted']).default('mined'),
+  // QVS 8차원 확장 컬럼들
+  qvs_total: z.number().optional(),
+  qvs_dimensions: z.any().optional(), // JSON
+  cps_score: z.number().optional(),
+  is_ymyl: z.boolean().optional(),
+  gate_status: z.enum(['Go', 'Watch', 'No-Go']).default('Watch'),
+  eval_confidence: z.enum(['high', 'medium', 'low']).optional(),
+  // 실측 그라운딩 메타데이터
+  matched_tco_concepts: z.array(z.string()).optional(),
+  matched_kg_nodes: z.array(z.string()).optional(),
+  panel_layer: z.string().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
@@ -317,6 +328,11 @@ export const qisSceneSchema = z.object({
   intent_model: z.string().min(2),
   scenario_context: z.string().min(5),
   risk_level: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
+  scene_type: z.string().min(2).default('factoid').optional(),
+  answer_text: z.string().optional(),
+  must_include: z.array(z.string()).default([]).optional(),
+  must_not_do: z.array(z.string()).default([]).optional(),
+  confidence_score: z.number().min(0).max(1).default(0.50).optional(),
   created_at: z.string().optional(),
 });
 
@@ -327,7 +343,7 @@ export const tcoConceptSchema = z.object({
   id: z.string().uuid().optional(),
   workspace_id: z.string().uuid(),
   concept_name: z.string().min(2).max(255),
-  slug: z.string().min(2).max(100).regex(/^[a-z0-9-]+$/),
+  slug: z.string().min(2).max(100).regex(/^[a-z0-9가-힣-]+$/),
   definition: z.string().min(5),
   is_strategic: z.boolean().default(false),
   concept_type: z.string().min(2).default('tco_domain_entity'),
@@ -1743,3 +1759,80 @@ export const contentSemanticSnapshotSchema = z.object({
 
 export type ContentSemanticSnapshot = z.infer<typeof contentSemanticSnapshotSchema>;
 
+// ─────────────────────────────────────────────────────────────
+// 99. Industry Report Snapshot — 업종별 AEO/GEO 경쟁 리포트 메타데이터
+// ─────────────────────────────────────────────────────────────
+export const industryReportSnapshotSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid().nullable().optional(),
+
+  report_title: z.string().min(1),
+  sub_industry_key: z.string().min(1),          // "skincare" | "wedding"
+  macro_category_key: z.string().min(1),        // "ecommerce_d2c" | "local_services"
+  report_period: z.string().min(1),             // "2026-Q3" | "2026-07"
+
+  // 업종 레벨 집계 지표
+  industry_iri: z.number().min(0).max(100).nullable().optional(),
+  industry_opp: z.number().min(0).max(100).nullable().optional(),
+  industry_avg_bair: z.number().min(0).max(100).nullable().optional(),
+  industry_avg_aepi: z.number().min(0).max(100).nullable().optional(),
+
+  // 측정 메타데이터
+  total_brands: z.number().int().min(0).default(0),
+  total_probes: z.number().int().min(0).default(0),
+  total_responses: z.number().int().min(0).default(0),
+  engines_used: z.array(z.string()).default([]),
+  probe_set_hash: z.string().nullable().optional(),
+
+  prev_report_id: z.string().uuid().nullable().optional(),
+
+  status: z.enum(['draft', 'generating', 'published', 'archived']).default('draft'),
+  published_at: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export type IndustryReportSnapshot = z.infer<typeof industryReportSnapshotSchema>;
+
+// ─────────────────────────────────────────────────────────────
+// 100. Industry Report Brand Ranking — 리포트 내 브랜드별 랭킹
+// ─────────────────────────────────────────────────────────────
+export const industryReportBrandRankingSchema = z.object({
+  id: z.string().uuid().optional(),
+  report_id: z.string().uuid(),
+
+  brand_name: z.string().min(1),
+  brand_slug: z.string().min(1),
+  rank_position: z.number().int().min(1),
+
+  // 핵심 지표 (0~100)
+  bair_score: z.number().min(0).max(100).default(0),
+  aepi_score: z.number().min(0).max(100).nullable().optional(),
+  bsf: z.number().min(0).max(100).default(0),
+  aas_w: z.number().min(0).max(100).default(0),
+  ocr: z.number().min(0).max(100).default(0),
+  mention_quality: z.number().min(0).max(100).nullable().optional(),
+
+  // Per-Layer 지표
+  iri: z.number().min(0).max(100).nullable().optional(),
+  bdr: z.number().min(0).max(100).nullable().optional(),
+  cwr: z.number().min(0).max(100).nullable().optional(),
+  opp: z.number().min(0).max(100).nullable().optional(),
+
+  // AEPI 7차원 breakdown
+  aepi_dimensions: z.record(z.string(), z.number()).nullable().optional(),
+
+  // 전분기 비교
+  prev_rank_position: z.number().int().nullable().optional(),
+  rank_change: z.number().int().default(0),
+  bair_change: z.number().default(0),
+
+  // 4사분면 포지셔닝
+  quadrant: z.enum(['ai_leader', 'competitive_warrior', 'steady_defender', 'vulnerable']).nullable().optional(),
+
+  is_estimated: z.boolean().default(false),
+  sample_size: z.number().int().min(0).default(0),
+  created_at: z.string().optional(),
+});
+
+export type IndustryReportBrandRanking = z.infer<typeof industryReportBrandRankingSchema>;

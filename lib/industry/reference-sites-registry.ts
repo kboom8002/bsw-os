@@ -261,7 +261,7 @@ export interface NewReferenceSite {
   curatorNotes?: string;
 }
 
-/** 레퍼런스 사이트 추가 (DB) */
+/** 레퍼런스 사이트 추가 (DB) — DB 스키마에 있는 컬럼만 삽입 */
 export async function addReferenceSite(site: NewReferenceSite): Promise<{ id: string }> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
@@ -271,8 +271,6 @@ export async function addReferenceSite(site: NewReferenceSite): Promise<{ id: st
       brand_name: site.brandName,
       tier: site.tier,
       sub_industry_key: site.subIndustryKey,
-      macro_industry_key: site.macroKey ?? null,
-      tags: site.tags ?? [],
       curator_notes: site.curatorNotes ?? null,
       active: true,
     })
@@ -283,6 +281,37 @@ export async function addReferenceSite(site: NewReferenceSite): Promise<{ id: st
     throw new Error(`레퍼런스 사이트 추가 실패: ${error?.message ?? '알 수 없는 오류'}`);
   }
   return { id: data.id as string };
+}
+
+/**
+ * DB에 저장된 레퍼런스 사이트 조회 (하드코딩 시드 데이터 제외)
+ * 업종 벤치마크 페이지에서 사용자가 추가한 사이트를 읽기 위해 사용.
+ */
+export async function getDbReferenceSites(subIndustryKey: string): Promise<ReferenceSite[]> {
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from('reference_sites')
+      .select('id, url, brand_name, tier, sub_industry_key, curator_notes')
+      .eq('sub_industry_key', subIndustryKey)
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map((row) => ({
+      id: row.id as string,
+      url: row.url as string,
+      brandName: row.brand_name as string,
+      tier: row.tier as 'excellent' | 'average' | 'poor',
+      subIndustryKey: row.sub_industry_key as string,
+      tags: [],
+      curatorNotes: row.curator_notes as string | undefined,
+    }));
+  } catch (err) {
+    console.warn('[reference-sites] getDbReferenceSites failed:', err instanceof Error ? err.message : String(err));
+    return [];
+  }
 }
 
 /** 레퍼런스 사이트 삭제 (DB) */

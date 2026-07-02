@@ -8,6 +8,10 @@ const envSchema = z.object({
   HUB_API_KEY: z.string().optional(),
   QIS_API_KEY_HASH: z.string().optional(),
   BSW_WORKSPACE_ID: z.string().optional(),
+  /** true이면 인증 없이 데모 모드로 작동 */
+  DEMO_MODE: z.string().optional(),
+  /** true이면 Hub 없이 단독 모드로 QIS 파이프라인 작동 */
+  STANDALONE_MODE: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -18,6 +22,8 @@ export const env = envSchema.parse({
   HUB_API_KEY: process.env.HUB_API_KEY,
   QIS_API_KEY_HASH: process.env.QIS_API_KEY_HASH,
   BSW_WORKSPACE_ID: process.env.BSW_WORKSPACE_ID,
+  DEMO_MODE: process.env.DEMO_MODE,
+  STANDALONE_MODE: process.env.STANDALONE_MODE,
 });
 
 // Guard to ensure service_role key is never exposed on the client bundle

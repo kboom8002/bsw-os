@@ -1,145 +1,220 @@
 import { getAIProvider } from '../ai/ai-provider';
+import type { EvalStep1Result, QVS8DResult, EvaluationWithConfidence } from './types';
+import { getSupabaseAdminClient } from '../supabase';
 
-export interface SignalEvaluationResult {
-  intent: 'informational' | 'navigational' | 'transactional' | 'local' | 'comparison' | 'risk';
-  brand_fit: 'fit' | 'partial' | 'unfit';
-  is_ymyl: boolean;
-  strategic_score: number; // 0 - 100
-  cluster_id?: string;
-  // QVS 5차원 스코어 (S-05)
-  qvs_relevance?: number; // V_rel (0-10)
-  qvs_specificity?: number; // V_spec (0-10)
-  qvs_urgency?: number; // V_urg (0-10)
-  qvs_competitiveness?: number; // V_comp (0-10)
-  qvs_conversion?: number; // V_conv (0-10)
-  qvs_total_score?: number; // QVS (0-100)
-  gate_status?: 'Go' | 'Watch' | 'No-Go';
-}
+// AHP 쌍비교 매트릭스 유도 가중치 (합계 = 1.0)
+const AHP_WEIGHTS = {
+  relevance: 0.18,           // 관련성
+  specificity: 0.10,         // 구체성
+  urgency: 0.07,             // 긴급성
+  opportunity: 0.12,         // 기회도 (= 10 - 경쟁도)
+  conversion: 0.18,          // 전환 잠재력
+  snippet_fitness: 0.15,     // AEO: 직접 답변 적합도
+  entity_clarity: 0.10,      // GEO: 엔티티 명확도
+  multi_engine_consistency: 0.10, // GEO: 멀티엔진 일관성
+};
 
 export class SignalEvaluator {
   /**
-   * Evaluates a raw question signal automatically.
+   * Step 1: 분류 평가 (temperature = 0, 결정적 분류)
    */
-  static async evaluateSignal(question: string, brandName: string): Promise<SignalEvaluationResult> {
+  static async classifySignal(question: string, brandName?: string): Promise<EvalStep1Result> {
     const ai = getAIProvider();
-    
-    const systemPrompt = `You are a search signal evaluator.
-Analyze the question: "${question}"
-In the context of the brand: "${brandName}"
 
-Evaluate these dimensions:
+    const prompt = `You are a search intent classifier.
+Analyze the consumer search query: "${question}"
+${brandName ? `For the brand: "${brandName}"` : 'Running in Hub Mode (no specific brand context)'}
+
+Classify into exactly one intent, brand fit, and YMYL flag:
 1. intent: informational, navigational, transactional, local, comparison, or risk.
-2. brand_fit: 'fit' (highly relevant to brand), 'partial' (somewhat relevant), 'unfit' (irrelevant).
-3. is_ymyl: true if it touches Your Money or Your Life topics (health, safety, finance, severe side effects).
-4. strategic_score: 0 to 100 representing how valuable it is for the brand to capture this question.
+2. brand_fit: 'fit' (highly relevant/exclusive to brand or industry domain), 'partial' (generic but relevant), 'unfit' (completely irrelevant/competitor exclusive). Note: If running in Hub Mode, classify industry-relevant queries as 'fit' or 'partial'.
+3. is_ymyl: true if it touches Your Money or Your Life topics (health, finance, legal, safety, side effects).
 
-Furthermore, evaluate the QVS (Quality-Volume Score) 5 dimensions (0 to 10 scale for each):
-- qvs_relevance: Relevance to the brand's core domain.
-- qvs_specificity: How specific the intent is (long-tail vs head).
-- qvs_urgency: Immediate need or pain point for the user.
-- qvs_competitiveness: Expected level of competition (10 means very competitive).
-- qvs_conversion: Commercial intent and likelihood to convert.
-`;
+Return JSON.`;
 
     try {
-      const response = await ai.generateStructuredOutput<any>(`System:\n${systemPrompt}\n\nUser:\nEvaluate the question.`, {
-        type: 'object',
-        properties: {
-          intent: { type: 'string', enum: ['informational', 'navigational', 'transactional', 'local', 'comparison', 'risk'] },
-          brand_fit: { type: 'string', enum: ['fit', 'partial', 'unfit'] },
-          is_ymyl: { type: 'boolean' },
-          strategic_score: { type: 'number' },
-          qvs_relevance: { type: 'number' },
-          qvs_specificity: { type: 'number' },
-          qvs_urgency: { type: 'number' },
-          qvs_competitiveness: { type: 'number' },
-          qvs_conversion: { type: 'number' }
+      const response = await ai.generateStructuredOutput<any>(
+        `System:\n${prompt}\n\nUser:\nClassify this query.`,
+        {
+          type: 'object',
+          properties: {
+            intent: { type: 'string', enum: ['informational', 'navigational', 'transactional', 'local', 'comparison', 'risk'] },
+            brand_fit: { type: 'string', enum: ['fit', 'partial', 'unfit'] },
+            is_ymyl: { type: 'boolean' }
+          },
+          required: ['intent', 'brand_fit', 'is_ymyl']
         },
-        required: ['intent', 'brand_fit', 'is_ymyl', 'strategic_score', 'qvs_relevance', 'qvs_specificity', 'qvs_urgency', 'qvs_competitiveness', 'qvs_conversion']
-      });
-
-      const V_rel = response.qvs_relevance || 0;
-      const V_spec = response.qvs_specificity || 0;
-      const V_urg = response.qvs_urgency || 0;
-      const V_comp = response.qvs_competitiveness || 0;
-      const V_conv = response.qvs_conversion || 0;
-      
-      // Weights: Relevance 30%, Specificity 20%, Urgency 10%, Comp 10%, Conversion 30%
-      const qvs_total = (V_rel * 3) + (V_spec * 2) + (V_urg * 1) + (V_comp * 1) + (V_conv * 3); // max 100
-      
-      let gate_status: 'Go' | 'Watch' | 'No-Go' = 'Watch';
-      if (qvs_total >= 70 && response.brand_fit === 'fit') gate_status = 'Go';
-      else if (qvs_total < 40 || response.brand_fit === 'unfit') gate_status = 'No-Go';
+        { temperature: 0 }
+      );
 
       return {
         intent: response.intent || 'informational',
         brand_fit: response.brand_fit || 'partial',
-        is_ymyl: response.is_ymyl || false,
-        strategic_score: response.strategic_score || 50,
-        qvs_relevance: V_rel,
-        qvs_specificity: V_spec,
-        qvs_urgency: V_urg,
-        qvs_competitiveness: V_comp,
-        qvs_conversion: V_conv,
-        qvs_total_score: qvs_total,
-        gate_status
+        is_ymyl: response.is_ymyl || false
       };
-    } catch (error) {
-      console.warn("SignalEvaluator LLM call failed", error);
+    } catch (err) {
+      console.warn('[SignalEvaluator] Classification failed, using fallback:', err);
       return {
         intent: 'informational',
         brand_fit: 'partial',
-        is_ymyl: false,
-        strategic_score: 50
+        is_ymyl: false
       };
     }
   }
 
   /**
-   * Simple clustering simulation for deduping.
+   * Step 2: QVS 8차원 상세 점수 분석 (앵커링 보정 및 CoT 포함)
    */
-  static async groupSimilarSignals(questions: string[]): Promise<Map<string, string[]>> {
-    // In a real implementation, this would use embeddings (e.g. OpenAI ada-002) and cosine similarity.
-    // For this LLM-native phase without vector DB, we'll ask the LLM to group them.
+  static async scoreQVS8D(
+    question: string, 
+    brandName?: string, 
+    kgNodes?: string[], 
+    panelLayer?: string
+  ): Promise<QVS8DResult> {
     const ai = getAIProvider();
-    
-    if (questions.length <= 1) {
-       const map = new Map();
-       if (questions.length === 1) map.set('cluster_1', [questions[0]]);
-       return map;
-    }
 
-    const systemPrompt = `Group these questions into distinct semantic clusters based on similarity.
-Questions:
-${questions.map((q, i) => `${i+1}. ${q}`).join('\n')}
+    const kgContext = kgNodes && kgNodes.length > 0
+      ? `\n브랜드 지식 그래프 핵심 엔티티 노드 목록:\n[${kgNodes.join(', ')}]`
+      : '';
+    const layerContext = panelLayer ? `\n이 질문의 업종 패널 계층: ${panelLayer}` : '';
 
-Output an array of clusters, where each cluster contains an array of question strings.`;
+    const systemPrompt = `당신은 SEO/AEO/GEO 검색 성과 예측 엔진입니다.
+질문: "${question}"
+${brandName ? `브랜드: "${brandName}"` : '실행 모드: 허브 포털 모드 (브랜드 미지정)'}${kgContext}${layerContext}
+
+QVS (Quality-Volume Score)를 위해 아래의 8개 차원을 각각 0~10점 척도로 평가하세요:
+1. relevance: 브랜드 또는 업종 핵심 영역과의 부합도 (10점 예시: '${brandName || '스킨케어'} 이용 요금/추천', 1점 예시: '오늘 서울 날씨')
+2. specificity: 검색 의도의 구체성 (long-tail 구체적 질문일수록 고득점)
+3. urgency: 고통 포인트나 긴급도
+4. opportunity: 검색 노출 기회도 (경쟁이 낮을수록 고득점, 10점: 블루오션, 1점: 과열 레드오션)
+5. conversion: 상업적 전환 잠재력 (10점: 구매 전환 의도가 뚜렷함)
+6. snippet_fitness (AEO): AI 답변 추천(Featured Snippet)으로 직접 채택되기 좋은 구조인가 여부 (10점: 명확한 질문 구조)
+7. entity_clarity (GEO): 지식 그래프 개체(Entity)로써 AI가 혼동 없이 명확히 식별할 수 있는 수준 (10점: 고유 명사 또는 명확한 단일 엔티티 포함)
+8. multi_engine_consistency (GEO): 다양한 AI 검색 엔진들(ChatGPT, Gemini 등)이 일관된 구조로 답변을 구성하기 쉬운 정도
+
+**채점 전, 먼저 각 차원별 채점 논리적 근거(CoT)를 reasoning 필드에 기술하세요.**`;
 
     try {
-      const response = await ai.generateStructuredOutput<any>(`System:\n${systemPrompt}\n\nUser:\nGroup them.`, {
-        type: 'object',
-        properties: {
-          clusters: {
-            type: 'array',
-            items: {
-              type: 'array',
-              items: { type: 'string' }
-            }
-          }
+      const response = await ai.generateStructuredOutput<any>(
+        `System:\n${systemPrompt}\n\nUser:\n채점 결과를 반환하세요.`,
+        {
+          type: 'object',
+          properties: {
+            relevance: { type: 'number' },
+            specificity: { type: 'number' },
+            urgency: { type: 'number' },
+            opportunity: { type: 'number' },
+            conversion: { type: 'number' },
+            snippet_fitness: { type: 'number' },
+            entity_clarity: { type: 'number' },
+            multi_engine_consistency: { type: 'number' },
+            reasoning: { type: 'string' }
+          },
+          required: [
+            'relevance', 'specificity', 'urgency', 'opportunity', 
+            'conversion', 'snippet_fitness', 'entity_clarity', 'multi_engine_consistency', 'reasoning'
+          ]
         },
-        required: ['clusters']
-      });
+        { temperature: 0 }
+      );
 
-      const map = new Map<string, string[]>();
-      (response.clusters || []).forEach((cluster: string[], i: number) => {
-        map.set(`cluster_${i+1}`, cluster);
-      });
-      return map;
-    } catch (e) {
-      // Fallback: put each in its own cluster
-      const map = new Map<string, string[]>();
-      questions.forEach((q, i) => map.set(`cluster_${i}`, [q]));
-      return map;
+      return {
+        relevance: response.relevance ?? 5,
+        specificity: response.specificity ?? 5,
+        urgency: response.urgency ?? 5,
+        opportunity: response.opportunity ?? 5,
+        conversion: response.conversion ?? 5,
+        snippet_fitness: response.snippet_fitness ?? 5,
+        entity_clarity: response.entity_clarity ?? 5,
+        multi_engine_consistency: response.multi_engine_consistency ?? 5,
+        reasoning: response.reasoning || ''
+      };
+    } catch (err) {
+      console.warn('[SignalEvaluator] QVS8D scoring failed, returning fallback:', err);
+      return {
+        relevance: 5, specificity: 5, urgency: 5, opportunity: 5, conversion: 5,
+        snippet_fitness: 5, entity_clarity: 5, multi_engine_consistency: 5,
+        reasoning: 'Fallback due to LLM error.'
+      };
     }
+  }
+
+  /**
+   * 가중 합산 계산
+   */
+  static calculateWeightedScore(qvs: QVS8DResult): number {
+    const raw = 
+      (qvs.relevance * AHP_WEIGHTS.relevance) +
+      (qvs.specificity * AHP_WEIGHTS.specificity) +
+      (qvs.urgency * AHP_WEIGHTS.urgency) +
+      (qvs.opportunity * AHP_WEIGHTS.opportunity) +
+      (qvs.conversion * AHP_WEIGHTS.conversion) +
+      (qvs.snippet_fitness * AHP_WEIGHTS.snippet_fitness) +
+      (qvs.entity_clarity * AHP_WEIGHTS.entity_clarity) +
+      (qvs.multi_engine_consistency * AHP_WEIGHTS.multi_engine_consistency);
+    
+    // 0-10 단위를 0-100 단위로 스케일업
+    return parseFloat((raw * 10).toFixed(2));
+  }
+
+  /**
+   * 불확실성 극복을 위한 N회 반복 평가 및 통계적 의사결정 (Gate)
+   */
+  static async evaluateWithConfidence(
+    question: string,
+    brandName?: string,
+    repeats: number = 3,
+    kgNodes?: string[],
+    panelLayer?: string,
+    workspaceId?: string
+  ): Promise<EvaluationWithConfidence> {
+    // 1단계 분류는 1회만 수행 (temperature = 0이므로 항상 동일 결과 기대)
+    const step1 = await this.classifySignal(question, brandName);
+
+    // 2단계 QVS 8차원 평가를 N회 반복
+    const qvsRuns: QVS8DResult[] = [];
+    for (let i = 0; i < repeats; i++) {
+      const qvs = await this.scoreQVS8D(question, brandName, kgNodes, panelLayer);
+      qvsRuns.push(qvs);
+      if (i < repeats - 1) {
+        await new Promise(r => setTimeout(r, 50)); // rate limit 방지 미세 딜레이
+      }
+    }
+
+    const totals = qvsRuns.map(r => this.calculateWeightedScore(r));
+    const mean = totals.reduce((s, v) => s + v, 0) / totals.length;
+    
+    let std = 0;
+    if (totals.length > 1) {
+      const variance = totals.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (totals.length - 1);
+      std = Math.sqrt(variance);
+    }
+
+    const confidence = std < 5 ? 'high' : std < 10 ? 'medium' : 'low';
+
+    // 적응적 Gate 판정
+    let gate_status: 'Go' | 'Watch' | 'No-Go' = 'Watch';
+    if (brandName && step1.brand_fit === 'unfit') {
+      gate_status = 'No-Go';
+    } else {
+      // 적응적 임계값
+      const goThreshold = 68;
+      const noGoThreshold = 42;
+
+      if (mean >= goThreshold && (!brandName || step1.brand_fit === 'fit' || step1.brand_fit === 'partial')) {
+        gate_status = 'Go';
+      } else if (mean < noGoThreshold) {
+        gate_status = 'No-Go';
+      }
+    }
+
+    return {
+      step1,
+      qvs: qvsRuns[0], // 첫 번째 결과를 대표값으로 사용
+      qvs_total: parseFloat(mean.toFixed(2)),
+      qvs_std: parseFloat(std.toFixed(2)),
+      confidence,
+      gate_status
+    };
   }
 }

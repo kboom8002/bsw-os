@@ -2,11 +2,6 @@
  * lib/signal-collection/meta-question-engine.ts
  *
  * S-OGDE v2.0 — 5-Lens Meta-Question Engine.
- *
- * v2.0 변경사항:
- * - contextChunks 파라미터 추가: VOC 데이터가 주입되면
- *   소비자의 실제 어휘와 뉘앙스를 살려 메타질문을 생성합니다.
- * - 컨텍스트 없이도 v1.0 방식으로 정상 작동합니다 (하위 호환).
  */
 
 import { getAIProvider } from '../ai/ai-provider';
@@ -26,21 +21,29 @@ export class MetaQuestionEngine {
    *
    * @param domainName - 업종명
    * @param brandName - 브랜드명 (선택)
-   * @param contextChunks - VOC 데이터 청크 (Phase S에서 주입, 선택)
+   * @param contextChunks - VOC 데이터 청크 (선택)
+   * @param tcoSeeds - TCO 핵심 전략 개념 시드 (선택)
    */
   static async analyzeAndGenerate(
     domainName: string,
     brandName?: string,
-    contextChunks?: VOCChunk[]
+    contextChunks?: VOCChunk[],
+    tcoSeeds?: Array<{ concept_name: string; definition: string }>
   ): Promise<MetaQuestionResult[]> {
     const ai = getAIProvider();
 
     // 컨텍스트 블록 생성 (VOC 데이터가 있으면 삽입)
     const contextBlock = MetaQuestionEngine.buildContextBlock(contextChunks);
 
+    // TCO 개념 시드 블록 생성 (TCO가 존재하면 프롬프트 가이드 추가)
+    const tcoBlock = tcoSeeds && tcoSeeds.length > 0
+      ? `\n\n[TCO 전략 개념 가이드]\n아래의 핵심 운영 개념들을 기반으로 하여 질문자산의 도메인 깊이를 확장하세요:\n${tcoSeeds.map(c => `- ${c.concept_name}: ${c.definition}`).join('\n')}\n(위 개념에 부합하거나 개념을 파고드는 소비자 질문을 전략적으로 우선 도출하세요.)`
+      : '';
+
     const systemPrompt = `You are a consumer psychology analyst specializing in search intent.
 Your task is to analyze the "${domainName}" industry and identify what consumers are REALLY asking, specifically considering the brand "${brandName || 'brands in this space'}".
-${contextBlock}
+${contextBlock}${tcoBlock}
+
 Analyze using these 5 meta-perspectives:
 1. pattern: The structural patterns of recurring questions (e.g. comparison, safety, recommendation).
 2. motivation: The hidden motivations behind searches.
@@ -53,24 +56,28 @@ For EACH perspective, provide a brief insight and generate exactly 5 realistic s
     const userPrompt = `Generate the meta-analysis and queries for domain: ${domainName}${brandName ? `, brand: ${brandName}` : ''}`;
 
     try {
-      const response = await ai.generateStructuredOutput<any>(`System:\n${systemPrompt}\n\nUser:\n${userPrompt}`, {
-        type: 'object',
-        properties: {
-          results: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                meta_type: { type: 'string', enum: ['pattern', 'motivation', 'journey_stage', 'fear_desire', 'counter'] },
-                analysis_insight: { type: 'string' },
-                generated_queries: { type: 'array', items: { type: 'string' } }
-              },
-              required: ['meta_type', 'analysis_insight', 'generated_queries']
+      const response = await ai.generateStructuredOutput<any>(
+        `System:\n${systemPrompt}\n\nUser:\n${userPrompt}`,
+        {
+          type: 'object',
+          properties: {
+            results: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  meta_type: { type: 'string', enum: ['pattern', 'motivation', 'journey_stage', 'fear_desire', 'counter'] },
+                  analysis_insight: { type: 'string' },
+                  generated_queries: { type: 'array', items: { type: 'string' } }
+                },
+                required: ['meta_type', 'analysis_insight', 'generated_queries']
+              }
             }
-          }
+          },
+          required: ['results']
         },
-        required: ['results']
-      });
+        { temperature: 0.7 } // 생성 태스크는 다양성을 확보
+      );
 
       return response.results || [];
     } catch (error) {
@@ -109,4 +116,3 @@ ${accumulated.trim()}
 </context>`;
   }
 }
-

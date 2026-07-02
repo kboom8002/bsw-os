@@ -33,10 +33,22 @@
     "industry_benchmark": "Industry Benchmark",
     "benchmark": "Industry Benchmark",
     "sbs_index": "Public AI Index (SBS)",
+    "industry_report": "Industry AEO/GEO Report",
+    "deep_dive": "Deep Dive Analysis",
     "kculture_studio": "K-Culture Intelligence",
     "qis_triaxis": "QIS Tri-Axis",
-    "qis_predictions": "QVS Predictions"
+    "qis_predictions": "QVS Predictions",
+    "pattern_attractors": "Pattern Attractors",
+    "golden_reference": "Golden Reference",
+    "group_ai_visibility": "AI Visibility Intelligence",
+    "group_site_audit": "Site Surface Audit",
+    "group_semantic_intel": "Semantic Analysis",
+    "group_execution": "Execution Tools",
+    "group_monitoring": "Monitoring",
+    "group_tools": "Tools",
+    "group_reference": "Reference"
   },
+
   "dashboard": {
     "title": "Brand Semantic Website OS",
     "subtitle": "SaaS Platform for AEO & AI Search Answer Optimization",

@@ -1,0 +1,40 @@
+- id: ingredient.retinol
+  name: 레티놀 (Retinol)
+  definition: 피부 턴오버 및 주름 개선을 돕는 활성 비타민 A 유도체 성분
+  is_strategic: true
+  concept_type: ingredient
+  activation_condition:
+    keywords: ["레티놀", "retinol", "비타민A"]
+  boundary:
+    beginner_dose: 0.1
+    advanced_dose: 0.5
+  operator:
+    combine_with_vitamin_c: "caution_mixed_use"
+  risk_vector:
+    irritation_risk: high
+    sun_sensitivity: high
+
+- id: symptom.stinging
+  name: 피부 따가움 및 자극
+  definition: 활성 성분 사용 혹은 장벽 손상으로 인해 발생하는 화끈거림, 따가움, 붉은기 증상
+  is_strategic: false
+  concept_type: symptom
+  activation_condition:
+    keywords: ["따가워", "붉어짐", "화끈", "stings", "irritation"]
+  boundary:
+    mild: "continue_with_moisturizer"
+    severe: "stop_immediately"
+  risk_vector:
+    medical_escalation: low
+
+- id: routine.barrier_reset
+  name: 장벽 리셋 루틴
+  definition: 자극 성분 사용을 전면 중단하고 보습 및 진정에 집중하여 피부 장벽을 회복하는 기간
+  is_strategic: true
+  concept_type: routine
+  activation_condition:
+    keywords: ["장벽복구", "진정케어", "장벽 리셋", "barrier reset"]
+  boundary:
+    duration_days: 7
+  operator:
+    apply_on_irritation: "high_priority"

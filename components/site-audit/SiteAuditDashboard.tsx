@@ -66,6 +66,8 @@ interface SiteAuditDashboardProps {
   // 업종 포지셔닝 & 전략 (tier1 이상에서 활성화)
   relativePosition?: RelativePosition | null;
   improvementStrategy?: ImprovementStrategy | null;
+  // FIX-5: step error tracking
+  stepErrors?: Record<string, { message: string; timestamp: string }> | null;
 }
 
 export default function SiteAuditDashboard({
@@ -87,6 +89,7 @@ export default function SiteAuditDashboard({
   contentSemantic = null,
   relativePosition = null,
   improvementStrategy = null,
+  stepErrors = null,
 }: SiteAuditDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -416,6 +419,41 @@ export default function SiteAuditDashboard({
           })}
         </div>
         </div>
+
+        {/* FIX-5: Step Error Warning Banner */}
+        {stepErrors && Object.keys(stepErrors).length > 0 && (
+          <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-amber-400 text-lg mt-0.5">⚠️</span>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-amber-300 mb-1">
+                  일부 진단 단계에서 오류가 발생했습니다
+                </h4>
+                <p className="text-xs text-amber-200/70 mb-2">
+                  아래 결과 중 일부는 불완전할 수 있습니다. 재진단을 권장합니다.
+                </p>
+                <div className="space-y-1">
+                  {Object.entries(stepErrors).map(([key, err]) => {
+                    const stepNames: Record<string, string> = {
+                      step_0: '빠른 기준 추정', step_1: '크롤링', step_2: 'L1 기술 인프라',
+                      step_3: 'L2 구조화 시맨틱', step_4: '엔티티 추출', step_5: '지식 그래프',
+                      step_6: '앤서카드 역설계', step_7: '프로브 생성', step_8: 'QIS 교차 매핑',
+                      step_9: 'L3 콘텐츠 시맨틱', step_10: 'AI 반영 실측', step_11: 'AEPI 산출',
+                      step_12: '페르소나 역설계', step_13: '업종 포지셔닝', step_14: '트렌드 기록',
+                    };
+                    return (
+                      <div key={key} className="flex items-center gap-2 text-[11px] text-amber-300/80">
+                        <span className="text-amber-500">•</span>
+                        <span className="font-semibold">{stepNames[key] || key}:</span>
+                        <span className="text-amber-200/60 truncate max-w-[400px]">{err.message}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab contents */}
         <div className="space-y-8">

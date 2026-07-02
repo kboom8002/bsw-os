@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from './supabase';
 import { WorkspaceRole } from './schema';
 import { createClient } from './supabase/server';
+import { env } from './env';
 
 /**
  * Ensures the user is authenticated and returns their UUID.
@@ -55,4 +56,32 @@ export async function checkWorkspacePermission(
     return false;
   }
   return allowedRoles.includes(role);
+}
+
+/**
+ * Demo-mode auth bypass.
+ * Returns a synthetic demo user UUID when DEMO_MODE is enabled,
+ * otherwise delegates to the standard requireAuth() flow.
+ */
+export async function requireAuthOrDemo(): Promise<string> {
+  if (env.DEMO_MODE === 'true') {
+    return 'demo-user-00000000-0000-4000-a000-000000000000';
+  }
+  return requireAuth();
+}
+
+/**
+ * Demo-mode workspace permission bypass.
+ * Returns true unconditionally when DEMO_MODE is enabled,
+ * otherwise delegates to the standard checkWorkspacePermission() flow.
+ */
+export async function checkWorkspacePermissionOrDemo(
+  workspaceId: string,
+  userId: string,
+  allowedRoles: WorkspaceRole[]
+): Promise<boolean> {
+  if (env.DEMO_MODE === 'true') {
+    return true;
+  }
+  return checkWorkspacePermission(workspaceId, userId, allowedRoles);
 }

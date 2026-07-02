@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
@@ -19,7 +19,9 @@ import {
   ArrowRight,
   ShieldCheck,
   Search,
-  Activity
+  Activity,
+  Cpu,
+  AlertCircle
 } from "lucide-react";
 import { QuestionLifecyclePipeline } from "@/components/question-lifecycle-pipeline";
 
@@ -36,14 +38,49 @@ export default function CanonicalQuestionsPage() {
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
   const { t } = useTranslation();
-  const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
+  const [workspaceId, setWorkspaceId] = useState<string>("");
+  const [questions, setQuestions] = useState<CanonicalQuestion[]>([]);
+  const [dbLoading, setDbLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
 
-  const [questions, setQuestions] = useState<CanonicalQuestion[]>([
-    { id: "cq-1", normalized_question: "Is niacinamide safe for inflamed skin barriers?", slug: "is-niacinamide-safe-for-inflamed-skin-barriers", signature: "7b0a6493e829dc74", question_capital_node_id: "cap-2" },
-    { id: "cq-2", normalized_question: "What is the recommended daily dosage of niacinamide?", slug: "what-is-the-recommended-daily-dosage-of-niacinamide", signature: "fa081e72bc19a3b2", question_capital_node_id: "cap-2" },
-    { id: "cq-3", normalized_question: "Are luxury skincare ingredients clinically tested?", slug: "are-luxury-skincare-ingredients-clinically-tested", signature: "ce02c815de58b11a", question_capital_node_id: "cap-1" },
-    { id: "cq-4", normalized_question: "Is vitamin B3 safe for irritated facial tissue?", slug: "is-vitamin-b3-safe-for-irritated-facial-tissue", signature: "7b0a6493e829dc74", question_capital_node_id: "cap-2" } // Duplicate signature to simulate deduplication action
-  ]);
+  // DB에서 데이터 로드
+  useEffect(() => {
+    loadFromDb();
+  }, [workspaceSlug]);
+
+  const loadFromDb = async () => {
+    setDbLoading(true);
+    setDbError(null);
+    try {
+      const { getSupabaseClient } = await import('@/lib/supabase');
+      const supabase = getSupabaseClient();
+
+      // 워크스페이스 ID 조회
+      const { data: ws } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('slug', workspaceSlug)
+        .single();
+
+      const resolvedWsId = ws?.id || '11111111-1111-1111-1111-111111111111';
+      setWorkspaceId(resolvedWsId);
+
+      // Canonical Questions 조회
+      const { data: cqs } = await supabase
+        .from('canonical_questions')
+        .select('id, normalized_question, slug, signature, question_capital_node_id')
+        .eq('workspace_id', resolvedWsId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      setQuestions(cqs || []);
+    } catch (err: unknown) {
+      console.error('Canonical Questions DB 조회 실패:', err);
+      setDbError('데이터를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setDbLoading(false);
+    }
+  };
 
   const [selectedCqId, setSelectedCqId] = useState<string | null>(null);
 
@@ -95,9 +132,7 @@ export default function CanonicalQuestionsPage() {
         signature,
         question_capital_node_id: null
       };
-
-      const result = await createCanonicalQuestion(mockWorkspaceId, data);
-      
+      const result = await createCanonicalQuestion(workspaceId || '11111111-1111-1111-1111-111111111111', data);
       const created: CanonicalQuestion = {
         id: result.id || "cq-" + Math.floor(Math.random() * 1000),
         normalized_question: result.normalized_question,
@@ -105,14 +140,26 @@ export default function CanonicalQuestionsPage() {
         signature: result.signature,
         question_capital_node_id: result.question_capital_node_id
       };
-
       setQuestions(prev => [...prev, created]);
-      setFeedback({ type: "success", message: "Canonical Question successfully registered with semantic unique signature!" });
-      setIsCreating(false);
-      resetForm();
-    } catch (err) {
-      setFeedback({ type: "error", message: `Failure: ${(err as Error).message}` });
+      setFeedback({ type: "success", message: "정규 질문이 시맨틱 고유 시그니처로 등록되었습니다!" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Unauthorized') || msg.includes('401')) {
+        // 데모 모드
+        setQuestions(prev => [...prev, {
+          id: "demo-cq-" + Math.floor(Math.random() * 1000),
+          normalized_question: normalizedQuestion,
+          slug,
+          signature,
+          question_capital_node_id: null
+        }]);
+        setFeedback({ type: "success", message: `[데모] Canonical Question 등록됨 (로그인 시 실제 저장)` });
+      } else {
+        setFeedback({ type: "error", message: `오류: ${msg}` });
+      }
     }
+    setIsCreating(false);
+    resetForm();
   };
 
   const handleMerge = async (e: React.FormEvent) => {
@@ -120,21 +167,22 @@ export default function CanonicalQuestionsPage() {
     if (!targetCqId || sourceCqIds.length === 0) return;
 
     try {
-      const result = await mergeCanonicalQuestions(mockWorkspaceId, targetCqId, sourceCqIds);
-      
-      // Update local state by removing merged sources
+      const result = await mergeCanonicalQuestions(workspaceId || '11111111-1111-1111-1111-111111111111', targetCqId, sourceCqIds);
       setQuestions(prev => prev.filter(q => !sourceCqIds.includes(q.id)));
-      
-      setFeedback({ 
-        type: "success", 
-        message: `Deduplication Success: Merged ${result.mergedCount} redundant signatures into Target CQ!` 
-      });
-      setIsMerging(false);
-      setTargetCqId("");
-      setSourceCqIds([]);
-    } catch (err) {
-      setFeedback({ type: "error", message: `Failure: ${(err as Error).message}` });
+      setFeedback({ type: "success", message: `중복 제거 성공: ${result.mergedCount}개 중복 시그니처가 대상 CQ에 병합되었습니다!` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Unauthorized') || msg.includes('401')) {
+        // 데모 모드: 로친 상태만 업데이트
+        setQuestions(prev => prev.filter(q => !sourceCqIds.includes(q.id)));
+        setFeedback({ type: "success", message: `[데모] ${sourceCqIds.length}개 시그니처 연결 완료 (로그인 시 실제 저장)` });
+      } else {
+        setFeedback({ type: "error", message: `오류: ${msg}` });
+      }
     }
+    setIsMerging(false);
+    setTargetCqId("");
+    setSourceCqIds([]);
   };
 
   const toggleSourceSelection = (id: string) => {
@@ -196,6 +244,32 @@ export default function CanonicalQuestionsPage() {
         </div>
       )}
 
+      {/* DB 상태 표시 */}
+      {dbLoading && (
+        <div className="flex items-center justify-center py-12 gap-3 text-slate-500">
+          <Cpu className="h-5 w-5 animate-spin" />
+          <span className="text-sm font-semibold">정규 질문 데이터 로드 중...</span>
+        </div>
+      )}
+
+      {dbError && (
+        <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-sm text-red-400 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <div>
+            <span className="font-bold">DB 연결 오류: </span>{dbError}
+            <button onClick={loadFromDb} className="ml-3 text-xs underline hover:text-red-300 cursor-pointer">재시도</button>
+          </div>
+        </div>
+      )}
+
+      {!dbLoading && !dbError && questions.length === 0 && (
+        <div className="bg-slate-800/30 border border-dashed border-slate-700 rounded-xl p-8 text-center space-y-2">
+          <HelpCircle className="h-8 w-8 text-slate-600 mx-auto" />
+          <p className="text-sm font-bold text-slate-400">정규 질문이 없습니다.</p>
+          <p className="text-xs text-slate-500">시그널을 프로모션하거나 직접 추가하세요.</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* CQ Signatures Grid */}
         <div className="lg:col-span-2 space-y-6">
@@ -220,14 +294,14 @@ export default function CanonicalQuestionsPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-[10px] text-slate-400">
                         <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
-                        <span>Deduplicated stable identity</span>
+                        <span>중복 제거된 안정 식별자</span>
                       </div>
                       <button 
                         onClick={() => setSelectedCqId(selectedCqId === cq.id ? null : cq.id)}
                         className="text-[10px] flex items-center gap-1 text-cyan-400 hover:text-cyan-300"
                       >
                         <Activity className="w-3.5 h-3.5" />
-                        Lifecycle
+                        라이프사이클
                       </button>
                     </div>
                     {selectedCqId === cq.id && (
@@ -244,22 +318,22 @@ export default function CanonicalQuestionsPage() {
         <div>
           {isCreating && (
             <form onSubmit={handleCreate} className="p-6 rounded-2xl border border-white/10 bg-slate-950/40 space-y-5">
-              <h3 className="font-bold text-sm text-slate-200">Register CQ Signature</h3>
+              <h3 className="font-bold text-sm text-slate-200">CQ 시그니처 등록</h3>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-400">Normalized Question Phrase</label>
+                <label className="block text-xs font-semibold text-slate-400">정규화된 질문 문구</label>
                 <input
                   type="text"
                   value={normalizedQuestion}
                   onChange={(e) => handleQuestionChange(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs font-semibold"
-                  placeholder="e.g. Is niacinamide safe for skin?"
+                  placeholder="예: 나이아신아마이드는 피부에 안전한가요?"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-400">Normalized Slug (Auto-generated)</label>
+                <label className="block text-xs font-semibold text-slate-400">정규화된 슬러그 (자동 생성)</label>
                 <input
                   type="text"
                   value={slug}
@@ -269,10 +343,10 @@ export default function CanonicalQuestionsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-400">Semantic Signature Hash</label>
+                <label className="block text-xs font-semibold text-slate-400">시맨틱 시그니처 해시</label>
                 <div className="w-full px-3 py-2 rounded-lg border border-white/5 bg-slate-950 text-cyan-400 font-mono text-xs select-all flex items-center gap-1.5">
                   <Fingerprint className="w-3.5 h-3.5" />
-                  {signature || "awaiting input..."}
+                  {signature || "입력 대기 중..."}
                 </div>
               </div>
 
@@ -281,7 +355,7 @@ export default function CanonicalQuestionsPage() {
                   type="submit"
                   className="flex-1 px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all text-xs text-center"
                 >
-                  Create Signature
+                  시그니처 생성
                 </button>
                 <button
                   type="button"
@@ -291,7 +365,7 @@ export default function CanonicalQuestionsPage() {
                   }}
                   className="px-4 py-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-xs"
                 >
-                  Cancel
+                  취소
                 </button>
               </div>
             </form>
@@ -301,18 +375,18 @@ export default function CanonicalQuestionsPage() {
             <form onSubmit={handleMerge} className="p-6 rounded-2xl border border-purple-500/20 bg-slate-950/40 space-y-5">
               <h3 className="font-bold text-sm text-slate-200 flex items-center gap-1.5">
                 <GitMerge className="w-4 h-4 text-purple-400" />
-                Merge & Deduplicate CQs
+                CQ 병합 및 중복 제거
               </h3>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-400">Target CQ (Stable Identity)</label>
+                <label className="block text-xs font-semibold text-slate-400">대상 CQ (안정 식별자)</label>
                 <select
                   value={targetCqId}
                   onChange={(e) => setTargetCqId(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-white/10 bg-slate-900 text-slate-200 focus:outline-none text-xs font-semibold"
                   required
                 >
-                  <option value="">-- Select Target CQ --</option>
+                  <option value="">-- 대상 CQ 선택 --</option>
                   {questions.map(q => (
                     <option key={q.id} value={q.id}>{q.normalized_question.substring(0, 40)}...</option>
                   ))}
@@ -320,7 +394,7 @@ export default function CanonicalQuestionsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-400">Select Redundant CQs to Merge</label>
+                <label className="block text-xs font-semibold text-slate-400">병합할 중복 CQ 선택</label>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto border border-white/5 rounded-lg p-2 bg-slate-900">
                   {questions.filter(q => q.id !== targetCqId).map(q => (
                     <label key={q.id} className="flex items-center gap-2 p-1.5 hover:bg-white/5 rounded text-xs text-slate-300 cursor-pointer">
@@ -342,7 +416,7 @@ export default function CanonicalQuestionsPage() {
                   disabled={!targetCqId || sourceCqIds.length === 0}
                   className="flex-1 px-4 py-2 rounded-lg bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold transition-all text-xs text-center disabled:opacity-50"
                 >
-                  Execute Merge
+                  병합 실행
                 </button>
                 <button
                   type="button"
@@ -353,7 +427,7 @@ export default function CanonicalQuestionsPage() {
                   }}
                   className="px-4 py-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-xs"
                 >
-                  Cancel
+                  취소
                 </button>
               </div>
             </form>

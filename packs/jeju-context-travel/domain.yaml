@@ -1,0 +1,5 @@
+id: jeju-context-travel
+name: Jeju Context Travel
+subdomain: Weather Wind Companion Mobility
+version: 0.1.0
+description: Route optimization based on weather constraints (rain, wind) and companion mobility constraints

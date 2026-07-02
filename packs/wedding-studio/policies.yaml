@@ -1,0 +1,20 @@
+allowed_actions:
+  - "suggest_comparison"
+  - "provide_brand_identity"
+  - "explain_general_scope"
+blocked_actions:
+  - "use_scarcity_tactics"
+  - "guarantee_outcomes"
+cta_policy:
+  primary: "스튜디오 잔여 타임 및 패키지 실시간 문의"
+  secondary:
+    - "스튜디오 화보 보러가기"
+    - "추가비용 안심 가이드 다운로드"
+  blocked:
+    - "환불 불가 가예약금 납부"
+safety_policy:
+  boundary_notes:
+    - "모든 스케줄 예약금은 소비자분쟁해결기준에 의거하여 촬영일 90일 전 취소 시 100% 환불됩니다."
+  escalation_conditions:
+    - "환불금분쟁"
+    - "추가금과다청구"

@@ -2,7 +2,7 @@
 
 import crypto from "crypto";
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { 
   representationObjectSchema,
   surfaceContractSchema,
@@ -19,9 +19,9 @@ import {
  * 1. Create Representation Object
  */
 export async function createRepresentationObject(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -57,9 +57,9 @@ export async function createRepresentationObject(workspaceId: string, data: any)
  * 2. Update Representation Object
  */
 export async function updateRepresentationObject(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -96,9 +96,9 @@ export async function updateRepresentationObject(workspaceId: string, id: string
  * Traces the claims linked to the object. If any claim lacks a verified evidence lineage record, the object readiness fails.
  */
 export async function evaluateObjectReadiness(workspaceId: string, id: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -181,9 +181,9 @@ export async function evaluateObjectReadiness(workspaceId: string, id: string) {
  * 4. Review Representation Object
  */
 export async function reviewRepresentationObject(workspaceId: string, id: string, status: "draft" | "ready" | "failed_safety") {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -206,9 +206,9 @@ export async function reviewRepresentationObject(workspaceId: string, id: string
  * 5. Create Surface Contract
  */
 export async function createSurfaceContract(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -241,9 +241,9 @@ export async function createSurfaceContract(workspaceId: string, data: any) {
  * 6. Update Surface Contract
  */
 export async function updateSurfaceContract(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -278,9 +278,9 @@ export async function updateSurfaceContract(workspaceId: string, id: string, dat
  * If so, verifies that required_blocks contains 'safety_boundary'. If missing, the contract is invalid.
  */
 export async function validateSurfaceContract(workspaceId: string, id: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -355,9 +355,9 @@ export async function validateSurfaceContract(workspaceId: string, id: string) {
  * 8. Compose Semantic Page
  */
 export async function composeSemanticPage(workspaceId: string, contractId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -473,9 +473,9 @@ export async function composeSemanticPage(workspaceId: string, contractId: strin
  * 9. Update Semantic Page
  */
 export async function updateSemanticPage(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -510,9 +510,9 @@ export async function updateSemanticPage(workspaceId: string, id: string, data: 
  * 10. Create Page Section
  */
 export async function createPageSection(workspaceId: string, pageId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -545,9 +545,9 @@ export async function createPageSection(workspaceId: string, pageId: string, dat
  * Enforces safety: blocks export if high-risk claims lack verified cryptographic seals.
  */
 export async function generateSeoAeoGeoExport(workspaceId: string, pageId: string, exportType: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -617,9 +617,9 @@ export async function generateSeoAeoGeoExport(workspaceId: string, pageId: strin
  * Check if JSON-LD mapping lists claims that do NOT exist in the page visible or source content.
  */
 export async function validateSchemaMapping(workspaceId: string, pageId: string, schemaType: string, jsonld: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -670,9 +670,9 @@ export async function validateSchemaMapping(workspaceId: string, pageId: string,
  * 13. Create Internal Link Rule
  */
 export async function createInternalLinkRule(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -704,9 +704,9 @@ export async function createInternalLinkRule(workspaceId: string, data: any) {
  * Triggers an automated composition run for all valid contracts.
  */
 export async function runWebsiteGeneration(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "semantic_architect"
   ]);
   if (!isAuthorized) {

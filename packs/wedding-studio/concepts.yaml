@@ -1,0 +1,29 @@
+- id: portfolio_style
+  name: 화보 콘셉트 스타일 (Portfolio Style)
+  definition: 스튜디오 고유의 색감(인물 중심, 그리너리, 빈티지 등)과 촬영 구도가 만드는 시각 정서 분위기
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["색감", "콘셉트", "촬영 스타일", "화보 분위기", "portfolio mood"]
+  boundary:
+    style_types: ["인물중심", "배경중심", "내추럴", "그리너리"]
+
+- id: package_components
+  name: 패키지 구성 요건
+  definition: 촬영 시간, 헬퍼 비용, 원본 파일 제공 여부, 앨범 페이지 수 등 계약에 포함된 기본 항목
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["패키지 구성", "원본 포함", "촬영 시간", "페이지 수", "package details"]
+  boundary:
+    required_inclusion: "raw_files_option"
+
+- id: additional_cost_boundary
+  name: 추가 비용 경계 (Additional Cost Boundary)
+  definition: 기본 패키지 외에 발생하는 헬퍼비, 주말 촬영비, 드레스 업그레이드 등 숨겨진 추가 지출 한계
+  is_strategic: true
+  concept_type: policy
+  activation_condition:
+    keywords: ["추가비용", "별도비용", "추가금", "추가금 파티", "hidden costs"]
+  boundary:
+    max_acceptable_additional_cost: 1000000

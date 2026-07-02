@@ -8,7 +8,7 @@ import {
   evaluateLineageCompleteness
 } from '../../app/actions/semantic';
 import { getSupabaseAdminClient } from '../../lib/supabase';
-import { checkWorkspacePermission } from '../../lib/auth';
+import { checkWorkspacePermission, checkWorkspacePermissionOrDemo } from '../../lib/auth';
 
 // Mock Supabase admin client and permissions checks to isolate logic
 vi.mock('../../lib/supabase', () => ({
@@ -16,7 +16,10 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 vi.mock('../../lib/auth', () => ({
-  checkWorkspacePermission: vi.fn(),
+  requireAuth: vi.fn().mockResolvedValue('test-user-id'),
+  requireAuthOrDemo: vi.fn().mockResolvedValue('test-user-id'),
+  checkWorkspacePermission: vi.fn().mockResolvedValue(true),
+  checkWorkspacePermissionOrDemo: vi.fn().mockResolvedValue(true),
 }));
 
 // Chainable and Thenable Supabase Query Builder mock
@@ -266,6 +269,7 @@ describe('Semantic Core Module Tests (AG-B3)', () => {
   describe('Negative Path & Error Handling (TDD-04)', () => {
     it('should throw UNAUTHORIZED error in createCanonicalQuestion if user lacks permissions', async () => {
       vi.mocked(checkWorkspacePermission).mockResolvedValue(false);
+      vi.mocked(checkWorkspacePermissionOrDemo).mockResolvedValue(false);
 
       await expect(
         createCanonicalQuestion(mockWorkspaceId, {
@@ -278,6 +282,7 @@ describe('Semantic Core Module Tests (AG-B3)', () => {
 
     it('should throw UNAUTHORIZED error in createQisScene if user lacks permissions', async () => {
       vi.mocked(checkWorkspacePermission).mockResolvedValue(false);
+      vi.mocked(checkWorkspacePermissionOrDemo).mockResolvedValue(false);
 
       await expect(
         createQisScene(mockWorkspaceId, {

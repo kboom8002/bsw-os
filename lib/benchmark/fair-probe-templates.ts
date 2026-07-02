@@ -283,3 +283,144 @@ export function fairProbeSetBuilder(
 
   return selected.sort(() => Math.random() - 0.5);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 업종 리포트 전용 프로브 세트 빌더
+// ═══════════════════════════════════════════════════════════════
+
+export interface IndustryReportProbeOptions {
+  /** L1/L3/L5/L6 일반 질문 최대 수 (default: 30) */
+  maxGenericQuestions?: number;
+  /** 브랜드당 L7 질문 반복 수 (default: 3) */
+  l7RepeatPerBrand?: number;
+  /** L2 경쟁 비교 반복 수 (default: 2) */
+  l2RepeatPerPair?: number;
+}
+
+/**
+ * 업종 리포트 전용 공정 프로브 세트 생성
+ *
+ * 기존 fairProbeSetBuilder와의 차이:
+ * - L2: 모든 브랜드 조합(N×(N-1)/2)에 round-robin 적용 (편향 제로)
+ * - L7: 모든 브랜드에 동일 유형·동일 횟수 적용
+ * - 일반 질문: 업종 질문 풀 전체에서 maxGenericQuestions개 샘플링
+ * - probe_set_hash 반환: 재현성 검증용
+ */
+export function buildForIndustryReport(
+  genericQuestions: any[],
+  brands: { name: string; keywords: string[]; slug: string; comparative_pairs?: string[] }[],
+  options: IndustryReportProbeOptions = {}
+): { probes: any[]; hash: string } {
+  const {
+    maxGenericQuestions = 30,
+    l7RepeatPerBrand = 3,
+    l2RepeatPerPair = 2,
+  } = options;
+
+  const selected: any[] = [];
+
+  // 1. L7 — 모든 브랜드에 동일 유형 질문 (round-robin, 편향 제로)
+  for (const brand of brands) {
+    const defenseTemplates = BRAND_DEFENSE_TEMPLATES.slice(0, l7RepeatPerBrand);
+    for (const template of defenseTemplates) {
+      selected.push({
+        question_text: template.template_text.replace(/{brand}/g, brand.name),
+        target_keyword: brand.name,
+        must_include: template.must_include_templates.map((t) => t.replace(/{brand}/g, brand.name)),
+        should_include: template.should_include_templates.map((t) => t.replace(/{brand}/g, brand.name)),
+        must_not_do: template.must_not_do,
+        layer: 'L7_brand',
+        intent_context: template.intent_context,
+        risk_level: template.risk_level,
+        decision_stage: template.decision_stage,
+        question_type: template.question_type,
+        weight: template.weight,
+        target_brand: brand.name,
+      });
+    }
+  }
+
+  // 2. L2 — 모든 브랜드 조합 round-robin (N×(N-1)/2 × l2RepeatPerPair × 템플릿수)
+  for (let i = 0; i < brands.length; i++) {
+    for (let j = i + 1; j < brands.length; j++) {
+      const brandA = brands[i];
+      const brandB = brands[j];
+      const competitiveTemplates = COMPETITIVE_TEMPLATES.slice(0, 3); // 조합당 3개 템플릿
+
+      for (const template of competitiveTemplates) {
+        for (let r = 0; r < l2RepeatPerPair; r++) {
+          // A vs B
+          selected.push({
+            question_text: template.template_text
+              .replace(/{brand}/g, brandA.name)
+              .replace(/{competitor}/g, brandB.name),
+            target_keyword: brandA.name,
+            must_include: template.must_include_templates.map((t) =>
+              t.replace(/{brand}/g, brandA.name).replace(/{competitor}/g, brandB.name)
+            ),
+            should_include: template.should_include_templates.map((t) =>
+              t.replace(/{brand}/g, brandA.name).replace(/{competitor}/g, brandB.name)
+            ),
+            must_not_do: template.must_not_do,
+            layer: 'L2_competitive',
+            intent_context: template.intent_context,
+            risk_level: template.risk_level,
+            decision_stage: template.decision_stage,
+            question_type: template.question_type,
+            weight: template.weight,
+            target_brand: brandA.name,
+            target_competitor: brandB.name,
+          });
+          // B vs A (순서 역전으로 편향 제거)
+          selected.push({
+            question_text: template.template_text
+              .replace(/{brand}/g, brandB.name)
+              .replace(/{competitor}/g, brandA.name),
+            target_keyword: brandB.name,
+            must_include: template.must_include_templates.map((t) =>
+              t.replace(/{brand}/g, brandB.name).replace(/{competitor}/g, brandA.name)
+            ),
+            should_include: template.should_include_templates.map((t) =>
+              t.replace(/{brand}/g, brandB.name).replace(/{competitor}/g, brandA.name)
+            ),
+            must_not_do: template.must_not_do,
+            layer: 'L2_competitive',
+            intent_context: template.intent_context,
+            risk_level: template.risk_level,
+            decision_stage: template.decision_stage,
+            question_type: template.question_type,
+            weight: template.weight,
+            target_brand: brandB.name,
+            target_competitor: brandA.name,
+          });
+        }
+      }
+    }
+  }
+
+  // 3. 일반 질문 (L1/L3/L5/L6) — 무작위 샘플링
+  const genericShuffled = [...genericQuestions].sort(() => Math.random() - 0.5);
+  const genericSample = genericShuffled.slice(0, maxGenericQuestions);
+  selected.push(...genericSample);
+
+  // 4. 전체 셔플
+  const shuffled = selected.sort(() => Math.random() - 0.5);
+
+  // 5. 프로브 세트 해시 (재현성 보장용 fingerprint)
+  const hashInput = brands.map((b) => b.slug).sort().join('|') +
+    ':' + shuffled.map((q) => q.question_text.substring(0, 30)).join('|');
+  const hash = simpleHash(hashInput);
+
+  return { probes: shuffled, hash };
+}
+
+/** SHA-256 없이 쓸 수 있는 간단한 문자열 해시 */
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(16).padStart(8, '0');
+}

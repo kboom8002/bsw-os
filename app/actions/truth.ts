@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { 
   brandStrategicTruthSchema, 
   brandOperationalTruthSchema, 
@@ -17,9 +17,9 @@ import {
  * 1. Upsert Strategic Truth
  */
 export async function upsertStrategicTruth(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -78,9 +78,9 @@ export async function upsertOperationalTruth(
   evidenceIds: string[] = [], 
   boundaryIds: string[] = []
 ) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -150,10 +150,10 @@ export async function upsertOperationalTruth(
  * 3. Create Observed Truth
  */
 export async function createObservedTruth(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
   // Observed truths can be pushed by internal system agents as well
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "observatory_analyst", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -184,9 +184,9 @@ export async function createObservedTruth(workspaceId: string, data: any) {
  * 4. Create Evidence Item
  */
 export async function createEvidenceItem(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "evidence_reviewer", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -218,9 +218,9 @@ export async function createEvidenceItem(workspaceId: string, data: any) {
  * 5. Update Evidence Item
  */
 export async function updateEvidenceItem(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "evidence_reviewer", "content_editor"
   ]);
   if (!isAuthorized) {
@@ -252,9 +252,9 @@ export async function updateEvidenceItem(workspaceId: string, id: string, data: 
  * 6. Create Boundary Rule
  */
 export async function createBoundaryRule(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -285,9 +285,9 @@ export async function createBoundaryRule(workspaceId: string, data: any) {
  * 7. Update Boundary Rule
  */
 export async function updateBoundaryRule(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -318,9 +318,9 @@ export async function updateBoundaryRule(workspaceId: string, id: string, data: 
  * 8. Create Truth Delta Snapshot
  */
 export async function createTruthDelta(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "observatory_analyst"
   ]);
   if (!isAuthorized) {
@@ -353,9 +353,9 @@ export async function createTruthDelta(workspaceId: string, data: any) {
  * active claim counts, verification trace paths, and unresolved panel deltas.
  */
 export async function evaluateTruthLockGate(workspaceId: string, gateLevel: "L0" | "L1" | "L2" | "L3" | "L4") {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect", "evidence_reviewer"
   ]);
   if (!isAuthorized) {

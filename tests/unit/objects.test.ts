@@ -16,7 +16,11 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 vi.mock('../../lib/auth', () => ({
-  checkWorkspacePermission: vi.fn(),
+  requireAuth: vi.fn().mockResolvedValue('test-user-id'),
+  requireAuthOrDemo: vi.fn().mockResolvedValue('test-user-id'),
+  checkWorkspacePermission: vi.fn().mockResolvedValue(true),
+  checkWorkspacePermissionOrDemo: vi.fn().mockResolvedValue(true),
+  getWorkspaceRole: vi.fn().mockResolvedValue('admin'),
 }));
 
 // Chainable and Thenable Supabase Query Builder mock

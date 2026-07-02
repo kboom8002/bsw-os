@@ -38,7 +38,7 @@ export default function OverviewPanel({
   const techScore = techInfra ? techInfra.techInfraScore : 50;
   const schemaScore = schemaQuality ? schemaQuality.schemaQualityScore : 50;
   const contentScore = contentSemantic ? contentSemantic.contentSemanticScore : 50;
-  const reflectionScore = snapshot ? Math.round(snapshot.aepi_score) : 0;
+  const reflectionScore = snapshot ? Math.round(snapshot.aepi_score) : null;
 
   // Gather all critical issues from L1, L2, L3
   const criticalIssues: any[] = [];

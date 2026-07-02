@@ -1,6 +1,6 @@
 "use server";
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { 
   personaSpecSchema, 
   personaAssignmentSchema, 
@@ -394,9 +394,9 @@ export async function computeVMRI(workspaceId: string, vibeSpecId: string) {
  * Create governed Persona Spec
  */
 export async function createPersonaSpec(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -432,9 +432,9 @@ export async function createPersonaSpec(workspaceId: string, data: any) {
  * Update governed Persona Spec with active version increments
  */
 export async function updatePersonaSpec(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -483,9 +483,9 @@ export async function updatePersonaSpec(workspaceId: string, id: string, data: a
  * Assign governed Persona spec to Domain
  */
 export async function assignPersona(workspaceId: string, personaSpecId: string, domainId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -520,9 +520,9 @@ export async function assignPersona(workspaceId: string, personaSpecId: string, 
  * Trigger persona evaluation and save metrics (P-MRI)
  */
 export async function runPersonaEval(workspaceId: string, personaSpecId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -566,9 +566,9 @@ export async function runPersonaEval(workspaceId: string, personaSpecId: string)
  * Log Persona Observatory snapshot
  */
 export async function createPersonaObservatorySnapshot(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "observatory_analyst"
   ]);
   if (!isAuthorized) {
@@ -596,9 +596,9 @@ export async function createPersonaObservatorySnapshot(workspaceId: string, data
  * Create persona patch adjustment
  */
 export async function createPersonaPatch(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -627,9 +627,9 @@ export async function createPersonaPatch(workspaceId: string, data: any) {
  * Create distinct Vibe Spec vector target
  */
 export async function createVibeSpec(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -660,9 +660,9 @@ export async function createVibeSpec(workspaceId: string, data: any) {
  * Update distinct Vibe Spec vector target
  */
 export async function updateVibeSpec(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -693,9 +693,9 @@ export async function updateVibeSpec(workspaceId: string, id: string, data: any)
  * Assign Vibe spec vector constraints to Target object/page
  */
 export async function assignVibe(workspaceId: string, vibeSpecId: string, targetId: string, targetType: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -738,9 +738,9 @@ export async function assignVibe(workspaceId: string, vibeSpecId: string, target
  * Create Vibe Rating Event: ENFORCES verified clinical evidence reference checks (No evidence, no vibe score)
  */
 export async function createVibeRatingEvent(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -822,9 +822,9 @@ export async function createVibeRatingEvent(workspaceId: string, data: any) {
  * Create Vibe Profile
  */
 export async function createVibeProfile(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -853,9 +853,9 @@ export async function createVibeProfile(workspaceId: string, data: any) {
  * Compute and save vibe alignment snapshot (VPA & VCS)
  */
 export async function computeVibeAlignmentSnapshot(workspaceId: string, vibeSpecId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -899,9 +899,9 @@ export async function computeVibeAlignmentSnapshot(workspaceId: string, vibeSpec
  * Create Vibe Diagnosis based on page mismatch findings
  */
 export async function createVibeDiagnosis(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -930,9 +930,9 @@ export async function createVibeDiagnosis(workspaceId: string, data: any) {
  * Create Vibe Intervention adjustments proposal
  */
 export async function createVibeIntervention(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -961,9 +961,9 @@ export async function createVibeIntervention(workspaceId: string, data: any) {
  * Run and log Vibe validation risk run (VMRI)
  */
 export async function runVibeValidation(workspaceId: string, vibeSpecId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -992,9 +992,9 @@ export async function runVibeValidation(workspaceId: string, vibeSpecId: string)
  * Seed active dark patterns rules library
  */
 export async function seedDarkPatternRules(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {

@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { 
   reportSectionSchema,
   reportExportSchema,
@@ -71,9 +71,9 @@ export async function runUnsafeWordingCheck(workspaceId: string, reportId: strin
  * 2. Resolve unsafe wording finding
  */
 export async function resolveUnsafeWordingFinding(workspaceId: string, findingId: string, notes: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -100,9 +100,9 @@ export async function resolveUnsafeWordingFinding(workspaceId: string, findingId
  * 3. Log a manual report review (Real-brand competitive reports must be approved)
  */
 export async function reviewReport(workspaceId: string, reportId: string, decision: "approved" | "rejected", notes: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -241,9 +241,9 @@ export async function evaluateReportExportGate(workspaceId: string, reportId: st
  * BLOCKS export if the safety gate has failed blockers!
  */
 export async function createReportExport(workspaceId: string, reportId: string, format: "markdown" | "html") {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -356,9 +356,9 @@ export async function createReportExport(workspaceId: string, reportId: string, 
  * Create Benchmark Report
  */
 export async function createBenchmarkReport(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -386,9 +386,9 @@ export async function createBenchmarkReport(workspaceId: string, data: any) {
  * Update Benchmark Report
  */
 export async function updateBenchmarkReport(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -417,9 +417,9 @@ export async function updateBenchmarkReport(workspaceId: string, id: string, dat
  * Add Report Section
  */
 export async function addReportSection(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -450,9 +450,9 @@ export async function addReportSection(workspaceId: string, data: any) {
  * Update Report Section
  */
 export async function updateReportSection(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -483,9 +483,9 @@ export async function updateReportSection(workspaceId: string, id: string, data:
  * Generate report draft (Creates executive summary and landscape drafts as candidates)
  */
 export async function generateReportDraft(workspaceId: string, reportId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {

@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { 
   brandStrategicTruthSchema, 
   evidenceItemSchema, 
@@ -101,8 +101,8 @@ export async function syncTenantContent(bridgeId: string): Promise<SyncResult> {
   }
 
   // 2. Security validation
-  const userId = await requireAuth();
-  const isAuthorized = await checkWorkspacePermission(
+  const userId = await requireAuthOrDemo();
+  const isAuthorized = await checkWorkspacePermissionOrDemo(
     bridge.bsw_workspace_id,
     userId,
     ["owner", "admin", "brand_strategist"]

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { QisHubClient } from '@/lib/qis/hub-client';
-import { QuestionPredictor } from '@/lib/prediction/question-predictor';
 import { KWeddingHubCollector } from '@/lib/prediction/signal-collectors/kweddinghub-collector';
 import { getSupabaseAdminClient } from '@/lib/supabase';
 import { QisPredictedQuestion } from '@/lib/qis-shared-schemas';
 import { enrichPredictionWithAxis, buildTriAxisPayload } from '@/lib/qis/tri-axis-router';
+import { SignalOrchestrator } from '@/lib/signal-collection/orchestrator';
 
 export const maxDuration = 120;
 
@@ -27,14 +27,24 @@ export const maxDuration = 120;
  *
  * Query params:
  *   - secret: CRON_SECRET 토큰 (보안용)
- *   - phase: 'pull' | 'push' | 'all' (default: 'all')
+ *   - phase: 'pull' | 'push' | 'standalone' | 'all' (default: 'all')
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const secret = searchParams.get('secret');
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && secret !== cronSecret) {
+  // 1) Vercel Cron 자동 실행 — Authorization 헤더
+  const authHeader = request.headers.get('authorization');
+  const isVercelCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+  // 2) 수동 URL 트리거 — ?secret= 파라미터
+  const isSecretParam = cronSecret && secret === cronSecret;
+
+  // 3) 내부 UI 수동 트리거 — X-Manual-Trigger 헤더 (same-origin만 허용)
+  const isManualUiTrigger = request.headers.get('X-Manual-Trigger') === 'true';
+
+  if (cronSecret && !isVercelCron && !isSecretParam && !isManualUiTrigger) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -222,6 +232,76 @@ export async function GET(request: NextRequest) {
       }
     } catch (err: any) {
       results.push = { count: 0, status: 'error', message: err.message };
+    }
+  }
+  // ═══ Phase 3: Standalone — 독립 모드 (Hub 없이 자체 예측) ═══
+  // Hub 연동 없이 자체적으로 S-OGDE 파이프라인 + 벤치마크 기회 피딩을 실행
+  if (phase === 'standalone' || (phase === 'all' && process.env.STANDALONE_MODE === 'true')) {
+    try {
+      const brandName = process.env.BSW_BRAND_NAME ?? 'demo-brand';
+      const domainName = process.env.BSW_DOMAIN_NAME ?? 'demo-domain';
+
+      // 3a. S-OGDE 파이프라인 실행 → 시그널 수집
+      const pipelineResult = await SignalOrchestrator.runFullPipeline(
+        workspaceId,
+        domainName,
+        brandName
+      );
+
+      // 3b. 벤치마크 기회 → 시그널 자동 피딩
+      let benchmarkFedCount = 0;
+      try {
+        const supabase = getSupabaseAdminClient();
+        const { data: recentSnapshots } = await supabase
+          .from('industry_benchmark_snapshots')
+          .select('auto_generated_signals')
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (recentSnapshots) {
+          const autoSignals: Array<{ query: string; intent: string; source: string }> = [];
+          for (const snap of recentSnapshots) {
+            if (snap.auto_generated_signals && Array.isArray(snap.auto_generated_signals)) {
+              autoSignals.push(...(snap.auto_generated_signals as any[]));
+            }
+          }
+
+          if (autoSignals.length > 0) {
+            const { feedBenchmarkOpportunitiesToSignals } = await import('@/app/actions/qis-bridge');
+            const feedResult = await feedBenchmarkOpportunitiesToSignals(workspaceId, autoSignals);
+            benchmarkFedCount = feedResult.fedCount;
+          }
+        }
+      } catch (bmErr: any) {
+        console.warn('[QIS-Sync Standalone] Benchmark feed skipped:', bmErr.message);
+      }
+
+      results.standalone = {
+        signalsGenerated: pipelineResult.savedSignals,
+        benchmarkSignalsFed: benchmarkFedCount,
+        mode: 'standalone',
+        status: 'ok'
+      };
+    } catch (err: any) {
+      results.standalone = {
+        signalsGenerated: 0,
+        benchmarkSignalsFed: 0,
+        status: 'error',
+        message: err.message
+      };
+    }
+  }
+
+  // ═══ Phase 4: Feedback Loop — 성과 기반 가중치 재학습 (P2-1) ═══
+  if (phase === 'standalone' || phase === 'all' || phase === 'feedback') {
+    try {
+      const { SignalPerformanceTracker } = await import('@/lib/signal-collection/signal-performance-tracker');
+      const weights = await SignalPerformanceTracker.learnWeights(workspaceId);
+      results.feedback = { status: 'ok', updatedWeights: weights };
+    } catch (err: any) {
+      console.warn('[QIS-Sync Feedback] Feedback learn failed:', err.message);
+      results.feedback = { status: 'error', message: err.message };
     }
   }
 

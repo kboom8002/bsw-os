@@ -1,0 +1,21 @@
+allowed_actions:
+  - "explain_general_scope"
+  - "ask_visit_or_consult"
+  - "provide_brand_identity"
+blocked_actions:
+  - "guarantee_outcomes"
+  - "use_scarcity_tactics"
+  - "exaggerate_claims"
+cta_policy:
+  primary: "상담 프로세스 확인하기"
+  secondary:
+    - "자주 묻는 질문 보기"
+    - "포트폴리오 다운로드"
+  blocked:
+    - "지금 바로 결제하기"
+safety_policy:
+  boundary_notes:
+    - "모든 상담은 비밀 보장 원칙에 따라 안전하게 관리되며 마케팅 활용 전 사전 동의를 구합니다."
+  escalation_conditions:
+    - "개인정보노출우려"
+    - "과대광고위험"

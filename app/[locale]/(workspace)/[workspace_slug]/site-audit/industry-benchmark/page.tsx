@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   BarChart2, Play, RefreshCw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronUp, TrendingUp, Target, Database, Plus, Trash2, Globe,
@@ -21,6 +21,7 @@ import {
   getBenchmarkAuditHistory,
   addReferenceSite,
   deleteReferenceSite,
+  getDbReferenceSites,
 } from "../../../../../actions/industry-benchmark";
 import { fetchQisBenchmarkData } from "../../../../../actions/qis-benchmark";
 import { SiteAuditSnapshot, METRIC_META, BENCHMARK_METRIC_KEYS, BenchmarkMetricKey } from "../../../../../../lib/industry/batch-audit-runner";
@@ -71,6 +72,8 @@ export default function IndustryBenchmarkPage() {
     url: string; brandName: string; tier: "excellent" | "average" | "poor"; curatorNotes: string;
   }>({ url: "", brandName: "", tier: "average", curatorNotes: "" });
   const [addingSite, setAddingSite] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [dbSites, setDbSites] = useState<ReferenceSite[]>([]);
   // 인포그래픽 드릴다운 상태
   const [drilldownTarget, setDrilldownTarget] = useState<BenchmarkHistoryPoint | null>(null);
   const [selectedMetricKey, setSelectedMetricKey] = useState<string>("techInfraScore");
@@ -79,9 +82,19 @@ export default function IndustryBenchmarkPage() {
   const [qisData, setQisData] = useState<QisBenchmarkIntegration | null>(null);
   const [qisLoading, setQisLoading] = useState(false);
 
-  // 선택된 업종의 레퍼런스 사이트
-  const referenceSites = getReferenceSitesBySubIndustry(selectedSubIndustry);
+  // 선택된 업종의 레퍼런스 사이트 (시드 + DB 추가분 합치기)
+  const seedSites = getReferenceSitesBySubIndustry(selectedSubIndustry);
   const seededKeys = getSeededSubIndustryKeys();
+  // 시드에 없는 DB 사이트만 추가 (중복 제거)
+  const seedIds = new Set(seedSites.map(s => s.id));
+  const referenceSites = [...seedSites, ...dbSites.filter(s => !seedIds.has(s.id))];
+
+  // 업종 변경 시 DB 사이트 조회
+  useEffect(() => {
+    getDbReferenceSites(selectedSubIndustry)
+      .then(setDbSites)
+      .catch(() => setDbSites([]));
+  }, [selectedSubIndustry]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -201,6 +214,7 @@ export default function IndustryBenchmarkPage() {
     e.preventDefault();
     if (!addSiteForm.url || !addSiteForm.brandName) return;
     setAddingSite(true);
+    setAddError(null);
     try {
       await addReferenceSite({
         url: addSiteForm.url,
@@ -210,7 +224,12 @@ export default function IndustryBenchmarkPage() {
         curatorNotes: addSiteForm.curatorNotes,
       });
       setAddSiteForm({ url: "", brandName: "", tier: "average", curatorNotes: "" });
+      // 추가 후 DB 사이트 목록 갱신
+      const updated = await getDbReferenceSites(selectedSubIndustry);
+      setDbSites(updated);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : '사이트 추가 실패';
+      setAddError(msg);
       console.error('Failed to add site:', err);
     } finally {
       setAddingSite(false);
@@ -506,7 +525,12 @@ export default function IndustryBenchmarkPage() {
                         {TIER_BADGE[site.tier]?.label}
                       </span>
                       <button
-                        onClick={() => deleteReferenceSite(site.id).catch(console.error)}
+                        onClick={async () => {
+                          await deleteReferenceSite(site.id).catch(console.error);
+                          // DB 사이트는 삭제 후 목록 갱신, 시드 사이트는 삭제 불가
+                          const updated = await getDbReferenceSites(selectedSubIndustry);
+                          setDbSites(updated);
+                        }}
                         className="text-slate-600 hover:text-red-400 transition-colors cursor-pointer"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -573,6 +597,13 @@ export default function IndustryBenchmarkPage() {
                   {addingSite ? "추가 중..." : "사이트 추가"}
                 </button>
               </form>
+              {addError && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                  <XCircle className="h-3.5 w-3.5 shrink-0" />
+                  {addError}
+                </div>
+              )}
+
             </div>
           </div>
         )}

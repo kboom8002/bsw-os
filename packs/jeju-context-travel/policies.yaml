@@ -1,0 +1,24 @@
+allowed_actions:
+  - "ask_region_and_mobility_if_missing"
+  - "propose_plan_a_b"
+  - "include_map_cta"
+  - "avoid_stairs_if_unknown"
+  - "prefer_short_walk_rest_stop"
+blocked_actions:
+  - "long_oreum_hike"
+  - "overpacked_schedule"
+  - "unsafe_weather_route"
+cta_policy:
+  primary: "카카오맵 길찾기 경로 열기"
+  secondary:
+    - "동선 코스 저장하기"
+    - "코스 지역 변경하기"
+  blocked:
+    - "무조건 예약하기"
+safety_policy:
+  boundary_notes:
+    - "우천 및 강풍 경보 시 해안가 및 산간 오름 진입을 금지하며 실내 실시간 운영 여부를 사전에 유선 확인하세요."
+  escalation_conditions:
+    - "호우경보"
+    - "강풍주의보"
+    - "도로통제"

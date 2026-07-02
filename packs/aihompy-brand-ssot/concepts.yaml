@@ -1,0 +1,29 @@
+- id: brand_core_concept
+  name: 브랜드 정본 개념 (Core Concept)
+  definition: 타 경쟁사와 구분되는 해당 브랜드 고유의 차별화 영역과 과학적/실체적 핵심 가치
+  is_strategic: true
+  concept_type: strategic
+  activation_condition:
+    keywords: ["차별화", "아이덴티티", "핵심가치", "브랜드 강점", "identity", "core value"]
+  boundary:
+    scope: "brand_strategy_only"
+
+- id: service_scope
+  name: 서비스 진료/진행 범위
+  definition: 브랜드가 제공할 수 있는 솔루션의 경계 조건과 명시적 치료/서비스 실체
+  is_strategic: true
+  concept_type: operational
+  activation_condition:
+    keywords: ["진료 범위", "제공 서비스", "서비스 소개", "solution scope"]
+  boundary:
+    exclusions: "do_not_overpromise"
+
+- id: low_pressure_cta
+  name: 저압박 전환 유도 (Low Pressure CTA)
+  definition: 고객에게 구매를 서두르거나 강요하지 않고 선택권을 보장하며 자연스럽게 다음 단계를 안내하는 정책
+  is_strategic: true
+  concept_type: policy
+  activation_condition:
+    keywords: ["부담없는", "상담신청", "저압박", "autonomy", "no push"]
+  boundary:
+    allowed_pressure_level: 1

@@ -43,6 +43,7 @@ export default async function ResultsPage({ params }: Props) {
       contentSemantic={res.contentSemantic}
       relativePosition={res.relativePosition ?? null}
       improvementStrategy={res.improvementStrategy ?? null}
+      stepErrors={res.stepErrors ?? null}
     />
   );
 }

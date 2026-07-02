@@ -13,6 +13,7 @@ import { BatchAuditRunner, SiteAuditSnapshot, BatchAuditOptions } from '../../li
 import { BenchmarkAggregator, IndustryBenchmarkProfile, IndustryBlueprint } from '../../lib/industry/benchmark-aggregator';
 import {
   getReferenceSitesBySubIndustry,
+  getDbReferenceSites as _getDbReferenceSites,
   addReferenceSite as _addReferenceSite,
   deleteReferenceSite as _deleteReferenceSite,
 } from '../../lib/industry/reference-sites-registry';
@@ -450,4 +451,9 @@ export async function addReferenceSite(site: NewReferenceSite): Promise<{ id: st
 /** 레퍼런스 사이트 삭제 (Server Action wrapper) */
 export async function deleteReferenceSite(id: string): Promise<boolean> {
   return _deleteReferenceSite(id);
+}
+
+/** DB에서 사용자 추가 사이트 조회 (Server Action wrapper) */
+export async function getDbReferenceSites(subIndustryKey: string): Promise<ReferenceSite[]> {
+  return _getDbReferenceSites(subIndustryKey);
 }

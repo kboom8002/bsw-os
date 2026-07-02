@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getKnowledgeGraphData } from '../../app/actions/semantic';
 import { getSupabaseAdminClient } from '../../lib/supabase';
-import { checkWorkspacePermission } from '../../lib/auth';
+import { checkWorkspacePermission, checkWorkspacePermissionOrDemo } from '../../lib/auth';
 
 // Mock Supabase admin client and auth permission helper
 vi.mock('../../lib/supabase', () => ({
@@ -9,7 +9,11 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 vi.mock('../../lib/auth', () => ({
-  checkWorkspacePermission: vi.fn(),
+  requireAuth: vi.fn().mockResolvedValue('test-user-id'),
+  requireAuthOrDemo: vi.fn().mockResolvedValue('test-user-id'),
+  checkWorkspacePermission: vi.fn().mockResolvedValue(true),
+  checkWorkspacePermissionOrDemo: vi.fn().mockResolvedValue(true),
+  getWorkspaceRole: vi.fn().mockResolvedValue('admin'),
 }));
 
 const createMockQueryBuilder = (data: any = null, error: any = null, count: number = 0) => {
@@ -32,6 +36,7 @@ describe('Knowledge Graph Unified Data Evaluation (Stream 3)', () => {
 
   it('should block graph loading if workspace permission check fails', async () => {
     vi.mocked(checkWorkspacePermission).mockResolvedValue(false); // Unauthorized
+    vi.mocked(checkWorkspacePermissionOrDemo).mockResolvedValue(false); // Unauthorized
 
     await expect(getKnowledgeGraphData(mockWorkspaceId)).rejects.toThrow(
       "UNAUTHORIZED: Insufficient permissions to view the Knowledge Graph."
@@ -40,6 +45,7 @@ describe('Knowledge Graph Unified Data Evaluation (Stream 3)', () => {
 
   it('should successfully build combined brand ontology and concept graph data format', async () => {
     vi.mocked(checkWorkspacePermission).mockResolvedValue(true); // Authorized
+    vi.mocked(checkWorkspacePermissionOrDemo).mockResolvedValue(true); // Authorized
 
     const mockFrom = vi.fn().mockImplementation((table: string) => {
       if (table === 'brand_ontology_nodes') {

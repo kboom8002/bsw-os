@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { 
   organizationSchema,
   organizationMembershipSchema,
@@ -65,7 +65,7 @@ export async function joinOrganization(orgId: string, userId: string, role: 'own
  * 3. Get Organizations for simulated/active user
  */
 export async function getOrganizations() {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
@@ -157,9 +157,9 @@ export async function getCulturalConcepts(workspaceId: string, domainPackId: str
  * 9. Upsert Cultural Concept
  */
 export async function upsertCulturalConcept(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) {
@@ -221,9 +221,9 @@ export async function getCulturalOpportunities(workspaceId: string) {
  * 11. Upsert Cultural Opportunity
  */
 export async function upsertCulturalOpportunity(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "observatory_analyst"
   ]);
   if (!isAuthorized) {
@@ -263,9 +263,9 @@ export async function upsertCulturalOpportunity(workspaceId: string, data: any) 
  * 12. Submit Human Review Audit
  */
 export async function submitHumanReview(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "evidence_reviewer"
   ]);
   if (!isAuthorized) {

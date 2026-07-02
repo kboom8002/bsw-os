@@ -39,7 +39,7 @@ export class RecursiveDeepener {
    */
   async expandTree(
     seedQuestion: string,
-    brandName: string,
+    brandName?: string,
     config: RecursiveConfig = { maxDepth: 3, branchFactor: 3, maxTotalQuestions: 20, usePersonas: true }
   ): Promise<RecursiveNode> {
     this.totalQuestionsGenerated = 0;
@@ -51,7 +51,7 @@ export class RecursiveDeepener {
 
   private async exploreNode(
     currentQuestion: string,
-    brandName: string,
+    brandName: string | undefined,
     currentDepth: number,
     config: RecursiveConfig
   ): Promise<RecursiveNode> {
@@ -125,13 +125,13 @@ export class RecursiveDeepener {
   private async generateWithPersona(
     ai: ReturnType<typeof getAIProvider>,
     currentQuestion: string,
-    brandName: string,
+    brandName: string | undefined,
     persona: Persona,
     config: RecursiveConfig
   ): Promise<string[]> {
     const filledPrompt = persona.system_prompt_template
       .replace('{question}', currentQuestion)
-      .replace('{brand}', brandName);
+      .replace('{brand}', brandName || "이 분야의 주요 브랜드들");
 
     const response = await ai.generateStructuredOutput<any>(
       `System:\n${filledPrompt}\n\nUser:\n가장 핵심적인 후속 질문 1개를 생성하세요.`,
@@ -154,12 +154,12 @@ export class RecursiveDeepener {
   private async generateGeneric(
     ai: ReturnType<typeof getAIProvider>,
     currentQuestion: string,
-    brandName: string,
+    brandName: string | undefined,
     branchFactor: number
   ): Promise<string[]> {
     const systemPrompt = `You are an AI simulating how consumer curiosity deepens.
 The user previously asked: "${currentQuestion}"
-Considering the brand "${brandName}", generate ${branchFactor} highly specific, distinct follow-up questions that dive deeper into sub-topics (e.g. side effects, comparisons, specific use cases).
+Considering the ${brandName ? `brand "${brandName}"` : 'brands in this space'}, generate ${branchFactor} highly specific, distinct follow-up questions that dive deeper into sub-topics (e.g. side effects, comparisons, specific use cases).
 Ensure they are not just rephrasings of the original question.`;
 
     try {

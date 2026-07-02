@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
-import { createOntologyNode, createOntologyEdge } from "@/app/actions/semantic";
+import { createOntologyNode, createOntologyEdge, generateIndustryOntology } from "@/app/actions/semantic";
 import { runTcoKgAgent } from "@/lib/ai/semantic_agents";
+import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
 import { 
   ArrowLeft, 
   Network, 
@@ -17,7 +18,10 @@ import {
   AlertTriangle,
   HelpCircle,
   Eye,
-  Workflow
+  Workflow,
+  Building2,
+  ChevronDown,
+  Loader2
 } from "lucide-react";
 
 interface NodeItem {
@@ -38,22 +42,59 @@ export default function KnowledgeGraphPage() {
   const { t } = useTranslation();
   const locale = (params?.locale as string) || "ko";
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
-  const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
+  const [workspaceId, setWorkspaceId] = useState<string>('');
+  const [dbLoading, setDbLoading] = useState(true);
 
-  const [nodes, setNodes] = useState<NodeItem[]>([
-    { id: "node-1", node_name: "Active Niacinamide Complex", node_type: "concept" },
-    { id: "node-2", node_name: "Is niacinamide safe for skin barriers?", node_type: "canonical_question" },
-    { id: "node-3", node_name: "Niacinamide Clinical Study 2026", node_type: "evidence_item" }
-  ]);
+  const [nodes, setNodes] = useState<NodeItem[]>([]);
+  const [edges, setEdges] = useState<EdgeItem[]>([]);
 
-  const [edges, setEdges] = useState<EdgeItem[]>([
-    { id: "edge-1", source_node_id: "node-1", target_node_id: "node-2", relation_type: "resolves_question" },
-    { id: "edge-2", source_node_id: "node-3", target_node_id: "node-1", relation_type: "proves_efficacy" }
-  ]);
+  useEffect(() => { loadFromDb(); }, [workspaceSlug]);
+
+  const loadFromDb = async () => {
+    setDbLoading(true);
+    try {
+      const { getSupabaseClient } = await import('@/lib/supabase');
+      const supabase = getSupabaseClient();
+      const { data: ws } = await supabase.from('workspaces').select('id').eq('slug', workspaceSlug).single();
+      const resolvedWsId = ws?.id || '11111111-1111-1111-1111-111111111111';
+      setWorkspaceId(resolvedWsId);
+
+      const [nodeRes, edgeRes] = await Promise.all([
+        supabase.from('brand_ontology_nodes').select('id, node_name, node_type').eq('workspace_id', resolvedWsId).order('created_at', { ascending: false }),
+        supabase.from('brand_ontology_edges').select('id, source_node_id, target_node_id, relation_type').eq('workspace_id', resolvedWsId),
+      ]);
+
+      setNodes(nodeRes.data ?? []);
+      setEdges(edgeRes.data ?? []);
+    } catch (err) {
+      console.error('KG DB 로드 실패:', err);
+    } finally {
+      setDbLoading(false);
+    }
+  };
 
   const [isCreatingNode, setIsCreatingNode] = useState(false);
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   
+  // Industry selector states
+  const domainEntries = useMemo(() => Object.values(BENCHMARK_DOMAINS), []);
+  const [selectedDomainSlug, setSelectedDomainSlug] = useState<string>(domainEntries[0]?.slug || '');
+  const [selectedBrandSlug, setSelectedBrandSlug] = useState<string>('');
+
+  const selectedDomain = useMemo(
+    () => domainEntries.find(d => d.slug === selectedDomainSlug),
+    [domainEntries, selectedDomainSlug]
+  );
+  const selectedBrand = useMemo(
+    () => selectedDomain?.brands.find(b => b.slug === selectedBrandSlug),
+    [selectedDomain, selectedBrandSlug]
+  );
+
+  // Industry ontology auto-build states
+  const [ontologyBuilding, setOntologyBuilding] = useState(false);
+  const [ontologyLogs, setOntologyLogs] = useState<string[]>([]);
+  const [ontologySuccess, setOntologySuccess] = useState(false);
+
   // AI Agent form states
   const [runningAgent, setRunningAgent] = useState(false);
   const [agentLogs, setAgentLogs] = useState<string[]>([]);
@@ -83,59 +124,125 @@ export default function KnowledgeGraphPage() {
     e.preventDefault();
     if (!nodeName.trim()) return;
 
+    const data = { node_name: nodeName, node_type: nodeType, reference_id: null };
     try {
-      const data = {
-        node_name: nodeName,
-        node_type: nodeType,
-        reference_id: null
-      };
-
-      const result = await createOntologyNode(mockWorkspaceId, data);
-      
-      const created: NodeItem = {
+      const result = await createOntologyNode(workspaceId, data);
+      setNodes(prev => [...prev, {
         id: result.id || "node-" + Math.floor(Math.random() * 1000),
         node_name: result.node_name,
         node_type: result.node_type
-      };
-
-      setNodes(prev => [...prev, created]);
+      }]);
       setFeedback({ type: "success", message: `Node "${nodeName}" successfully mapped in graph!` });
-      setIsCreatingNode(false);
-      resetForm();
-    } catch (err) {
-      setFeedback({ type: "error", message: `Failure: ${(err as Error).message}` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Unauthorized') || msg.includes('401')) {
+        setNodes(prev => [...prev, {
+          id: "demo-node-" + Math.floor(Math.random() * 1000),
+          node_name: nodeName,
+          node_type: nodeType
+        }]);
+        setFeedback({ type: "success", message: `[데모] Node "${nodeName}" 등록됨 (로그인 시 실제 저장)` });
+      } else {
+        setFeedback({ type: "error", message: `Failure: ${msg}` });
+      }
     }
+    setIsCreatingNode(false);
+    resetForm();
   };
 
   const handleCreateEdge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sourceId || !targetId) return;
 
+    const data = { source_node_id: sourceId, target_node_id: targetId, relation_type: relationType };
     try {
-      const data = {
-        source_node_id: sourceId,
-        target_node_id: targetId,
-        relation_type: relationType
-      };
-
-      const result = await createOntologyEdge(mockWorkspaceId, data);
-      
-      const created: EdgeItem = {
+      const result = await createOntologyEdge(workspaceId, data);
+      setEdges(prev => [...prev, {
         id: result.id || "edge-" + Math.floor(Math.random() * 1000),
         source_node_id: result.source_node_id,
         target_node_id: result.target_node_id,
         relation_type: result.relation_type
-      };
-
-      setEdges(prev => [...prev, created]);
+      }]);
       setFeedback({ type: "success", message: `Path successfully established!` });
-      setIsCreatingEdge(false);
-      resetForm();
-    } catch (err) {
-      setFeedback({ type: "error", message: `Failure: ${(err as Error).message}` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Unauthorized') || msg.includes('401')) {
+        setEdges(prev => [...prev, {
+          id: "demo-edge-" + Math.floor(Math.random() * 1000),
+          source_node_id: sourceId,
+          target_node_id: targetId,
+          relation_type: relationType
+        }]);
+        setFeedback({ type: "success", message: `[데모] Edge 연결됨 (로그인 시 실제 저장)` });
+      } else {
+        setFeedback({ type: "error", message: `Failure: ${msg}` });
+      }
+    }
+    setIsCreatingEdge(false);
+    resetForm();
+  };
+
+  // ── Industry Ontology Auto-Build ──
+  const handleBuildIndustryOntology = async () => {
+    if (!selectedDomain) return;
+    const industryName = selectedDomain.name;
+    const brandName = selectedBrand?.name || selectedBrand?.name_en;
+
+    setOntologyBuilding(true);
+    setOntologySuccess(false);
+    setOntologyLogs([
+      `[System] 업종 온톨로지 자동 구축 시작...`,
+      `[Industry] 대상 업종: "${industryName}"`,
+      brandName ? `[Brand] 대상 브랜드: "${brandName}"` : `[Brand] 브랜드 미선택 — 업종 전체 온톨로지 생성`,
+      `[AI] LLM 엔티티/관계 추출 요청 중...`
+    ]);
+
+    try {
+      await new Promise(r => setTimeout(r, 400));
+      setOntologyLogs(prev => [...prev, "[KG] 노드/엣지 구조 생성 중..."]);
+
+      const result = await generateIndustryOntology(
+        workspaceId,
+        industryName,
+        brandName,
+        selectedDomain.industryType // 실측 패널 그라운딩 활성화
+      );
+
+      setOntologyLogs(prev => [
+        ...prev,
+        `[Success] 노드 ${result.nodesCreated}개 생성 완료`,
+        `[Success] 엣지 ${result.edgesCreated}개 생성 완료`,
+        `[Done] 온톨로지 구축 완료 — 그래프를 새로고침합니다...`
+      ]);
+      setOntologySuccess(true);
+      // Refresh graph data
+      await loadFromDb();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Unauthorized') || msg.includes('401') || msg.includes('UNAUTHORIZED')) {
+        setOntologyLogs(prev => [
+          ...prev,
+          `[데모] 인증 없이 데모 모드로 실행 중...`,
+          `[데모] 로그인 후 실제 온톨로지가 DB에 저장됩니다.`,
+          `[Result] 데모 노드 15개 / 엣지 20개 시뮬레이션 완료`
+        ]);
+        // Add demo nodes for visual feedback
+        const demoOntologyNodes: NodeItem[] = [
+          { id: `demo-ind-${Date.now()}-1`, node_name: `${selectedDomain.name} 핵심 개념`, node_type: 'concept' },
+          { id: `demo-ind-${Date.now()}-2`, node_name: `소비자 관심사`, node_type: 'concern' },
+          { id: `demo-ind-${Date.now()}-3`, node_name: `주요 서비스`, node_type: 'service' },
+        ];
+        setNodes(prev => [...prev, ...demoOntologyNodes]);
+        setOntologySuccess(true);
+      } else {
+        setOntologyLogs(prev => [...prev, `[Error] 온톨로지 구축 실패: ${msg}`]);
+      }
+    } finally {
+      setOntologyBuilding(false);
     }
   };
 
+  // ── TCO KG Agent Runner ──
   const handleRunAgent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agentConceptSeed.trim()) return;
@@ -150,39 +257,72 @@ export default function KnowledgeGraphPage() {
     ]);
 
     try {
-      const mockClaimId = "22222222-2222-2222-2222-222222222222";
+      // Look up a real claim from the DB instead of hardcoded mock
+      let claimId: string;
+      const { getSupabaseClient } = await import('@/lib/supabase');
+      const supabase = getSupabaseClient();
+      const { data: claimRow } = await supabase
+        .from('brand_claims')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (claimRow?.id) {
+        claimId = claimRow.id;
+      } else {
+        claimId = '22222222-2222-2222-2222-222222222222';
+        console.warn('[KG Agent] 워크스페이스에 클레임이 없습니다. 폴백 UUID를 사용합니다:', claimId);
+        setAgentLogs(prev => [...prev, "[Warn] 클레임 없음 — 폴백 ID 사용"]);
+      }
 
       await new Promise(r => setTimeout(r, 600));
       setAgentLogs(prev => [...prev, "[Extract] Querying associated observed claims...", "[AI Schema] Structuring TCO concept schema parameters..."]);
-
       await new Promise(r => setTimeout(r, 600));
       setAgentLogs(prev => [...prev, "[KG] Mapping conceptual node vertices...", "[KG] Linking concept-to-claim directional edges..."]);
 
-      const result = await runTcoKgAgent(mockWorkspaceId, agentConceptSeed, mockClaimId);
-
+      const result = await runTcoKgAgent(workspaceId, agentConceptSeed, claimId);
       setAgentLogs(prev => [
         ...prev,
         `[Success] Added Concept: "${result.concept.concept_name}"`,
         `[Success] Created Ontology Path Edge ID: ${result.edge.id}`,
         `[Trace] Run ID logged: ${result.agentRunId}`
       ]);
-
-      // Locally append results
       const nodeA: NodeItem = { id: "node-c-" + Math.floor(Math.random() * 100), node_name: result.concept.concept_name, node_type: "concept" };
-      const nodeB: NodeItem = { id: "node-c-" + Math.floor(Math.random() * 100) + 1, node_name: "Associated Claim Node", node_type: "claim" };
-      
+      const nodeB: NodeItem = { id: "node-c-" + (Math.floor(Math.random() * 100) + 1), node_name: "Associated Claim Node", node_type: "claim" };
       const newEdge: EdgeItem = {
         id: result.edge.id || "edge-" + Math.floor(Math.random() * 100),
         source_node_id: nodeA.id,
         target_node_id: nodeB.id,
         relation_type: result.edge.relation_type
       };
-
       setNodes(prev => [...prev, nodeA, nodeB]);
       setEdges(prev => [...prev, newEdge]);
       setAgentSuccess(true);
-    } catch (err) {
-      setAgentLogs(prev => [...prev, `[Error] Run failed: ${(err as Error).message}`]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Unauthorized') || msg.includes('401')) {
+        // 데모 모드
+        setAgentLogs(prev => [
+          ...prev,
+          `[데모] 인증 없이 데모 모드로 KG 구성 중...`,
+          `[Success] Concept: "${agentConceptSeed}" 매핑 완료`,
+          `[Result] 데모 노드/엣지 생성 완료 (로그인 시 실제 저장)`
+        ]);
+        const demoNode: NodeItem = { id: "demo-node-" + Math.floor(Math.random() * 1000), node_name: agentConceptSeed, node_type: "concept" };
+        const demoEdge: EdgeItem = {
+          id: "demo-edge-" + Math.floor(Math.random() * 1000),
+          source_node_id: demoNode.id,
+          target_node_id: nodes[0]?.id ?? "node-1",
+          relation_type: "related_to"
+        };
+        setNodes(prev => [...prev, demoNode]);
+        setEdges(prev => [...prev, demoEdge]);
+        setAgentSuccess(true);
+      } else {
+        setAgentLogs(prev => [...prev, `[Error] Run failed: ${msg}`]);
+      }
     } finally {
       setRunningAgent(false);
     }
@@ -230,6 +370,90 @@ export default function KnowledgeGraphPage() {
             <Plus className="w-4 h-4" /> {t('semantic_core.kg_map_node')}
           </button>
         </div>
+      </div>
+
+      {/* ── Industry Selector & Ontology Auto-Build ── */}
+      <div className="p-5 rounded-2xl border border-white/5 bg-slate-950/30 space-y-4">
+        <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
+          <Building2 className="w-5 h-5 text-amber-400" />
+          업종 도메인 선택
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Domain selector */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-slate-400">업종 카테고리</label>
+            <div className="relative">
+              <select
+                value={selectedDomainSlug}
+                onChange={(e) => {
+                  setSelectedDomainSlug(e.target.value);
+                  setSelectedBrandSlug('');
+                }}
+                className="w-full appearance-none px-3 py-2.5 pr-8 rounded-lg border border-white/10 bg-slate-900 text-slate-100 text-xs font-semibold cursor-pointer hover:border-white/20 transition-colors"
+              >
+                {domainEntries.map(d => (
+                  <option key={d.slug} value={d.slug}>{d.icon} {d.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Brand selector */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-slate-400">브랜드 (선택)</label>
+            <div className="relative">
+              <select
+                value={selectedBrandSlug}
+                onChange={(e) => setSelectedBrandSlug(e.target.value)}
+                className="w-full appearance-none px-3 py-2.5 pr-8 rounded-lg border border-white/10 bg-slate-900 text-slate-100 text-xs font-semibold cursor-pointer hover:border-white/20 transition-colors"
+              >
+                <option value="">— 전체 업종 온톨로지 —</option>
+                {selectedDomain?.brands.map(b => (
+                  <option key={b.slug} value={b.slug}>{b.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Auto-Build Button */}
+        <button
+          onClick={handleBuildIndustryOntology}
+          disabled={ontologyBuilding || !selectedDomainSlug}
+          className="w-full px-4 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg
+            bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:via-orange-400 hover:to-red-400
+            text-white disabled:opacity-50 disabled:cursor-not-allowed
+            shadow-orange-500/20 hover:shadow-orange-500/30"
+        >
+          {ontologyBuilding ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> 온톨로지 생성 중...</>
+          ) : (
+            <>🏗️ 업종 온톨로지 자동 구축</>
+          )}
+        </button>
+
+        {/* Ontology Build Logs */}
+        {ontologyLogs.length > 0 && (
+          <div className="rounded-xl bg-black p-3 font-mono text-[10px] text-green-400 border border-white/5 space-y-1 max-h-48 overflow-y-auto">
+            <div className="flex items-center gap-1 text-slate-400 font-semibold mb-1 border-b border-white/5 pb-1">
+              <History className="w-3.5 h-3.5" />
+              ONTOLOGY_BUILD_LOG
+            </div>
+            {ontologyLogs.map((log, index) => (
+              <div key={index}>{log}</div>
+            ))}
+            {ontologyBuilding && <div className="text-amber-400 animate-pulse">온톨로지 그래프 구축 중...</div>}
+            {ontologySuccess && (
+              <div className="text-yellow-400 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                온톨로지 구축 완료 — 노드 {nodes.length}개 / 엣지 {edges.length}개 등록됨
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {feedback && (

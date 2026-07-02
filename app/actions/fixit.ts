@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { 
   rcaCaseSchema,
   patchTicketSchema,
@@ -226,9 +226,9 @@ export async function evaluateFactoryReuseCandidate(workspaceId: string, candida
  * createRcaCase
  */
 export async function createRcaCase(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");
@@ -258,9 +258,9 @@ export async function createRcaCase(workspaceId: string, data: any) {
  * updateRcaCase
  */
 export async function updateRcaCase(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");
@@ -316,9 +316,9 @@ export async function rejectRcaCase(workspaceId: string, id: string, notes: stri
  * createPatchTicket
  */
 export async function createPatchTicket(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");
@@ -346,9 +346,9 @@ export async function createPatchTicket(workspaceId: string, data: any) {
  * updatePatchTicket
  */
 export async function updatePatchTicket(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");
@@ -377,7 +377,7 @@ export async function updatePatchTicket(workspaceId: string, id: string, data: a
  * approvePatchTicket
  */
 export async function approvePatchTicket(workspaceId: string, id: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
   const supabase = getSupabaseAdminClient();
   const { data: patch } = await supabase.from("patch_tickets").select("patch_name, patch_hypothesis, rca_case_id").eq("id", id).single();
@@ -395,9 +395,9 @@ export async function approvePatchTicket(workspaceId: string, id: string) {
  * applyPatchArtifactChange
  */
 export async function applyPatchArtifactChange(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");
@@ -556,9 +556,9 @@ export async function createFactoryReuseCandidate(workspaceId: string, data: any
  * promoteFactoryReuseCandidate
  */
 export async function promoteFactoryReuseCandidate(workspaceId: string, id: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");

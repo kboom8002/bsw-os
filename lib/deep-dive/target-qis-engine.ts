@@ -10,7 +10,7 @@ export class TargetQisEngine {
    */
   static async discoverTargets(
     workspaceId: string, 
-    brandSlug: string, 
+    brandSlug: string | undefined, 
     mappings: UnifiedQuestionMapping[],
     opportunityReport: BrandOpportunityReport,
     domainConfig: DomainConfig
@@ -74,7 +74,7 @@ export class TargetQisEngine {
     }
 
     // 3. Discover Blue Ocean Targets via LLM
-    const brandName = domainConfig.brands.find(b => b.slug === brandSlug)?.name || brandSlug;
+    const brandName = brandSlug ? (domainConfig.brands.find(b => b.slug === brandSlug)?.name || brandSlug) : "General Industry";
     const llmCandidates = await LlmAnalyst.discoverTargetQuestions(
       brandName,
       domainConfig.slug,
@@ -116,7 +116,7 @@ export class TargetQisEngine {
     }
 
     // 5. Brand-Product Fit Filter — 브랜드 제품/서비스와 정합하지 않는 질문 제거
-    const brandConfig = domainConfig.brands.find(b => b.slug === brandSlug);
+    const brandConfig = brandSlug ? domainConfig.brands.find(b => b.slug === brandSlug) : undefined;
     if (brandConfig?.product_categories || brandConfig?.brand_identity) {
       candidates = await LlmAnalyst.filterByBrandFit(
         candidates,

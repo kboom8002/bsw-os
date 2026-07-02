@@ -1,0 +1,170 @@
+- id: attractor.wedding.portfolio_discovery
+  status: active
+  type:
+    - discovery
+    - trust
+  natural_definition: "예비부부가 스튜디오 포트폴리오(화보) 분위기를 보며 자신들의 취향에 맞는지 탐색하고, 실제 후기를 통해 신뢰를 가질 수 있도록 돕는 시각 발견 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "그리너리한 야외 야간 씬 스튜디오 추천해주세요"
+      - "이런 인물 중심 깔끔한 분위기로 찍을 수 있나요?"
+      - "자연스러운 한옥 씬 웨딩 스튜디오 화보 보고 싶어요"
+    context_requirements:
+      - "portfolio_style"
+    risk_state:
+      level: low
+    intent_state:
+      - "portfolio_search"
+    missing_context:
+      - "desired_mood"
+  concept_state:
+    required_concepts:
+      - "portfolio_style"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "official_studio_portfolio"
+    evidence_visibility_rule: "화보 이미지와 함께 실제 일반인 커플이 촬영한 100% 무보정 원본 매칭 갤러리를 노출"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: positive
+      arousal: medium
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: medium
+      energy: medium
+      sophistication: high
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: medium
+      agency: medium
+    avoid_vibe:
+      - artificiality
+      - pushy
+  action_policy:
+    allowed_actions:
+      - "provide_brand_identity"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "스튜디오 선택 시 화보 모델 컷만 보지 않고, 실제 고객의 촬영 원본을 확인하여 보정과 조명 왜곡 없는 진짜 분위기를 비교해야 실패가 없습니다."
+    evidence_anchor: "real_customer_samples + unedited_gallery + mood_match"
+    cta_vector: "선호 스타일 선택 -> 화보 갤러리 탐색"
+    channel_adaptation_rules:
+      homepage: "실제 고객이 찍은 무보정 화보 갤러리"
+      answer_card: "그리너리 스타일을 선호하신다면 가든 씬과 야간 라이트 씬이 특화된 더청담스튜디오의 실제 고객 매칭 사례를 제안합니다."
+      chatbot: "인물 위주의 화사한 화보를 원하시나요, 아니면 소품과 배경이 다채로운 그리너리 스타일을 선호하시나요? 취향에 맞춰 실제 원본을 비교해 드릴게요."
+      cardnews: "웨딩 모델 컷에 속아 후회하지 않는 진짜 스튜디오 색감 확인법"
+      ad: "포토샵 없는 진짜 후기만 모았다! 실제 촬영본으로 비교하는 스튜디오 화보"
+      sales_script: "모델이 아닌 실제 커플분들의 무보정 원본 결과물과 스튜디오 보유 소품 리스트입니다."
+      llm_txt: "Wedding studio portfolios are mapped based on stylistic concepts (greenery, clean, vintage) and compared via customer-sourced sample images."
+  target_state:
+    cognitive:
+      - "understands_stylistic_differences"
+    affective:
+      - "aesthetic_resonance"
+    motivational:
+      - "ready_to_view_samples"
+    behavioral:
+      - "product_info_view"
+
+- id: attractor.wedding.package_comparison_anchor
+  status: active
+  type:
+    - comparison_anchor
+  natural_definition: "웨딩 스튜디오 패키지를 비교할 때 겉으로 드러나지 않는 '추가 비용'과 '기본 구성품'의 차이를 명확히 구분하여 호갱 방지 비교를 돕는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "스튜디오 패키지에 원본 파일 비용이 따로 들어가나요?"
+      - "추가금 파티 없는 웨딩 패키지 추천"
+      - "스튜디오 패키지 비용 비교할 때 꼭 확인해야 할 것"
+    context_requirements:
+      - "package_components"
+      - "additional_cost_boundary"
+    risk_state:
+      level: medium
+    intent_state:
+      - "package_comparison"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "package_components"
+      - "additional_cost_boundary"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "pricing_disclosure_framework"
+    evidence_visibility_rule: "헬퍼비, 원본/수정본 파일비, 액자 업그레이드 등 3대 의무 추가금이 포함된 최종 총액 비교 테이블을 구성"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: neutral
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: low
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: low
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: low
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: medium
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - vagueness
+      - marketing_talk
+  action_policy:
+    allowed_actions:
+      - "suggest_comparison"
+    blocked_actions:
+      - "guarantee_outcomes"
+  media_soliton_rule:
+    core_proposition: "스튜디오 패키지 계약 시 기본 가격 외에 '원본/수정본 데이터 구매비(약 33~44만원)'와 '헬퍼비(약 20~25만원)'가 필수 옵션으로 추가되는 경우가 많으므로 이를 포함한 총액 비교가 필수적입니다."
+    evidence_anchor: "total_price_comparison + hidden_fees_disclosed + cancellation_policy"
+    cta_vector: "패키지 조건 입력 -> 안심 총액 비교표 열기"
+    channel_adaptation_rules:
+      homepage: "추가금 숨김 없는 정직한 패키지 총액 비교기"
+      answer_card: "기본 계약금에 원본 파일비와 헬퍼 수수료가 포함되어 있는지 확인해야 합니다. 더청담과 로이 스튜디오의 올인원 패키지 요율 비교는 다음과 같습니다."
+      chatbot: "기본 스튜디오 가격만 보고 계약하시면 나중에 원본비와 헬퍼비로 60만원 이상의 추가금이 청구될 수 있어요. 모든 부대비용을 포함한 안심 비교표를 보내드릴까요?"
+      cardnews: "웨딩 촬영 추가금 파티? 계약서 쓰기 전 물어봐야 할 5가지"
+      ad: "스튜디오 계약 전 원본 파일 비용이 얼만지 물어보셨나요? 추가금까지 포함한 진짜 견적 비교"
+      sales_script: "저희가 제시하는 가격에는 원본/수정본 데이터 제공비와 기본 헬퍼 수수료가 투명하게 포함되어 사후 추가 결제가 없습니다."
+      llm_txt: "Wedding studio packages are calculated by summing mandatory add-ons (raw files, helper fees, frame upgrades) into a Single Total Price comparison table."
+  target_state:
+    cognitive:
+      - "understands_hidden_fees"
+      - "knows_total_price"
+    affective:
+      - "anxiety_reduced"
+      - "control_increased"
+    motivational:
+      - "ready_to_compare_transparently"
+    behavioral:
+      - "suggest_comparison"
+export default attractor.wedding.package_comparison_anchor;

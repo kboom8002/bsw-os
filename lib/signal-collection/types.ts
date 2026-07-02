@@ -116,7 +116,70 @@ export interface GroundedAnswer {
 }
 
 // ─────────────────────────────────────────
-// 6. Pipeline Result (확장)
+// 6. Pipeline Configuration
+// ─────────────────────────────────────────
+
+/** S-OGDE 파이프라인 실행 옵션. */
+export interface PipelineOptions {
+  /** 브랜드 USP — Phase R(Reverse Chaining) 활성화에 필요 */
+  brandUSP?: string;
+  /** VOC 데이터 — Phase G의 Micro-RAG 컨텍스트 주입에 사용 */
+  contextChunks?: VOCChunk[];
+  /** 진행 상황 콜백 */
+  onProgress?: (msg: string) => void;
+}
+
+/** 2단계 분리 평가 결과 */
+export interface EvalStep1Result {
+  intent: 'informational' | 'navigational' | 'transactional' | 'local' | 'comparison' | 'risk';
+  brand_fit: 'fit' | 'partial' | 'unfit';
+  is_ymyl: boolean;
+}
+
+/** QVS 8차원 확장 */
+export interface QVS8DResult {
+  relevance: number;      // V_rel (0-10)
+  specificity: number;    // V_spec (0-10)
+  urgency: number;        // V_urg (0-10)
+  opportunity: number;    // V_opp = 10 - V_comp (경쟁 역수)
+  conversion: number;     // V_conv (0-10)
+  // AEO/GEO 신규 3차원
+  snippet_fitness: number;    // 직접 답변 박스 적합도 (0-10)
+  entity_clarity: number;     // 엔티티 구분 명확도 (0-10)
+  multi_engine_consistency: number; // 멀티엔진 일관 답변 유도 가능성 (0-10)
+  reasoning: string;      // CoT 근거
+}
+
+/** 신뢰도 포함 평가 결과 */
+export interface EvaluationWithConfidence {
+  step1: EvalStep1Result;
+  qvs: QVS8DResult;
+  qvs_total: number;
+  confidence: 'high' | 'medium' | 'low';
+  qvs_std?: number;       // 3회 반복 시 표준편차
+  gate_status: 'Go' | 'Watch' | 'No-Go';
+}
+
+/** 시그널 시간 가치 */
+export interface TemporalSignalValue {
+  base_qvs: number;
+  decay_factor: number;   // exp(-λ × Δt)
+  trend_multiplier: number;
+  effective_value: number; // base × decay × trend
+}
+
+/** PipelineOptions 확장 */
+export interface PipelineOptionsV3 extends PipelineOptions {
+  workspaceId?: string;       // TCO 시드 주입용
+  industryKey?: string;       // 패널 데이터 참조용
+  kgNodes?: Array<{ id: string; node_name: string; node_type: string }>;
+  tcoConceptSeeds?: Array<{ concept_name: string; definition: string }>;
+  enableMMR?: boolean;        // MMR 다양성 승격
+  repeatEval?: number;        // 불확실성 정량화 반복 횟수
+}
+
+// ─────────────────────────────────────────
+// 7. Pipeline Result (확장)
 // ─────────────────────────────────────────
 
 export interface PipelineResultV2 {
@@ -126,4 +189,12 @@ export interface PipelineResultV2 {
   sources: Record<string, number>;
   clusters: SignalCluster[];
   reverseSignals?: number;
+  /** Phase E에서 Gate로 제거된 시그널 수 */
+  filteredOut?: number;
+  /** Phase E에서 에러로 실패한 시그널 수 */
+  evalErrors?: number;
+  /** 전체 파이프라인 실행 시간 (ms) */
+  durationMs?: number;
 }
+
+

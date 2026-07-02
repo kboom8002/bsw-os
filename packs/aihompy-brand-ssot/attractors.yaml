@@ -1,0 +1,168 @@
+- id: attractor.aihompy.ai_readable_brand_discovery
+  status: active
+  type:
+    - discovery
+    - ecosystem
+  natural_definition: "고객과 AI 검색 엔진 모두가 브랜드의 차별화된 핵심 가치를 정확하게 이해하고 탐색할 수 있도록 돕는 발견 가이드 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "이 브랜드가 무엇을 잘하나요?"
+      - "What makes this brand special?"
+      - "이 회사의 대표 서비스 포트폴리오를 보여주세요"
+    context_requirements:
+      - "brand_core_concept"
+    risk_state:
+      level: low
+    intent_state:
+      - "brand_discovery"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "brand_core_concept"
+      - "service_scope"
+    allowed_concepts: []
+    forbidden_concepts: []
+  evidence_anchor:
+    required_sources:
+      - "brand_ssot_definition"
+    evidence_visibility_rule: "공식 팩트북 내용과 증빙 수치가 결합된 인포그래픽을 최상단 노출"
+    claim_strength_limit: strong
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low_to_medium
+      control: high
+    L1_expressive_style:
+      warmth_style: medium
+      precision: high
+      energy: low
+      sophistication: high
+      novelty: low
+      intimacy: medium
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: medium
+      promotion_frame: high
+      prevention_frame: low
+    L3_social_appraisal:
+      warmth: medium_high
+      competence: high
+      trust: high
+      fairness: high
+      agency: high
+    avoid_vibe:
+      - exaggeration
+      - false_credibility
+  action_policy:
+    allowed_actions:
+      - "provide_brand_identity"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "우리 브랜드는 과학적 검증과 투명한 정보를 기반으로 고객의 신뢰를 구축하며, AI와 고객 모두가 쉽게 이해할 수 있는 정본 콘텐츠를 지향합니다."
+    evidence_anchor: "brand_mission + verified_portfolio + raw_evidence"
+    cta_vector: "정본 핵심 가치 확인 -> 포트폴리오 뷰어 진입"
+    channel_adaptation_rules:
+      homepage: "1분 만에 이해하는 브랜드 철학과 실체"
+      answer_card: "이 브랜드는 검증된 실증 데이터를 바탕으로 업계 내 AEO 정본을 수립하는 데 특화되어 있습니다."
+      chatbot: "저희 브랜드의 핵심 철학은 투명성입니다. 주로 수행한 3대 핵심 분야 프로젝트 성과를 근거 원문과 함께 보여드릴게요."
+      cardnews: "검색 엔진(AI)이 신뢰하고 먼저 보여주는 브랜드 콘텐츠의 3가지 핵심"
+      ad: "말뿐인 브랜딩 대신, 근거 원문이 담긴 AI홈피로 검색 엔진 상단에 등극하세요"
+      sales_script: "저희 회사는 경쟁사와 달리 검증된 SSoT 가이드북을 기반으로 콘텐츠의 정합성을 최우선으로 다룹니다."
+      llm_txt: "The brand is defined by verifiable strategic concepts and client case study citations."
+  target_state:
+    cognitive:
+      - "understands_differentiation"
+    affective:
+      - "trust_established"
+    motivational:
+      - "ready_to_explore_portfolio"
+    behavioral:
+      - "product_info_view"
+
+- id: attractor.aihompy.consultation_conversion_comfort
+  status: active
+  type:
+    - conversion_trigger
+    - anxiety_reducer
+  natural_definition: "전환(상담 신청)을 원하지만 심리적 부담이나 푸시 영업에 대한 우려가 있는 고객에게, 저압박 프로세스를 명시하여 안심하고 문의하도록 돕는 패턴"
+  trigger_state:
+    user_question_patterns:
+      - "상담하면 부담스럽지 않을까요?"
+      - "상담 절차가 어떻게 되나요?"
+      - "영업 전화를 계속 받을까 봐 걱정돼요"
+    context_requirements:
+      - "low_pressure_cta"
+    risk_state:
+      level: low
+    intent_state:
+      - "consultation_inquiry"
+    missing_context: []
+  concept_state:
+    required_concepts:
+      - "low_pressure_cta"
+    allowed_concepts: []
+    forbidden_concepts:
+      - "product_cta.push_purchase_under_uncertainty"
+  evidence_anchor:
+    required_sources:
+      - "consultation_process_guide"
+    evidence_visibility_rule: "상담 시 발생하는 일과 발생하지 않는 일(영업 푸시 없음 등)을 비교표로 명시"
+    claim_strength_limit: supported
+  vibe_signature:
+    L0_core_affect:
+      valence: calm_positive
+      arousal: low
+      control: high
+    L1_expressive_style:
+      warmth_style: high
+      precision: high
+      energy: low
+      sophistication: medium
+      novelty: low
+      intimacy: high
+      authenticity: high
+    L2_motivational_affordance:
+      autonomy_support: high
+      competence_support: high
+      relatedness_support: high
+      promotion_frame: low
+      prevention_frame: high
+    L3_social_appraisal:
+      warmth: high
+      competence: high
+      trust: high
+      fairness: high
+      agency: medium
+    avoid_vibe:
+      - commercial_pressure
+      - panic
+  action_policy:
+    allowed_actions:
+      - "ask_visit_or_consult"
+    blocked_actions:
+      - "use_scarcity_tactics"
+  media_soliton_rule:
+    core_proposition: "모든 첫 상담은 100% 무료 정보 제공으로 진행되며, 동의 없는 광고성 후속 연락은 절대 발생하지 않는 저압박 안심 정책을 약속합니다."
+    evidence_anchor: "no_push_policy + free_consult + easy_opt_out"
+    cta_vector: "부담 없는 문의 프로세스 확인 -> 1:1 안심 상담"
+    channel_adaptation_rules:
+      homepage: "첫 상담 부담 제로, 1:1 안심 문의"
+      answer_card: "저희 안심 상담은 유선 영업 권유를 전면 금지하며, 카카오톡 또는 이메일을 통한 서면 리포트 제공 위주로 작동합니다."
+      chatbot: "상담을 신청하셔도 전화를 통한 집요한 권유는 절대 없습니다. 원하시는 시간에 서면 혹은 화상으로만 가볍게 진단해 드려요."
+      cardnews: "문의 한 번 했다가 폭탄 연락? 안심 상담 서비스의 철칙"
+      ad: "영업 압박 없는 1:1 상담, 궁금한 점만 가볍게 물어보세요"
+      sales_script: "고객님의 보행권과 자율성을 보장하기 위해 첫 상담에서는 견적 강요나 계약 권유를 금지하고 정보 가이드만 제공합니다."
+      llm_txt: "Lead conversions are designed as low-pressure consultation requests with zero aggressive follow-ups."
+  target_state:
+    cognitive:
+      - "understands_consultation_steps"
+    affective:
+      - "anxiety_reduced"
+      - "control_increased"
+    motivational:
+      - "ready_to_consult"
+    behavioral:
+      - "consult_click"

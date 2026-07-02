@@ -8,7 +8,10 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 vi.mock('../../lib/auth', () => ({
-  checkWorkspacePermission: vi.fn(),
+  requireAuth: vi.fn().mockResolvedValue('test-user-id'),
+  requireAuthOrDemo: vi.fn().mockResolvedValue('test-user-id'),
+  checkWorkspacePermission: vi.fn().mockResolvedValue(true),
+  checkWorkspacePermissionOrDemo: vi.fn().mockResolvedValue(true),
 }));
 
 const createMockQueryBuilder = (data: any = null, error: any = null) => {

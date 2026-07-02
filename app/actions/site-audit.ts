@@ -46,6 +46,8 @@ export interface AuditResult {
   // 업종 벤치마크 포지셔닝 & 전략 (tier1 이상에서 활성화)
   relativePosition?: RelativePosition | null;
   improvementStrategy?: ImprovementStrategy | null;
+  canonicalQuestions?: any[];
+  qisScenes?: any[];
 }
 
 /**
@@ -436,11 +438,15 @@ async function runFullSiteAuditBackground(
 
     // ── Step 6: Reverse Answer Cards ──
     let cards: ReversedAnswerCard[] = quickResult?.cards || [];
+    let canonicalQuestions: any[] = [];
+    let qisScenes: any[] = [];
     try {
       const reverser = new AnswerCardReverser();
       await updateProgress(sessionId, 6, 14, 'AI 앤서카드 역설계 중...');
       const reversedResult = await reverser.reverse(workspaceId, websiteUrl, kg);
       cards = reversedResult.cards;
+      canonicalQuestions = reversedResult.canonicalQuestions;
+      qisScenes = reversedResult.qisScenes;
       console.log(`[Audit] Step 6 OK: ${cards.length} answer cards`);
     } catch (e: any) {
       console.warn(`[Audit] Step 6 FAIL (cards): ${e.message}. Using quick cards.`);
@@ -454,7 +460,23 @@ async function runFullSiteAuditBackground(
       customProbes = await probeGen.generateProbes(cards, brandName, competitors);
       console.log(`[Audit] Step 7 OK: ${customProbes.length} probes`);
     } catch (e: any) {
-      console.warn(`[Audit] Step 7 FAIL (probes): ${e.message}. Skipping reflection.`);
+      console.warn(`[Audit] Step 7 FAIL (probes): ${e.message}. Using fallback probes.`);
+    }
+    // FIX-3: Probe 실패 시 브랜드명 기반 폴백 프로브 생성
+    if (customProbes.length === 0 && brandName) {
+      console.log('[Audit] Step 7: Generating fallback probes for:', brandName);
+      const fallbackQueries = [
+        `${brandName} 추천`, `${brandName} 후기`, `${brandName} 가격`,
+        `${brandName} 성분 분석`, `${brandName} 부작용`,
+        `${brandName} vs 경쟁사 비교`, `${brandName} 사용법`,
+        `${brandName} 효과`, `${brandName} 장단점`, `${brandName} 실제 사용 후기`
+      ];
+      customProbes = fallbackQueries.map((q, i) => ({
+        id: `fallback-probe-${i}`,
+        question: q,
+        type: i < 3 ? 'brand_query' : (i < 6 ? 'comparison' : 'experience'),
+        source: 'fallback_generator',
+      }));
     }
 
     // ── Step 8: QIS Cross Map (업종 자동 감지) ──
@@ -548,11 +570,16 @@ async function runFullSiteAuditBackground(
           workspaceId, websiteUrl, brandName, rawResponses
         );
         console.log(`[Audit] Step 12 OK: v1 Persona extracted`);
-      } else if (tier !== 'tier1') {
+      } else if (tier !== 'tier1' && tier !== 'free') {
         await updateProgress(sessionId, 12, 14, '파라메트릭 페르소나 N회 반복 측정 중...');
-        parametricSnapshot = await personaEngineer.runFullPersonaAudit(
-          workspaceId, websiteUrl, brandName, detectedIndustry, tier as 'free' | 'tier1.5' | 'tier2' | 'tier3'
+        // FIX-4: 타임아웃 보호 (4분)
+        const personaPromise = personaEngineer.runFullPersonaAudit(
+          workspaceId, websiteUrl, brandName, detectedIndustry, tier as 'tier1.5' | 'tier2' | 'tier3'
         );
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Persona audit timed out after 240s')), 240_000)
+        );
+        parametricSnapshot = await Promise.race([personaPromise, timeoutPromise]);
         console.log(`[Audit] Step 12 OK: v2/v3 Parametric Persona Snapshot generated`);
       }
     } catch (e: any) {
@@ -610,7 +637,9 @@ async function runFullSiteAuditBackground(
       industry: detectedIndustry,
       techInfra,
       schemaQuality,
-      contentSemantic
+      contentSemantic,
+      canonicalQuestions,
+      qisScenes
     };
 
     // Save L1, L2, L3 snapshot tables to Supabase with dynamic fallback

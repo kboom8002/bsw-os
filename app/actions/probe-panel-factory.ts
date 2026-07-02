@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { probePanelSchema, probeQuestionSchema, expectedLayerSchema } from "../../lib/schema";
 import { INDUSTRY_PANELS_DATA, IndustryType } from "../../db/seed/industry-panels/questions-data";
 
@@ -15,8 +15,8 @@ export async function createIndustryStandardPanel(
   brandKeyword: string,
   competitorKeywords: string[]
 ): Promise<{ panelId: string; questionCount: number }> {
-  const userId = await requireAuth();
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const userId = await requireAuthOrDemo();
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -187,8 +187,8 @@ export async function diffPanels(
   panelIdA: string,
   panelIdB: string
 ): Promise<PanelDiff> {
-  const userId = await requireAuth();
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const userId = await requireAuthOrDemo();
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -248,8 +248,8 @@ export async function rollbackPanel(
   workspaceId: string,
   panelId: string
 ): Promise<{ success: boolean; rolledBackTo: string }> {
-  const userId = await requireAuth();
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const userId = await requireAuthOrDemo();
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {

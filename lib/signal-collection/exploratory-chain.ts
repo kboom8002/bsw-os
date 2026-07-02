@@ -42,7 +42,7 @@ export class ExploratoryChain {
    */
   static async runChain(
     seedQuestion: string,
-    brandName: string,
+    brandName?: string,
     maxDepth: number = 3,
     searchEngine: string = 'gemini_grounding'
   ): Promise<ExploratoryStep[]> {
@@ -137,7 +137,7 @@ export class ExploratoryChain {
     ai: ReturnType<typeof getAIProvider>,
     question: string,
     realAnswer: string,
-    brandName: string
+    brandName?: string
   ): Promise<string[]> {
     const systemPrompt = `당신은 소비자 호기심 분석가입니다.
 
@@ -148,7 +148,7 @@ ${realAnswer.slice(0, 2000)}
 </search_result>
 
 이 답변을 읽은 소비자가 추가로 느낄 **정보 갭(Information Gap)**을 파악하세요.
-브랜드 "${brandName}" 맥락을 고려하되, 답변에서 충분히 다루지 않은 측면을 중심으로
+${brandName ? `브랜드 "${brandName}" 맥락을 고려하되, ` : ''}답변에서 충분히 다루지 않은 측면을 중심으로
 자연스러운 후속 질문 3개를 생성하세요.
 
 규칙:
@@ -176,12 +176,12 @@ ${realAnswer.slice(0, 2000)}
   private static async runFallbackStep(
     ai: ReturnType<typeof getAIProvider>,
     currentQuestion: string,
-    brandName: string,
+    brandName: string | undefined,
     depth: number
   ): Promise<ExploratoryStep> {
     const systemPrompt = `You are an AI Search Engine simulating a conversation with a consumer.
 The consumer asked: "${currentQuestion}"
-The brand context is: "${brandName}"
+${brandName ? `The brand context is: "${brandName}"` : ''}
 
 Provide:
 1. answer_summary: A concise, helpful summary of the answer you would give.

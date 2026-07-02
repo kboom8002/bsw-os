@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { 
@@ -19,8 +19,13 @@ import {
   Menu,
   X,
   Search,
-  Award
+  Award,
+  Diamond,
+  Target,
+  LogOut,
+  Loader2
 } from "lucide-react";
+
 import { useTranslation } from "@/lib/i18n/context";
 import { LanguageToggle } from "@/components/LanguageToggle";
 
@@ -47,47 +52,103 @@ export default function WorkspaceLayout({
 
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
 
-  // List of workspaces for switcher dropdown
-  const workspacesList = [
-    { name: "Demo Brand Semantic Lab", slug: "demo-brand-semantic-lab" },
-    { name: "Acme Skincare Lab", slug: "acme-skincare-lab" },
-    { name: "Cornerstore Retail Corp", slug: "cornerstore-retail" },
-  ];
+  // Dynamic workspace list from DB
+  const [workspacesList, setWorkspacesList] = useState<Array<{ id: string; name: string; slug: string; role: string }>>([
+    { id: 'demo-ws', name: 'Demo Brand Semantic Lab', slug: 'demo-brand-semantic-lab', role: 'owner' }
+  ]);
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    loadWorkspaceData();
+  }, []);
+
+  const loadWorkspaceData = async () => {
+    try {
+      const { getUserWorkspaces, getCurrentUser } = await import('@/app/actions/workspace');
+      const [workspaces, user] = await Promise.all([
+        getUserWorkspaces(),
+        getCurrentUser()
+      ]);
+      if (workspaces.length > 0) {
+        setWorkspacesList(workspaces);
+      }
+      if (user) {
+        setCurrentUser(user);
+      }
+    } catch (err) {
+      console.warn('Failed to load workspace data:', err);
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const { logout } = await import('@/app/actions/auth');
+      await logout();
+    } catch (err) {
+      console.error('Logout failed:', err);
+      setIsLoggingOut(false);
+    }
+  };
 
   const activeWorkspace = workspacesList.find(w => w.slug === workspaceSlug) || workspacesList[0];
 
   const navigation: SidebarItem[] = [
+    // ─ Dashboard ─
     { name: "common.workspace", href: `/${locale}/${workspaceSlug}`, icon: LayoutDashboard, module: "dashboard" },
-    // Site Audit 그룹
+
+    // ─ AI Visibility (공개 대시보드) ─
+    { name: "nav.benchmark", href: `/${locale}/benchmark`, icon: FileBarChart, badge: "Live", module: "benchmark" },
+    { name: "nav.sbs_index", href: `/${locale}/sbs-index`, icon: Award, badge: "SBS", module: "sbs-index" },
+    { name: "nav.industry_report", href: `/${locale}/industry-report`, icon: Eye, badge: "NEW", module: "industry-report" },
+
+    // ─ Site Audit ─
     { name: "nav.site_audit", href: `/${locale}/site-audit`, icon: Search, badge: "Crawl", module: "site-audit" },
     { name: "nav.site_audit_history", href: `/${locale}/${workspaceSlug}/site-audit/history`, icon: Clock, module: "site-audit-history" },
-    { name: "nav.industry_benchmark", href: `/${locale}/${workspaceSlug}/site-audit/industry-benchmark`, icon: Eye, badge: "NEW", module: "industry-benchmark" },
+    { name: "nav.industry_benchmark", href: `/${locale}/${workspaceSlug}/site-audit/industry-benchmark`, icon: Eye, module: "industry-benchmark" },
     { name: "nav.site_audit_llms", href: `/${locale}/${workspaceSlug}/site-audit/llms-generator`, icon: FileBarChart, module: "site-audit-llms" },
     { name: "nav.site_audit_settings", href: `/${locale}/${workspaceSlug}/site-audit/settings`, icon: Settings, module: "site-audit-settings" },
-    // 분석 도구 그룹
-    { name: "nav.benchmark", href: `/${locale}/benchmark`, icon: FileBarChart, badge: "Live", module: "benchmark" },
-    { name: "nav.sbs_index", href: `/${locale}/sbs-index`, icon: Award, badge: "Public", module: "sbs-index" },
+
+    // ─ Semantic Intelligence (시맨틱 분석) ─
     { name: "nav.truth_studio", href: `/${locale}/${workspaceSlug}/truth`, icon: ShieldAlert, badge: "L2", module: "truth" },
     { name: "nav.semantic_core", href: `/${locale}/${workspaceSlug}/semantic-core`, icon: HelpCircle, badge: "QIS", module: "semantic-core" },
     { name: "nav.qis_triaxis", href: `/${locale}/${workspaceSlug}/semantic-core/qis-triaxis`, icon: Eye, badge: "3축", module: "qis-triaxis" },
     { name: "nav.qis_predictions", href: `/${locale}/${workspaceSlug}/semantic-core/qis`, icon: HelpCircle, badge: "예측", module: "qis-predictions" },
-    // 실행 그룹
+    { name: "nav.pattern_attractors", href: `/${locale}/${workspaceSlug}/semantic-core/attractors`, icon: Target, badge: "PAF", module: "attractors" },
+
+    // ─ Execution (실행) ─
     { name: "nav.objects_studio", href: `/${locale}/${workspaceSlug}/objects`, icon: Layers, module: "objects" },
     { name: "nav.surfaces", href: `/${locale}/${workspaceSlug}/surfaces`, icon: Layers, module: "surfaces" },
     { name: "nav.persona", href: `/${locale}/${workspaceSlug}/persona`, icon: User, badge: "AI", module: "persona" },
     { name: "nav.website", href: `/${locale}/${workspaceSlug}/website`, icon: Layers, badge: "AEO", module: "website" },
+
+    // ─ Monitoring (모니터링) ─
     { name: "nav.observatory", href: `/${locale}/${workspaceSlug}/observatory`, icon: Eye, module: "observatory" },
+    { name: "nav.deep_dive", href: `/${locale}/${workspaceSlug}/deep-dive`, icon: Search, badge: "심층", module: "deep-dive" },
     { name: "nav.reports", href: `/${locale}/${workspaceSlug}/reports`, icon: FileBarChart, module: "reports" },
+
+    // ─ Tools ─
     { name: "nav.fixit", href: `/${locale}/${workspaceSlug}/fixit`, icon: Wrench, badge: "Hypo", module: "fixit" },
     { name: "nav.kculture_studio", href: `/${locale}/${workspaceSlug}/kculture`, icon: Building2, module: "kculture" },
+
+    // ─ Reference ─
+    { name: "nav.golden_reference", href: `/${locale}/${workspaceSlug}/golden-reference`, icon: Diamond, badge: "GR", module: "golden-reference" },
   ];
+
 
   const navGroups = [
     { label: null, items: ["dashboard"] },
-    { label: "Site Audit", items: ["site-audit", "site-audit-history", "industry-benchmark", "site-audit-llms", "site-audit-settings"] },
-    { label: "시맨틱 분석", items: ["benchmark", "sbs-index", "truth", "semantic-core", "qis-triaxis", "qis-predictions"] },
-    { label: "실행 도구", items: ["objects", "surfaces", "persona", "website", "observatory", "reports", "fixit", "kculture"] },
+    { label: "nav.group_ai_visibility", items: ["benchmark", "sbs-index", "industry-report"] },
+    { label: "nav.group_site_audit", items: ["site-audit", "site-audit-history", "industry-benchmark", "site-audit-llms", "site-audit-settings"] },
+    { label: "nav.group_semantic_intel", items: ["truth", "semantic-core", "qis-triaxis", "qis-predictions", "attractors"] },
+    { label: "nav.group_execution", items: ["objects", "surfaces", "persona", "website"] },
+    { label: "nav.group_monitoring", items: ["observatory", "deep-dive", "reports"] },
+    { label: "nav.group_tools", items: ["fixit", "kculture"] },
+    { label: "nav.group_reference", items: ["golden-reference"] },
   ];
+
+
 
   const switchWorkspace = (slug: string) => {
     setShowWorkspaceMenu(false);
@@ -159,7 +220,7 @@ export default function WorkspaceLayout({
               {group.label && (
                 <div className="px-3 mb-1.5">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-                    {group.label}
+                    {t(group.label)}
                   </span>
                 </div>
               )}
@@ -200,17 +261,25 @@ export default function WorkspaceLayout({
       <div className="p-4 border-t border-white/5 bg-slate-950/40 space-y-2">
         <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5 border border-white/5 text-slate-200">
           <div className="w-7 h-7 rounded-full bg-cyan-900/50 flex items-center justify-center text-xs font-bold text-cyan-400">
-            DS
+            {currentUser?.email ? currentUser.email.substring(0, 2).toUpperCase() : 'DS'}
           </div>
-          <div className="min-w-0">
-            <div className="text-xs font-semibold leading-tight truncate">Demo Strategist</div>
-            <div className="text-[10px] text-slate-500 font-mono truncate">Role: owner</div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold leading-tight truncate">
+              {currentUser?.email || 'Demo Strategist'}
+            </div>
+            <div className="text-[10px] text-slate-500 font-mono truncate">
+              Role: {activeWorkspace && 'role' in activeWorkspace ? (activeWorkspace as any).role : 'owner'}
+            </div>
           </div>
         </div>
-        <div className="flex items-center justify-between px-3 text-xs text-slate-500 font-mono">
-          <span>RLS Enforced: TRUE</span>
-          <span className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm shadow-green-500/20" />
-        </div>
+        <button
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-red-500/10 text-red-400/70 hover:text-red-400 hover:bg-red-500/5 text-xs font-medium transition-all disabled:opacity-50"
+        >
+          {isLoggingOut ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+          {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
+        </button>
       </div>
     </div>
   );

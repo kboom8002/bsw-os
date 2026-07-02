@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
-import { createTcoConcept } from "@/app/actions/semantic";
+import { createTcoConcept, generateIndustryConcepts } from "@/app/actions/semantic";
+import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
 import { 
   ArrowLeft, 
   BookOpen, 
@@ -14,7 +15,9 @@ import {
   HelpCircle,
   Tag,
   Star,
-  Search
+  Search,
+  Loader2,
+  Sparkles
 } from "lucide-react";
 
 interface ConceptItem {
@@ -30,31 +33,41 @@ export default function ConceptsPage() {
   const { t } = useTranslation();
   const locale = (params?.locale as string) || "ko";
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
-  const mockWorkspaceId = "11111111-1111-1111-1111-111111111111";
+  const [workspaceId, setWorkspaceId] = useState<string>('');
+  const [dbLoading, setDbLoading] = useState(true);
+  const [concepts, setConcepts] = useState<ConceptItem[]>([]);
 
-  const [concepts, setConcepts] = useState<ConceptItem[]>([
-    {
-      id: "concept-1",
-      concept_name: "Active Niacinamide Complex",
-      slug: "active-niacinamide-complex",
-      definition: "A premium clinical active consisting of 5% pure niacinamide blended with zinc PCA, optimized for damaged epidermal skin barrier repair.",
-      is_strategic: true
-    },
-    {
-      id: "concept-2",
-      concept_name: "Epidermal Moisture Seal",
-      slug: "epidermal-moisture-seal",
-      definition: "A localized surface stratum corneum lipid layer composed of ceramides and hyaluronic acid to prevent transepidermal water loss.",
-      is_strategic: true
-    },
-    {
-      id: "concept-3",
-      concept_name: "Zero-Waste Sandwich Prep",
-      slug: "zero-waste-sandwich-prep",
-      definition: "An operational kitchen assembly standard that maps exact vegetable cuttings and slice allocations to eliminate waste streams.",
-      is_strategic: false
+  // ── Industry / Brand selector state ──
+  const [selectedDomain, setSelectedDomain] = useState('');
+  const [selectedBrand, setSelectedBrand] = useState('');
+  const domainConfig = selectedDomain ? BENCHMARK_DOMAINS[selectedDomain] : undefined;
+  const brands = domainConfig?.brands ?? [];
+
+  // ── AI auto-generate state ──
+  const [aiGenerating, setAiGenerating] = useState(false);
+
+  useEffect(() => { loadFromDb(); }, [workspaceSlug]);
+
+  const loadFromDb = async () => {
+    setDbLoading(true);
+    try {
+      const { getSupabaseClient } = await import('@/lib/supabase');
+      const supabase = getSupabaseClient();
+      const { data: ws } = await supabase.from('workspaces').select('id').eq('slug', workspaceSlug).single();
+      const resolvedWsId = ws?.id || '11111111-1111-1111-1111-111111111111';
+      setWorkspaceId(resolvedWsId);
+      const { data } = await supabase
+        .from('tco_concepts')
+        .select('id, concept_name, slug, definition, is_strategic')
+        .eq('workspace_id', resolvedWsId)
+        .order('created_at', { ascending: false });
+      setConcepts(data ?? []);
+    } catch (err) {
+      console.error('Concepts DB 로드 실패:', err);
+    } finally {
+      setDbLoading(false);
     }
-  ]);
+  };
 
   const [isCreating, setIsCreating] = useState(false);
   const [conceptName, setConceptName] = useState("");
@@ -81,16 +94,9 @@ export default function ConceptsPage() {
     e.preventDefault();
     if (!conceptName.trim() || !definition.trim()) return;
 
+    const data = { concept_name: conceptName, slug, definition, is_strategic: isStrategic };
     try {
-      const data = {
-        concept_name: conceptName,
-        slug,
-        definition,
-        is_strategic: isStrategic
-      };
-
-      const result = await createTcoConcept(mockWorkspaceId, data);
-      
+      const result = await createTcoConcept(workspaceId, data);
       const created: ConceptItem = {
         id: result.id || "concept-" + Math.floor(Math.random() * 1000),
         concept_name: result.concept_name,
@@ -98,15 +104,66 @@ export default function ConceptsPage() {
         definition: result.definition,
         is_strategic: result.is_strategic
       };
-
       setConcepts(prev => [...prev, created]);
-      setFeedback({ type: "success", message: `Concept "${conceptName}" successfully added to dictionary!` });
-      setIsCreating(false);
-      resetForm();
-    } catch (err) {
-      setFeedback({ type: "error", message: `Failure: ${(err as Error).message}` });
+      setFeedback({ type: "success", message: `"${conceptName}" 개념이 사전에 성공적으로 추가되었습니다.` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Unauthorized') || msg.includes('401')) {
+        // 데모 모드: 로컬 상태만 업데이트
+        setConcepts(prev => [...prev, {
+          id: "demo-concept-" + Math.floor(Math.random() * 1000),
+          concept_name: conceptName,
+          slug,
+          definition,
+          is_strategic: isStrategic
+        }]);
+        setFeedback({ type: "success", message: `[데모] "${conceptName}" 개념 등록됨 (로그인 시 실제 저장)` });
+      } else {
+        setFeedback({ type: "error", message: `오류: ${msg}` });
+      }
+    }
+    setIsCreating(false);
+    resetForm();
+  };
+
+  // ── AI Auto-Generate Handler ──
+  const handleAiGenerate = async () => {
+    if (!domainConfig) return;
+    setAiGenerating(true);
+    setFeedback(null);
+
+    const industryName = domainConfig.name;
+    const brandObj = brands.find(b => b.slug === selectedBrand);
+    const brandName = brandObj?.name;
+
+    try {
+      const result = await generateIndustryConcepts(
+        workspaceId,
+        industryName,
+        brandName,
+        domainConfig.industryType // 실측 패널 그라운딩 활성화
+      );
+      // Refresh the full list from DB to get accurate slugs/ids
+      await loadFromDb();
+      setFeedback({
+        type: "success",
+        message: `✅ "${industryName}"${brandName ? ` / ${brandName}` : ''} 업종 개념 ${result.created}개가 자동 생성되었습니다.`,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Unauthorized') || msg.includes('401') || msg.includes('UNAUTHORIZED')) {
+        setFeedback({
+          type: "success",
+          message: `[데모] AI 개념 자동 도출 기능은 로그인 후 사용 가능합니다. 로그인하시면 "${domainConfig.name}" 업종의 핵심 개념 20개가 자동 생성됩니다.`,
+        });
+      } else {
+        setFeedback({ type: "error", message: `AI 생성 오류: ${msg}` });
+      }
+    } finally {
+      setAiGenerating(false);
     }
   };
+
 
   return (
     <div className="flex-1 p-6 md:p-8 space-y-8 font-sans max-w-5xl w-full mx-auto text-slate-100 bg-slate-900">
@@ -135,13 +192,69 @@ export default function ConceptsPage() {
         </button>
       </div>
 
+      {/* ── Industry / Brand Selector + AI Generate ── */}
+      <div className="p-5 rounded-2xl border border-white/5 bg-slate-950/30 space-y-4">
+        <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-violet-400" />
+          업종별 AI 개념 자동 도출
+        </h3>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select
+            value={selectedDomain}
+            onChange={(e) => { setSelectedDomain(e.target.value); setSelectedBrand(''); }}
+            className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+          >
+            <option value="">업종 선택...</option>
+            {Object.entries(BENCHMARK_DOMAINS).map(([slug, cfg]) => (
+              <option key={slug} value={slug}>{cfg.icon} {cfg.name}</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedBrand}
+            onChange={(e) => setSelectedBrand(e.target.value)}
+            disabled={!selectedDomain}
+            className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <option value="">브랜드 전체 (선택사항)</option>
+            {brands.map((b) => (
+              <option key={b.slug} value={b.slug}>{b.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          onClick={handleAiGenerate}
+          disabled={!selectedDomain || aiGenerating}
+          className="w-full px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20"
+        >
+          {aiGenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              AI 개념 도출 중... 잠시만 기다려주세요
+            </>
+          ) : (
+            <>
+              🤖 업종 개념 AI 자동 도출
+            </>
+          )}
+        </button>
+
+        {!selectedDomain && (
+          <p className="text-[11px] text-slate-500">
+            위에서 업종을 선택하면 해당 업종에 최적화된 핵심 개념 20개를 AI가 자동으로 생성합니다.
+          </p>
+        )}
+      </div>
+
       {feedback && (
         <div className={`p-4 rounded-xl border flex items-center gap-3 text-sm ${
           feedback.type === "success" 
             ? "border-green-500/20 text-green-400 bg-green-950/20" 
             : "border-red-500/20 text-red-400 bg-red-950/20"
         }`}>
-          {feedback.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+          {feedback.type === "success" ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
           <span>{feedback.message}</span>
         </div>
       )}
@@ -153,6 +266,7 @@ export default function ConceptsPage() {
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-cyan-400" />
               {t('semantic_core.concepts_active_dictionary')}
+              <span className="ml-auto text-[10px] font-mono text-slate-500">{concepts.length}개</span>
             </h3>
 
             <div className="space-y-4">
@@ -269,3 +383,4 @@ export default function ConceptsPage() {
     </div>
   );
 }
+

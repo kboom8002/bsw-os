@@ -16,7 +16,7 @@
   "nav": {
     "brand_meaning_ops": "의미관리 (MeaningOps)",
     "truth_studio": "브랜드 진실 스튜디오",
-    "semantic_core": "세맨틱 코어",
+    "semantic_core": "시맨틱 코어",
     "objects_studio": "오브젝트 스튜디오",
     "surfaces": "노출 스펙 (Surfaces)",
     "website": "세맨틱 웹사이트",
@@ -33,10 +33,22 @@
     "industry_benchmark": "업종 벤치마크",
     "benchmark": "업종별 실측 벤치마크",
     "sbs_index": "공개 AI 평판지수 (SBS)",
+    "industry_report": "업종 AEO 경쟁 리포트",
+    "deep_dive": "Deep Dive 심층 분석",
     "kculture_studio": "K-컬처 인텔리전스",
     "qis_triaxis": "QIS 3축 관리",
-    "qis_predictions": "QVS 질문 예측"
+    "qis_predictions": "QVS 질문 예측",
+    "pattern_attractors": "패턴 어트랙터",
+    "golden_reference": "골든 레퍼런스",
+    "group_ai_visibility": "AI 가시성 인텔리전스",
+    "group_site_audit": "사이트 역설계 감사",
+    "group_semantic_intel": "시맨틱 분석",
+    "group_execution": "실행 도구",
+    "group_monitoring": "모니터링",
+    "group_tools": "도구",
+    "group_reference": "레퍼런스"
   },
+
   "dashboard": {
     "title": "브랜드 세맨틱 웹사이트 OS",
     "subtitle": "AEO 및 AI 검색 최적화를 위한 브랜드 의미 관리 플랫폼",

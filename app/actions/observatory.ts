@@ -1,7 +1,7 @@
 "use server";
 
 import { getSupabaseAdminClient } from "../../lib/supabase";
-import {  checkWorkspacePermission , requireAuth } from "../../lib/auth";
+import { checkWorkspacePermission, requireAuth, requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/auth";
 import { calculateVolatilityAndConfidence } from "../../lib/metrics/confidence-volatility";
 import { computeBMRI } from "../../lib/metrics/b-mri";
 import { computeDMRI } from "../../lib/metrics/d-mri";
@@ -54,9 +54,9 @@ async function enforcePanelNotLocked(panelId: string) {
  * 1. Create Probe Panel
  */
 export async function createProbePanel(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -87,9 +87,9 @@ export async function createProbePanel(workspaceId: string, data: any) {
  * 2. Update Probe Panel
  */
 export async function updateProbePanel(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -122,9 +122,9 @@ export async function updateProbePanel(workspaceId: string, id: string, data: an
  * 3. Lock Probe Panel Version
  */
 export async function lockProbePanelVersion(workspaceId: string, id: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -150,9 +150,9 @@ export async function lockProbePanelVersion(workspaceId: string, id: string) {
  * 4. Create Probe Question
  */
 export async function createProbeQuestion(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -183,9 +183,9 @@ export async function createProbeQuestion(workspaceId: string, data: any) {
  * 5. Update Probe Question
  */
 export async function updateProbeQuestion(workspaceId: string, id: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -217,9 +217,9 @@ export async function updateProbeQuestion(workspaceId: string, id: string, data:
  * Pulls active Query-Intent-Scenario (QIS) scenes and maps them into probe questions
  */
 export async function generateProbePanelFromQis(workspaceId: string, probePanelId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -264,9 +264,9 @@ export async function generateProbePanelFromQis(workspaceId: string, probePanelI
  * 7. Start AI Observation Run (Requires panel locking first!)
  */
 export async function startObservationRun(workspaceId: string, probePanelId: string, runName: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -404,9 +404,9 @@ export async function createMockProbeRunResult(
  * 9. Complete Observation Run
  */
 export async function completeObservationRun(workspaceId: string, runId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -436,9 +436,9 @@ export async function completeObservationRun(workspaceId: string, runId: string)
  * 10. Create Response Judgment
  */
 export async function createResponseJudgment(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -471,9 +471,9 @@ export async function createResponseJudgment(workspaceId: string, data: any) {
  * 11. Review/Approve Response Judgment
  */
 export async function reviewResponseJudgment(workspaceId: string, id: string, status: "approved" | "rejected") {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -599,9 +599,9 @@ export async function computeMetricSnapshot(workspaceId: string, runId: string) 
  * 13. Create Domain Index Definition
  */
 export async function createDomainIndexDefinition(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -630,9 +630,9 @@ export async function createDomainIndexDefinition(workspaceId: string, data: any
  * 14. Compute Domain Index Snapshot (OPS-MRI, B-MRI, etc.)
  */
 export async function computeDomainIndexSnapshot(workspaceId: string, definitionId: string | null | undefined, runId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -808,9 +808,9 @@ export async function computeDomainIndexSnapshot(workspaceId: string, definition
  * 15. Create Methodology Disclosure (Proxy caveat enforcement)
  */
 export async function createMethodologyDisclosure(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -848,9 +848,9 @@ export async function createSemanticWebsiteLiftSnapshot(
   baseRunId: string, 
   activeRunId: string
 ) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
@@ -928,9 +928,9 @@ export async function createSemanticWebsiteLiftSnapshot(
  * List all Probe Panels in workspace
  */
 export async function listProbePanels(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -962,9 +962,9 @@ export async function listProbePanels(workspaceId: string) {
  * Get single Probe Panel with questions list
  */
 export async function getProbePanelWithQuestions(workspaceId: string, panelId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -992,9 +992,9 @@ export async function getProbePanelWithQuestions(workspaceId: string, panelId: s
  * List all Observation Runs in workspace
  */
 export async function listObservationRuns(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1030,9 +1030,9 @@ export async function listObservationRuns(workspaceId: string) {
  * Get detailed Observation Run metadata and raw probe runs
  */
 export async function getObservationRunDetail(workspaceId: string, runId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1060,9 +1060,9 @@ export async function getObservationRunDetail(workspaceId: string, runId: string
  * List all Judgments and their related question text for a specific run
  */
 export async function listJudgmentsByRun(workspaceId: string, runId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1110,9 +1110,9 @@ export async function listJudgmentsByRun(workspaceId: string, runId: string) {
  * List Metric Snapshots for a specific Observation Run
  */
 export async function listMetricSnapshotsByRun(workspaceId: string, runId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1132,9 +1132,9 @@ export async function listMetricSnapshotsByRun(workspaceId: string, runId: strin
  * List Metric Snapshots for the latest completed Observation Run
  */
 export async function listAllLatestMetrics(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1159,9 +1159,9 @@ export async function listAllLatestMetrics(workspaceId: string) {
  * List all Domain Index Snapshots in workspace
  */
 export async function listDomainIndexSnapshots(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1181,9 +1181,9 @@ export async function listDomainIndexSnapshots(workspaceId: string) {
  * List all Methodology Disclosures in workspace
  */
 export async function listMethodologyDisclosures(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1203,9 +1203,9 @@ export async function listMethodologyDisclosures(workspaceId: string) {
  * Delete a Probe Panel if unlocked
  */
 export async function deleteProbePanel(workspaceId: string, id: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1226,9 +1226,9 @@ export async function deleteProbePanel(workspaceId: string, id: string) {
  * Delete a Probe Question if the parent panel is unlocked
  */
 export async function deleteProbeQuestion(workspaceId: string, id: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1259,9 +1259,9 @@ export async function deleteProbeQuestion(workspaceId: string, id: string) {
  * Create or Update Expected Layer per Question
  */
 export async function addExpectedLayer(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "semantic_architect"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1329,9 +1329,9 @@ export async function addExpectedLayer(workspaceId: string, data: any) {
  * Get Expected Layer for a specific Question
  */
 export async function getExpectedLayerByQuestion(workspaceId: string, questionId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1351,9 +1351,9 @@ export async function getExpectedLayerByQuestion(workspaceId: string, questionId
  * 22. Get Observation Engine Configurations
  */
 export async function getObservationEngineConfigs(workspaceId: string) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist", "executive_viewer"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1372,9 +1372,9 @@ export async function getObservationEngineConfigs(workspaceId: string) {
  * 23. Upsert Observation Engine Configuration
  */
 export async function upsertObservationEngineConfig(workspaceId: string, data: any) {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED: Insufficient permissions.");
@@ -1432,9 +1432,9 @@ export async function upsertObservationEngineConfig(workspaceId: string, data: a
  * 24. Start Live Observation Run (utilizing ChatGPT Search or Google AI Mode)
  */
 export async function startLiveObservationRun(workspaceId: string, runId: string, engineName: 'chatgpt_search' | 'google_ai_mode') {
-  const userId = await requireAuth();
+  const userId = await requireAuthOrDemo();
 
-  const isAuthorized = await checkWorkspacePermission(workspaceId, userId, [
+  const isAuthorized = await checkWorkspacePermissionOrDemo(workspaceId, userId, [
     "owner", "admin", "brand_strategist"
   ]);
   if (!isAuthorized) {
