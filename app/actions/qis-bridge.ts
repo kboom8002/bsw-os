@@ -398,6 +398,12 @@ export async function feedCrossMapGapsToSignals(
 // 4. 원클릭 E2E 파이프라인 (7단계 실측 기반 통합)
 // ═══════════════════════════════════════════════════════════════
 
+export interface PipelinePhaseError {
+  phase: string;
+  message: string;
+  timestamp: string;
+}
+
 export interface E2EPipelineResult {
   phase0_bootstrap: { tcoConcepts: number; kgNodes: number; kgEdges: number; skipped: boolean };
   phase1_signals: { count: number; source: string };
@@ -407,6 +413,11 @@ export interface E2EPipelineResult {
   phase3_promotions: { promotedCount: number; cqCreated: number };
   phase4_hubPush?: { pushed: boolean; count: number };
   totalDuration: number;
+  /** 'success' | 'partial_success' | 'failed' */
+  status: string;
+  /** Collected errors from each phase (non-blocking) */
+  phaseErrors: PipelinePhaseError[];
+  runId?: string;
 }
 
 /**
@@ -424,10 +435,26 @@ export async function runE2EPipeline(
   }
 ): Promise<E2EPipelineResult> {
   await requireAuthOrDemo();
+
+  // ── 입력 검증 ──────────────────────────────────────────────────
+  if (!workspaceId || typeof workspaceId !== 'string') {
+    throw new Error('Invalid workspaceId: must be a non-empty string');
+  }
+  if (!domainName || typeof domainName !== 'string' || domainName.trim() === '') {
+    throw new Error('Invalid domainName: must be a non-empty string');
+  }
+
   const startTime = Date.now();
   const mode = options?.mode || 'standalone';
-  const autoPromoteTopN = options?.autoPromoteTopN ?? 5;
+  const autoPromoteTopN = Math.max(1, Math.min(20, options?.autoPromoteTopN ?? 5));
   const industryKey = options?.industryKey || 'wedding_studio';
+
+  const phaseErrors: PipelinePhaseError[] = [];
+  const addPhaseError = (phase: string, err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    phaseErrors.push({ phase, message: msg, timestamp: new Date().toISOString() });
+    console.warn(`[E2E Pipeline] ${phase} failed:`, msg);
+  };
 
   const result: E2EPipelineResult = {
     phase0_bootstrap: { tcoConcepts: 0, kgNodes: 0, kgEdges: 0, skipped: true },
@@ -435,9 +462,58 @@ export async function runE2EPipeline(
     phase2_opportunities: { gapCount: 0, blindSpotCount: 0, fedCount: 0 },
     phase3_promotions: { promotedCount: 0, cqCreated: 0 },
     totalDuration: 0,
+    status: 'running',
+    phaseErrors,
   };
 
   const supabase = getSupabaseAdminClient();
+
+  // ── 동시 실행 방지 및 pipeline_runs 이력 기록 ───────────────────
+  let runId: string | undefined;
+  try {
+    // 현재 실행 중인 파이프라인이 있는지 확인
+    const { data: existingRun } = await supabase
+      .from('pipeline_runs')
+      .select('id, started_at')
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'running')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingRun) {
+      const runningFor = Date.now() - new Date(existingRun.started_at).getTime();
+      // 5분 이상된 running 상태는 stale로 간주하고 계속 진행
+      if (runningFor < 5 * 60 * 1000) {
+        throw new Error(`Pipeline is already running (started ${Math.round(runningFor / 1000)}s ago). Please wait for it to complete.`);
+      }
+      // stale run 정리
+      await supabase.from('pipeline_runs').update({ status: 'stale' }).eq('id', existingRun.id);
+    }
+
+    // 새 실행 기록 생성
+    const { data: newRun } = await supabase
+      .from('pipeline_runs')
+      .insert({
+        workspace_id: workspaceId,
+        pipeline_type: 'e2e_qis',
+        status: 'running',
+        domain_key: domainName,
+        brand_name: brandName || null,
+        started_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+
+    if (newRun) {
+      runId = newRun.id;
+      result.runId = runId;
+    }
+  } catch (err: any) {
+    // '이미 실행 중' 에러는 re-throw
+    if (err.message?.includes('already running')) throw err;
+    console.warn('[E2E Pipeline] pipeline_runs insert failed (non-blocking):', err.message);
+  }
 
   // ── Phase 0: 실측 기반 TCO/KG 부트스트랩 (데이터 부재 시 자동 기동) ──
   try {
@@ -480,7 +556,7 @@ export async function runE2EPipeline(
       }
     }
   } catch (err: any) {
-    console.warn('[E2E Pipeline] Phase 0 Bootstrap failed:', err.message);
+    addPhaseError('phase0_bootstrap', err);
   }
 
   // ── Phase 1: S-OGDE v3.0 시그널 수집 (TCO 시드 및 KG 로딩 포함) ────
@@ -511,7 +587,7 @@ export async function runE2EPipeline(
     );
     result.phase1_signals.count = pipelineResult.savedSignals || 0;
   } catch (err: any) {
-    console.warn('[E2E Pipeline] Phase 1 failed:', err.message);
+    addPhaseError('phase1_signals', err);
   }
 
   // ── Phase 1.5: Deep Dive Target Discovery → Signal Feed ────
@@ -549,7 +625,7 @@ export async function runE2EPipeline(
       }
     }
   } catch (err: any) {
-    console.warn('[E2E Pipeline] Phase 1.5 Deep Dive failed:', err.message);
+    addPhaseError('phase1_5_deepDive', err);
     result.phase1_5_deepDive = { targetsFound: 0, fedCount: 0, skipped: true, reason: err.message };
   }
 
@@ -576,7 +652,7 @@ export async function runE2EPipeline(
       }
     }
   } catch (err: any) {
-    console.warn('[E2E Pipeline] Phase 2 failed:', err.message);
+    addPhaseError('phase2_opportunities', err);
   }
 
   // ── Phase 2.5: Surface AnswerCardReverser CQ/QIS → DB 영속화 (P2-3) ──
@@ -632,7 +708,7 @@ export async function runE2EPipeline(
     }
     result.phase2_5_surfacePersist = { persisted };
   } catch (err: any) {
-    console.warn('[E2E Pipeline] Phase 2.5 Surface Persist failed:', err.message);
+    addPhaseError('phase2_5_surfacePersist', err);
     result.phase2_5_surfacePersist = { persisted: 0, skipped: true, reason: err.message };
   }
 
@@ -701,7 +777,7 @@ export async function runE2EPipeline(
       }
     }
   } catch (err: any) {
-    console.warn('[E2E Pipeline] Phase 3/5 failed:', err.message);
+    addPhaseError('phase3_promotions', err);
   }
 
   // ── Phase 4: Hub Push (연동 모드만) ─────────────────────────
@@ -723,12 +799,47 @@ export async function runE2EPipeline(
         result.phase4_hubPush = { pushed, count: predictions.length };
       }
     } catch (err: any) {
-      console.warn('[E2E Pipeline] Phase 4 Hub Push failed:', err.message);
+      addPhaseError('phase4_hubPush', err);
       result.phase4_hubPush = { pushed: false, count: 0 };
     }
   }
 
   result.totalDuration = Date.now() - startTime;
+
+  // ── 최종 상태 결정 ───────────────────────────────────────────
+  const hasAnyOutput = (
+    result.phase1_signals.count > 0 ||
+    result.phase3_promotions.promotedCount > 0
+  );
+  if (phaseErrors.length === 0) {
+    result.status = 'success';
+  } else if (hasAnyOutput) {
+    result.status = 'partial_success';
+  } else {
+    result.status = 'failed';
+  }
+
+  // ── pipeline_runs 업데이트 ─────────────────────────────────
+  if (runId) {
+    try {
+      await supabase.from('pipeline_runs').update({
+        status: result.status === 'failed' ? 'failed' : 'completed',
+        completed_at: new Date().toISOString(),
+        duration_ms: result.totalDuration,
+        result_summary: {
+          signals: result.phase1_signals.count,
+          promotions: result.phase3_promotions.promotedCount,
+          cqCreated: result.phase3_promotions.cqCreated,
+        },
+        error_message: phaseErrors.length > 0
+          ? phaseErrors.map(e => `[${e.phase}] ${e.message}`).join(' | ')
+          : null,
+      }).eq('id', runId);
+    } catch (e) {
+      console.warn('[E2E Pipeline] Failed to update pipeline_runs record:', e);
+    }
+  }
+
   return result;
 }
 

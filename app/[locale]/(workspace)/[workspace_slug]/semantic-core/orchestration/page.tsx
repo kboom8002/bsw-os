@@ -5,9 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
 import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
-import { getPipelineReadiness, createPipelineRun, updatePipelineRun, seedDemoData } from "@/app/actions/semantic";
-import { deleteAuditRun, getAuditRunHistory, resolveWorkspaceSlug } from "@/app/actions/workspace";
-import { runE2EPipeline } from "@/app/actions/qis-bridge";
+import { getPipelineReadiness, seedDemoData } from "@/app/actions/semantic";
+import { deleteAuditRun, resolveWorkspaceSlug } from "@/app/actions/workspace";
 import {
   ArrowLeft,
   Sparkles,
@@ -129,42 +128,57 @@ export default function OrchestrationPage() {
     setRunningPipeline(true);
     setPipelineLogs(["[System] Initializing E2E QIS Pipeline Execution...", `[System] Workspace: ${workspaceSlug}`, `[System] Industry: ${selectedDomain}`]);
 
-    let runId = "";
     try {
-      // 1. Record Run
-      const run = await createPipelineRun(workspaceId, "e2e_qis", selectedDomain, selectedBrand);
-      runId = run.id;
-      setPipelineLogs(prev => [...prev, `[System] Run ID registered: ${runId}`, "[System] Launching Phase 0: Bootstrap TCO/KG (checks existing data)..."]);
+      setPipelineLogs(prev => [...prev, "[System] Launching Phase 0: Bootstrap TCO/KG (checks existing data)..."]);
 
-      // 2. Call server action
-      const result = await runE2EPipeline(workspaceId, selectedDomain, selectedBrand === "all" ? undefined : selectedBrand, {
-        mode: selectedBrand === "all" ? "hub" : "standalone"
+      // API Route 호출 (maxDuration=300 보장)
+      const res = await fetch('/api/pipeline/e2e', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          domainName: selectedDomain,
+          brandName: selectedBrand === 'all' ? undefined : selectedBrand,
+          options: { mode: selectedBrand === 'all' ? 'hub' : 'standalone' },
+        }),
       });
 
-      // 3. Complete Run
-      await updatePipelineRun(runId, "completed", result);
-      
+      if (res.status === 409) {
+        const { error } = await res.json();
+        setPipelineLogs(prev => [...prev, `[Blocked] ${error}`]);
+        return;
+      }
+
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(error);
+      }
+
+      const { result } = await res.json();
+
+      const statusEmoji = result.status === 'success' ? '✅' : result.status === 'partial_success' ? '⚠️' : '❌';
+
       setPipelineLogs(prev => [
         ...prev,
         `[Phase 0] Bootstrap Completed (Concepts: ${result.phase0_bootstrap?.tcoConcepts || 0}, Ontology: ${result.phase0_bootstrap?.kgNodes || 0})`,
         `[Phase 1] Signal Collection Done (Generated: ${result.phase1_signals?.count || 0})`,
         `[Phase 2] Benchmark Opps Mapped (Imported: ${result.phase2_opportunities?.fedCount || 0})`,
         `[Phase 3] MMR Promotion Executed (Promoted to CQ: ${result.phase3_promotions?.promotedCount || 0})`,
-        `[Success] E2E Pipeline completed successfully in ${result.totalDuration ? (result.totalDuration / 1000).toFixed(1) : 0}s.`
+        ...(result.phaseErrors?.length > 0
+          ? result.phaseErrors.map((e: any) => `[⚠ ${e.phase}] ${e.message}`)
+          : []),
+        `${statusEmoji} Pipeline ${result.status} in ${result.totalDuration ? (result.totalDuration / 1000).toFixed(1) : 0}s.${
+          result.runId ? ` (runId: ${result.runId.slice(0, 8)}...)` : ''
+        }`,
       ]);
 
-      // Reload readiness metrics
+      // Readiness 업데이트
       const updatedReadiness = await getPipelineReadiness(workspaceId, selectedDomain);
       setReadiness(updatedReadiness);
     } catch (err: any) {
       console.error("Pipeline run failed:", err);
-      const errMsg = err?.message || err?.digest || '알 수 없는 서버 오류가 발생했습니다. Vercel Function 로그를 확인하세요.';
-      setPipelineLogs(prev => [...prev, `[Error] Pipeline failed: ${errMsg}`]);
-      if (runId) {
-        try {
-          await updatePipelineRun(runId, "failed", null, errMsg);
-        } catch { /* ignore update failure */ }
-      }
+      const errMsg = err?.message || '알 수 없는 오류가 발생했습니다.';
+      setPipelineLogs(prev => [...prev, `[❌ Error] ${errMsg}`]);
     } finally {
       setRunningPipeline(false);
     }
