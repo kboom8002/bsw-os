@@ -158,9 +158,12 @@ export default function OrchestrationPage() {
       setReadiness(updatedReadiness);
     } catch (err: any) {
       console.error("Pipeline run failed:", err);
-      setPipelineLogs(prev => [...prev, `[Error] Pipeline failed: ${err.message}`]);
+      const errMsg = err?.message || err?.digest || '알 수 없는 서버 오류가 발생했습니다. Vercel Function 로그를 확인하세요.';
+      setPipelineLogs(prev => [...prev, `[Error] Pipeline failed: ${errMsg}`]);
       if (runId) {
-        await updatePipelineRun(runId, "failed", null, err.message);
+        try {
+          await updatePipelineRun(runId, "failed", null, errMsg);
+        } catch { /* ignore update failure */ }
       }
     } finally {
       setRunningPipeline(false);

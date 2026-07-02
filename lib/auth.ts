@@ -3,6 +3,9 @@ import { WorkspaceRole } from './schema';
 import { createClient } from './supabase/server';
 import { env } from './env';
 
+// Super Admin 이메일 — 모든 워크스페이스에 무조건 접근 가능
+const SUPER_ADMIN_EMAILS = ['kboom8002@gmail.com'];
+
 /**
  * Ensures the user is authenticated and returns their UUID.
  * Throws an error if they are not logged in.
@@ -14,6 +17,23 @@ export async function requireAuth(): Promise<string> {
     throw new Error('Unauthorized');
   }
   return user.id;
+}
+
+/**
+ * 현재 로그인한 유저가 Super Admin인지 확인합니다.
+ * userId로 Supabase Auth에서 이메일을 조회합니다.
+ */
+async function isSuperAdmin(userId: string): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && SUPER_ADMIN_EMAILS.includes(user.email || '')) {
+      return true;
+    }
+  } catch {
+    // 세션 없을 수 있음 — 무시
+  }
+  return false;
 }
 
 /**
@@ -45,12 +65,18 @@ export async function getWorkspaceRole(workspaceId: string, userId: string): Pro
 /**
  * Server-side authorization check to enforce RBAC permissions.
  * Verifies if a user belongs to a list of allowed roles inside a workspace.
+ * Super Admin은 모든 워크스페이스에 대해 자동 통과합니다.
  */
 export async function checkWorkspacePermission(
   workspaceId: string,
   userId: string,
   allowedRoles: WorkspaceRole[]
 ): Promise<boolean> {
+  // Super Admin 바이패스
+  if (await isSuperAdmin(userId)) {
+    return true;
+  }
+
   const role = await getWorkspaceRole(workspaceId, userId);
   if (!role) {
     return false;
