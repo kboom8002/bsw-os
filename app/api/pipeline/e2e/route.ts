@@ -16,11 +16,15 @@ const RequestSchema = z.object({
   workspaceId: z.string().min(1, 'workspaceId is required'),
   domainName: z.string().min(1, 'domainName is required'),
   brandName: z.string().optional(),
+  phaseGroup: z.enum(['bootstrap', 'collect', 'promote', 'finalize', 'full']).default('full'),
+  enabledPhases: z.array(z.string()).optional(),
+  selectedSignalIds: z.array(z.string()).optional(),
   options: z.object({
     mode: z.enum(['hub', 'standalone']).default('standalone'),
     autoPromoteTopN: z.number().int().min(1).max(20).default(5),
     brandUSP: z.string().max(1000).optional(),
     industryKey: z.string().optional(),
+    resumeFromPhase: z.string().optional(),
   }).optional(),
 });
 
@@ -47,9 +51,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { workspaceId, domainName, brandName, options } = parsed.data;
+    const { workspaceId, domainName, brandName, phaseGroup, enabledPhases, selectedSignalIds, options } = parsed.data;
 
-    const result = await runE2EPipeline(workspaceId, domainName, brandName, options);
+    const result = await runE2EPipeline(workspaceId, domainName, brandName, {
+      ...options,
+      phaseGroup,
+      enabledPhases,
+      selectedSignalIds,
+    });
 
     return NextResponse.json({ success: true, result });
   } catch (err: any) {

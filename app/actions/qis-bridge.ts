@@ -456,6 +456,19 @@ export async function runE2EPipeline(
     resumeFromPhase?: string;
     /** 기존 run을 재사용 (resume/retry 시) */
     existingRunId?: string;
+    /**
+     * Phase 그룹 실행 모드:
+     * - 'bootstrap': Phase 0만 실행
+     * - 'collect':   Phase 0.5 ~ 2.6 (시그널 수집만, enabledPhases로 개별 제어)
+     * - 'promote':   Phase 3 ~ 3.1 (선택된 시그널 CQ 승격, selectedSignalIds 필요)
+     * - 'finalize':  Phase 4 ~ 5 (Hub Push + Saturation)
+     * - 'full':      전체 실행 (기본값, 기존 동작)
+     */
+    phaseGroup?: 'bootstrap' | 'collect' | 'promote' | 'finalize' | 'full';
+    /** phaseGroup='collect'일 때 실행할 Phase 키 목록 */
+    enabledPhases?: string[];
+    /** phaseGroup='promote'일 때 승격할 시그널 ID 목록 */
+    selectedSignalIds?: string[];
   }
 ): Promise<E2EPipelineResult> {
   await requireAuthOrDemo();
@@ -473,6 +486,26 @@ export async function runE2EPipeline(
   const autoPromoteTopN = Math.max(1, Math.min(20, options?.autoPromoteTopN ?? 5));
   const industryKey = options?.industryKey || domainName || 'skincare';
   const resumeFromPhase = options?.resumeFromPhase;
+  const phaseGroup = options?.phaseGroup || 'full';
+  const enabledPhases = options?.enabledPhases; // undefined = 전체 허용
+  const selectedSignalIds = options?.selectedSignalIds; // undefined = MMR 자동 선택
+
+  // Phase 실행 여부 판단 헬퍼
+  const shouldRunPhase = (phase: string): boolean => {
+    if (phaseGroup === 'full') return true;
+    if (phaseGroup === 'bootstrap') return phase === 'phase0_bootstrap';
+    if (phaseGroup === 'collect') {
+      const collectPhases = ['phase0_5_external','phase0_6_hubFeedback','phase1_signals',
+        'phase1b_brandSignals','phase1_5_deepDive','phase2_opportunities',
+        'phase2_1_reportGaps','phase2_5_surfacePersist','phase2_6_deepDiveEnrich'];
+      if (!collectPhases.includes(phase)) return false;
+      // 개별 Phase 토글이 있으면 그것으로 판단
+      return enabledPhases ? enabledPhases.includes(phase) : true;
+    }
+    if (phaseGroup === 'promote') return ['phase3_promotions','phase3_1_brandAssignment'].includes(phase);
+    if (phaseGroup === 'finalize') return ['phase4_hubPush','phase5_saturation'].includes(phase);
+    return true;
+  };
 
   const phaseErrors: PipelinePhaseError[] = [];
   const addPhaseError = (phase: string, err: unknown) => {
@@ -607,7 +640,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 0: 실측 기반 TCO/KG 부트스트랩 (캐시 우선, 없으면 생성) ──
-  try {
+  if (shouldRunPhase('phase0_bootstrap')) try {
     await executePhase('phase0_bootstrap', async () => {
       // PipelineStateManager로 캐시 확인 (DB 카운트 쿼리 최소화)
       const bootstrapStatus = await PipelineStateManager.getBootstrapStatus(workspaceId);
@@ -670,7 +703,7 @@ export async function runE2EPipeline(
 
   // ── Phase 0.5: 외부 시그널 수집 & 브릿지 (E2E 내장) ──────────
   const phase0_5_result = { collected: 0, converted: 0, volumeEnriched: 0 };
-  try {
+  if (shouldRunPhase('phase0_5_external')) try {
     await executePhase('phase0_5_external', async () => {
       console.log('[E2E Pipeline] [Phase 0.5] 외부 시그널 수집 & 브릿지 시작...');
       const { triggerAllCollectionsAction } = await import('./collection');
@@ -696,7 +729,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 0.6: AI Hub 역방향 피드백 수집 (AI Hub → BSW) ──
-  try {
+  if (shouldRunPhase('phase0_6_hubFeedback')) try {
     await executePhase('phase0_6_hubFeedback', async () => {
       const { QisHubClient } = await import('../../lib/qis/hub-client');
       const { FeedbackProcessor } = await import('../../lib/hub-feedback/feedback-processor');
@@ -729,7 +762,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 1: S-OGDE v3.0 시그널 수집 (TCO 시드 및 KG 로딩 포함) ────
-  try {
+  if (shouldRunPhase('phase1_signals')) try {
     await executePhase('phase1_signals', async () => {
       const { data: tcoSeeds } = await supabase
         .from('tco_concepts').select('concept_name, definition')
@@ -755,7 +788,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 1-B: 브랜드 순회 특화 시그널 생성 ────────────────────
-  if (options?.enableBrandRotation !== false) {
+  if (shouldRunPhase('phase1b_brandSignals') && options?.enableBrandRotation !== false) {
     try {
       const domainCfg = BENCHMARK_DOMAINS[industryKey];
       if (domainCfg) {
@@ -836,7 +869,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 1.5: Deep Dive Target Discovery → Signal Feed ────
-  try {
+  if (shouldRunPhase('phase1_5_deepDive')) try {
     const { TargetQisEngine } = await import('../../lib/deep-dive/target-qis-engine');
     const domainCfg = BENCHMARK_DOMAINS[industryKey || ''];
     if (domainCfg) {
@@ -880,7 +913,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 2: 벤치마크 기회 → 시그널 피딩 ────────────────────
-  try {
+  if (shouldRunPhase('phase2_opportunities')) try {
     const { data: recentSnapshots } = await supabase
       .from('industry_benchmark_snapshots')
       .select('*')
@@ -911,7 +944,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 2.1: 업종 리포트 약점 카테고리 → 시그널 피딩 ──────────
-  if (options?.enableReportGapFeed !== false) {
+  if (shouldRunPhase('phase2_1_reportGaps') && options?.enableReportGapFeed !== false) {
     try {
       const { data: latestReport } = await supabase
         .from('industry_report_snapshots')
@@ -973,7 +1006,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 2.5: Surface AnswerCardReverser CQ/QIS → DB 영속화 (P2-3) ──
-  try {
+  if (shouldRunPhase('phase2_5_surfacePersist')) try {
     const { data: recentSessions } = await supabase
       .from('audit_sessions')
       .select('result_data')
@@ -1030,7 +1063,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 2.6: 딥다이브 완료 브랜드 → 심층 질문 자산 강화 (최근 30일) ──
-  try {
+  if (shouldRunPhase('phase2_6_deepDiveEnrich')) try {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -1114,66 +1147,83 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 3: CPS 및 MMR 다양성 기반 승격 대상 탐색 ────────────────
-  try {
-    // cps_score가 높은 순으로 mined 상태 시그널 조회
-    const { data: candidates } = await supabase
-      .from('question_signals')
-      .select('id, query, cps_score, volume')
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'mined')
-      .order('cps_score', { ascending: false })
-      .limit(50);
+  if (shouldRunPhase('phase3_promotions')) try {
+    // ★ 사용자가 선택한 시그널 ID가 있으면 해당 목록으로 직접 승격
+    if (selectedSignalIds && selectedSignalIds.length > 0) {
+      const { data: userSelected } = await supabase
+        .from('question_signals')
+        .select('id, query, cps_score, volume')
+        .eq('workspace_id', workspaceId)
+        .in('id', selectedSignalIds);
 
-    if (candidates && candidates.length > 0) {
-      // MMR (Maximal Marginal Relevance) 다양성 승격 후보군 획득 (PRED-3)
-      const selected: any[] = [];
-      const remaining = [...candidates];
-
-      // 첫 번째는 점수 최고값 선택
-      selected.push(remaining.shift()!);
-
-      const lambda = 0.7; // 관련도(0.7) vs 다양성(0.3)
-      while (selected.length < autoPromoteTopN && remaining.length > 0) {
-        let bestMMR = -Infinity;
-        let bestIdx = 0;
-
-        for (let i = 0; i < remaining.length; i++) {
-          const relevance = remaining[i].cps_score || (remaining[i].volume / 1000);
-          
-          // 간단 Jaccard 자모 오버랩 유사도로 다양성 확보
-          const maxSim = Math.max(...selected.map(s => {
-            const q1 = remaining[i].query;
-            const q2 = s.query;
-            const set1 = new Set(q1.split(''));
-            const set2 = new Set(q2.split(''));
-            const intersect = new Set([...set1].filter(x => set2.has(x)));
-            return intersect.size / Math.max(1, set1.size + set2.size - intersect.size);
-          }));
-
-          const mmr = lambda * relevance - (1 - lambda) * maxSim;
-          if (mmr > bestMMR) {
-            bestMMR = mmr;
-            bestIdx = i;
-          }
-        }
-
-        selected.push(remaining.splice(bestIdx, 1)[0]);
-      }
-
-      // ── Phase 5: 연쇄적 Claim/Lineage 자동 연계 (승격 수행) ────────
-      for (const sig of selected) {
+      for (const sig of (userSelected || [])) {
         try {
           const promoteResult = await autoPromoteSignalToCQ(
-            workspaceId,
-            sig.id,
-            { autoCreateQisScene: true, industryKey }
+            workspaceId, sig.id, { autoCreateQisScene: true, industryKey }
           );
           result.phase3_promotions.promotedCount++;
-          if (promoteResult.canonicalQuestionId) {
-            result.phase3_promotions.cqCreated++;
-          }
+          if (promoteResult.canonicalQuestionId) result.phase3_promotions.cqCreated++;
         } catch (err: any) {
           console.warn(`[E2E] Signal ${sig.id} promotion failed:`, err.message);
+        }
+      }
+    } else {
+      // MMR 자동 선택 (기본 모드)
+      const { data: candidates } = await supabase
+        .from('question_signals')
+        .select('id, query, cps_score, volume')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'mined')
+        .order('cps_score', { ascending: false })
+        .limit(50);
+
+      if (candidates && candidates.length > 0) {
+        // MMR (Maximal Marginal Relevance) 다양성 승격 후보군 획득 (PRED-3)
+        const selected: any[] = [];
+        const remaining = [...candidates];
+
+        // 첫 번째는 점수 최고값 선택
+        selected.push(remaining.shift()!);
+
+        const lambda = 0.7; // 관련도(0.7) vs 다양성(0.3)
+        while (selected.length < autoPromoteTopN && remaining.length > 0) {
+          let bestMMR = -Infinity;
+          let bestIdx = 0;
+
+          for (let i = 0; i < remaining.length; i++) {
+            const relevance = remaining[i].cps_score || (remaining[i].volume / 1000);
+            
+            // 간단 Jaccard 자모 오버랩 유사도로 다양성 확보
+            const maxSim = Math.max(...selected.map(s => {
+              const q1 = remaining[i].query;
+              const q2 = s.query;
+              const set1 = new Set(q1.split(''));
+              const set2 = new Set(q2.split(''));
+              const intersect = new Set([...set1].filter(x => set2.has(x)));
+              return intersect.size / Math.max(1, set1.size + set2.size - intersect.size);
+            }));
+
+            const mmr = lambda * relevance - (1 - lambda) * maxSim;
+            if (mmr > bestMMR) {
+              bestMMR = mmr;
+              bestIdx = i;
+            }
+          }
+
+          selected.push(remaining.splice(bestIdx, 1)[0]);
+        }
+
+        // 연쇄적 Claim/Lineage 자동 연계 (승격 수행)
+        for (const sig of selected) {
+          try {
+            const promoteResult = await autoPromoteSignalToCQ(
+              workspaceId, sig.id, { autoCreateQisScene: true, industryKey }
+            );
+            result.phase3_promotions.promotedCount++;
+            if (promoteResult.canonicalQuestionId) result.phase3_promotions.cqCreated++;
+          } catch (err: any) {
+            console.warn(`[E2E] Signal ${sig.id} promotion failed:`, err.message);
+          }
         }
       }
     }
@@ -1182,7 +1232,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 3.1: CQ → 브랜드 배정 & 공급 패키지 ──────────────────
-  try {
+  if (shouldRunPhase('phase3_1_brandAssignment')) try {
     const domainCfg = BENCHMARK_DOMAINS[industryKey];
     if (domainCfg) {
       const { BrandAssigner } = await import('../../lib/pipeline/brand-assigner');
@@ -1198,7 +1248,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 4: AI Hub Push (CQ + QIS Scene → AiHompyHub) ──────
-  try {
+  if (shouldRunPhase('phase4_hubPush')) try {
     const { QisHubClient } = await import('../../lib/qis/hub-client');
     const hubClient = new QisHubClient();
 
@@ -1246,7 +1296,7 @@ export async function runE2EPipeline(
   }
 
   // ── Phase 5: CQ 포화도 체크 ──────────────────────────────────
-  if (options?.enableSaturationCheck !== false) {
+  if (shouldRunPhase('phase5_saturation') && options?.enableSaturationCheck !== false) {
     try {
       const { SaturationMonitor } = await import('../../lib/pipeline/saturation-monitor');
       const satResult = await SaturationMonitor.checkSaturation(workspaceId, industryKey);
