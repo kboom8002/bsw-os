@@ -14,7 +14,7 @@ import {
 } from "../../lib/schema";
 
 
-export interface SyncResult {
+interface SyncResult {
   status: 'success' | 'error';
   syncedRecords: {
     brandTruth?: string;

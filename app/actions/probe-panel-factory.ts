@@ -173,7 +173,7 @@ export async function createIndustryStandardPanel(
   return { panelId, questionCount };
 }
 
-export interface PanelDiff {
+interface PanelDiff {
   added: string[];
   removed: string[];
   weightChanged: { questionText: string; from: number; to: number }[];

@@ -9,7 +9,7 @@ import {
   reportGateResultSchema,
   unsafeWordingFindingSchema
 } from "../../lib/schema";
-import { STANDARD_PROXY_CAVEAT } from "./observatory";
+import { STANDARD_PROXY_CAVEAT } from "./observatory-constants";
 
 
 // ======================== COMPLIANCE SCANNERS & GATES ========================

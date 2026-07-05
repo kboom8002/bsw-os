@@ -21,11 +21,8 @@ import {
 } from "../../lib/schema";
 
 
-// Default proxy caveat text that MUST be included in every report
-export const STANDARD_PROXY_CAVEAT = 
-  "All AI/search observation metrics are panel-based proxies under this specific methodology and measurement period. " +
-  "These observed AI/search-like responses and observed answer shares do not constitute true market share, definitive AI ranking, " +
-  "actual AI preference, or guaranteed visibility, and they do not prove consumer preference.";
+// STANDARD_PROXY_CAVEAT: 'use server' 파일에서 const export 불가 → 별도 모듈로 분리
+import { STANDARD_PROXY_CAVEAT } from "./observatory-constants";
 
 // ======================== HELPER SAFETY VALIDATORS ========================
 

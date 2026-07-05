@@ -25,30 +25,7 @@ import { getSupabaseAdminClient } from "../../lib/supabase";
 import { RelativePositioner, RelativePosition } from "../../lib/industry/relative-positioner";
 import { StrategyGenerator, ImprovementStrategy } from "../../lib/industry/strategy-generator";
 import { getBenchmarkProfile, getIndustryBlueprint } from "./industry-benchmark";
-
-export interface AuditResult {
-  websiteUrl: string;
-  brandName: string;
-  entities: SurfaceEntity[];
-  cards: ReversedAnswerCard[];
-  snapshot: EntityReflectionSnapshot | null;
-  observedPersona: ObservedParametricPersona | null;
-  parametricSnapshot: ParametricPersonaSnapshot | null;
-  personaSpec: PersonaSpec | null;
-  gaps: SurfaceGapAnalysis[];
-  trends: TemporalTrend[];
-  auditMode: 'estimated' | 'measured' | 'partial';
-  sessionId?: string;
-  industry?: string;
-  techInfra?: TechInfraAuditResult;
-  schemaQuality?: SchemaQualityAuditResult;
-  contentSemantic?: ContentSemanticResult;
-  // 업종 벤치마크 포지셔닝 & 전략 (tier1 이상에서 활성화)
-  relativePosition?: RelativePosition | null;
-  improvementStrategy?: ImprovementStrategy | null;
-  canonicalQuestions?: any[];
-  qisScenes?: any[];
-}
+import { AuditResult } from "./site-audit-types";
 
 /**
  * 크롤링된 엔티티와 URL 기반 업종 자동 감지

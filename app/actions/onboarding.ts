@@ -6,7 +6,7 @@ import { getAIProvider } from "../../lib/ai/ai-provider";
 import { runUpstreamPipeline } from "./semantic";
 import { requireAuthOrDemo } from "../../lib/auth";
 
-export interface BrandProfileInput {
+interface BrandProfileInput {
   name: string;
   slug: string;
   industry_slug: string;

@@ -1,7 +1,7 @@
 // lib/industry/relative-positioner.ts
 // 브랜드 감사 결과 vs 업종 벤치마크 프로필 → 상대 포지셔닝 계산
 
-import { AuditResult } from '../../app/actions/site-audit';
+import { AuditResult } from '../../app/actions/site-audit-types';
 import { IndustryBenchmarkProfile, IndustryBlueprint } from './benchmark-aggregator';
 import { BENCHMARK_METRIC_KEYS, METRIC_META, BenchmarkMetricKey } from './batch-audit-runner';
 import { MacroCategoryKey } from './industry-taxonomy';

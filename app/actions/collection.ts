@@ -7,7 +7,7 @@ import { requireAuthOrDemo, checkWorkspacePermissionOrDemo } from "../../lib/aut
 const DEFAULT_KEYWORDS = ['브랜드 추천', '업체 비교', '후기'];
 
 // 업종별 기본 키워드 레지스트리
-export const INDUSTRY_KEYWORDS: Record<string, string[]> = {
+const INDUSTRY_KEYWORDS: Record<string, string[]> = {
   skincare: ['스킨케어 부작용', '민감성 피부 화장품', '피부과 시술 후 홈케어', '피부 장벽 회복', '세럼 추천', '레티놀'],
   jeju_smb: ['제주 맛집', '제주 카페', '제주 흑돼지', '제주 횟집', '제주 여행', '애월 카페', '제주 소상공인'],
   wedding_studio: ['웨딩 촬영', '웨딩스튜디오', '드레스 추천', '웨딩 컨설팅', '스드메'],

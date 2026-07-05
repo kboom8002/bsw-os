@@ -10,8 +10,8 @@ import {
   computeDomainIndexSnapshot,
   createSemanticWebsiteLiftSnapshot,
   createMethodologyDisclosure,
-  STANDARD_PROXY_CAVEAT
 } from '../../app/actions/observatory';
+import { STANDARD_PROXY_CAVEAT } from '../../app/actions/observatory-constants';
 import { getSupabaseAdminClient } from '../../lib/supabase';
 import { checkWorkspacePermission } from '../../lib/auth';
 
