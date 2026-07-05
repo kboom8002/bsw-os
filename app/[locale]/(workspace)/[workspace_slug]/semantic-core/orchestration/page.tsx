@@ -662,8 +662,8 @@ export default function OrchestrationPage() {
                   </div>
                 )}
 
-                {/* 수집 후 시그널이 없을 때 */}
-                {stepDone('collect') && signals.length === 0 && (
+                {/* 시그널 로드 버튼 (아직 로드되지 않았을 때) */}
+                {signals.length === 0 && (
                   <button onClick={loadSignals} disabled={signalsLoading}
                     className="w-full py-2 text-xs rounded-xl border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10 transition-all flex items-center justify-center gap-1.5">
                     {signalsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
@@ -850,9 +850,9 @@ export default function OrchestrationPage() {
             {[
               { label: 'TCO 개념 개수', value: readiness.tcoCount, link: null },
               { label: 'KG 노드 개수', value: readiness.kgCount, link: null },
-              { label: '수집된 시그널', value: readiness.signalCount, link: `/${locale}/${workspaceSlug}/semantic-core/signals` },
-              { label: '승격된 질문 (CQ)', value: readiness.cqCount, link: `/${locale}/${workspaceSlug}/semantic-core/question-capital` },
-              { label: '생성된 QIS Scene', value: readiness.sceneCount, link: `/${locale}/${workspaceSlug}/semantic-core/attractors` },
+              { label: '수집된 시그널', value: readiness.signalCount, link: `/${locale}/${workspaceSlug}/semantic-core/signals?domain=${selectedDomain}` },
+              { label: '승격된 질문 (CQ)', value: readiness.cqCount, link: `/${locale}/${workspaceSlug}/semantic-core/question-capital?domain=${selectedDomain}` },
+              { label: '생성된 QIS Scene', value: readiness.sceneCount, link: `/${locale}/${workspaceSlug}/semantic-core/attractors?domain=${selectedDomain}` },
             ].map(item => (
               <div key={item.label} className="flex justify-between items-center text-xs py-1 border-b border-white/5 last:border-0">
                 <span className="text-slate-400">{item.label}</span>
