@@ -669,10 +669,11 @@ export async function runE2EPipeline(
         if (tcoRes.created === 0) {
           console.log('[E2E Pipeline] TCO fallback triggered. Inserting 2 seed concepts.');
           const seedConcepts = [
-            { workspace_id: workspaceId, concept_name: '핵심 서비스', definition: `${domainName}의 기본 제공 서비스 및 상품성`, is_strategic: true, origin_layer: 'tco', status: 'active' },
-            { workspace_id: workspaceId, concept_name: '고객 경험', definition: `사용자가 체감하는 ${domainName}의 전반적인 서비스 품질과 혜택`, is_strategic: true, origin_layer: 'tco', status: 'active' }
+            { workspace_id: workspaceId, concept_name: '핵심 서비스', slug: 'core-service', definition: `${domainName}의 기본 제공 서비스 및 상품성`, is_strategic: true },
+            { workspace_id: workspaceId, concept_name: '고객 경험', slug: 'customer-experience', definition: `사용자가 체감하는 ${domainName}의 전반적인 서비스 품질과 혜택`, is_strategic: true }
           ];
-          const { data: insertedTco } = await supabase.from('tco_concepts').insert(seedConcepts).select();
+          const { data: insertedTco, error: seedErr } = await supabase.from('tco_concepts').upsert(seedConcepts, { onConflict: 'workspace_id,slug' }).select();
+          if (seedErr) console.warn('[E2E Pipeline] TCO fallback insert error:', seedErr.message);
           tcoRes.created = insertedTco?.length || 0;
         }
         result.phase0_bootstrap.tcoConcepts = tcoRes.created;

@@ -1380,8 +1380,6 @@ Return JSON: { "concepts": [{ "concept_name": "...", "definition": "...", "is_st
         slug,
         definition: c.definition,
         is_strategic: c.is_strategic,
-        concept_type: 'industry_auto',
-        operational_fields: { industry: industryName, brand: brandName || null, source: 'ai_auto_generate_grounded' }
       })
       .select('id, concept_name, definition')
       .single();
