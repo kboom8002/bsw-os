@@ -10,7 +10,7 @@ import {
 } from '../../../actions/pipeline-control';
 import { type ResetScope } from '@/lib/pipeline/pipeline-state-manager';
 
-export const maxDuration = 300; // 5분 — Vercel Pro 플랜 기준
+export const maxDuration = 800; // Vercel Pro 플랜 최대 (E2E 파이프라인은 질문 수에 따라 5~10분 소요)
 
 const RequestSchema = z.object({
   workspaceId: z.string().min(1, 'workspaceId is required'),
