@@ -677,6 +677,9 @@ export async function runE2EPipeline(
           tcoRes.created = insertedTco?.length || 0;
         }
         result.phase0_bootstrap.tcoConcepts = tcoRes.created;
+      } else {
+        // TCO 이미 존재 → 기존 카운트 반영
+        result.phase0_bootstrap.tcoConcepts = bootstrapStatus.tcoCount;
       }
 
       // 온톨로지 KG 구축
@@ -684,6 +687,9 @@ export async function runE2EPipeline(
         const kgRes = await generateIndustryOntology(workspaceId, domainName, brandName, industryKey);
         result.phase0_bootstrap.kgNodes = kgRes.nodesCreated;
         result.phase0_bootstrap.kgEdges = kgRes.edgesCreated;
+      } else {
+        // KG 이미 존재 → 기존 카운트 반영
+        result.phase0_bootstrap.kgNodes = bootstrapStatus.kgCount;
       }
 
       return {
