@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { 
@@ -23,14 +23,37 @@ export default function WorkspaceDashboard() {
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const { locale, t } = useTranslation();
 
-  // Mock data mapping for visual presentation
-  const workspacesInfo: Record<string, { name: string; domainsCount: number; brand: string }> = {
-    "demo-brand-semantic-lab": { name: "Demo Brand Semantic Lab", domainsCount: 3, brand: "Demo Lab Inc" },
-    "acme-skincare-lab": { name: "Acme Skincare Lab", domainsCount: 1, brand: "Acme Cosmetics" },
-    "cornerstore-retail": { name: "Cornerstore Retail Corp", slug: "cornerstore-retail", domainsCount: 1, brand: "Cornerstore LLC" },
-  } as any;
+  const [workspace, setWorkspace] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const currentWorkspace = workspacesInfo[workspaceSlug] || workspacesInfo["demo-brand-semantic-lab"];
+  useEffect(() => {
+    async function loadWorkspace() {
+      try {
+        const { getSupabaseClient } = await import("@/lib/supabase");
+        const supabase = getSupabaseClient();
+        const { data: ws } = await supabase
+          .from('workspaces')
+          .select('*')
+          .eq('slug', workspaceSlug)
+          .single();
+
+        if (ws) {
+          setWorkspace(ws);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadWorkspace();
+  }, [workspaceSlug]);
+
+  const currentWorkspace = workspace || {
+    name: "Demo Brand Semantic Lab",
+    brand_description: "AEO 및 AI 검색 최적화를 위한 브랜드 의미 관리 플랫폼",
+    subscription_tier: "starter"
+  };
 
   return (
     <div className="flex-1 p-6 md:p-8 space-y-8 font-sans max-w-6xl w-full mx-auto">

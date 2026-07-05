@@ -1,10 +1,53 @@
 import { EmergenceSignal } from "../../schema";
 import { SignalCollector } from "../types";
+import { CollectionStorage } from "../../signal-collection/collection-storage";
 
 export class CommunityCollector implements SignalCollector {
   async collect(workspaceId?: string, industry?: string): Promise<EmergenceSignal[]> {
     const targetIndustry = industry ?? "beauty";
+    const wsId = workspaceId || "demo-brand-semantic-lab";
 
+    // 1. 실제 외부 수집 시그널 조회
+    const externalSignals = await CollectionStorage.getExternalSignals(wsId);
+    
+    // 커뮤니티 및 RSS 신호만 필터링
+    const filtered = externalSignals.filter(s => 
+      s.source_type === 'community' || s.source_type === 'rss'
+    );
+
+    if (filtered.length > 0) {
+      return filtered.map((item) => {
+        // 감정 분석 및 영향도 추정 간단 평가
+        let sentiment = "neutral";
+        let impact: "low" | "medium" | "high" | "critical" = "medium" as any;
+        
+        const text = item.content.toLowerCase();
+        if (text.includes("부작용") || text.includes("붉어") || text.includes("따갑") || text.includes("화끈")) {
+          sentiment = "negative_anxious";
+          impact = "high";
+        } else if (text.includes("추천") || text.includes("후기") || text.includes("좋")) {
+          sentiment = "positive";
+          impact = "medium";
+        }
+        
+        return {
+          workspace_id: wsId,
+          source_type: "community",
+          industry: targetIndustry,
+          raw_text: item.content,
+          source_url: item.url,
+          ai_analysis: {
+            source_channel: item.metadata?.site_name || item.metadata?.feed_name || "Community Board",
+            user_sentiment: sentiment,
+            urgency_rating: impact === "high" || impact === "critical" ? "high" : "medium",
+          },
+          predicted_impact: impact,
+          status: "new",
+        };
+      });
+    }
+
+    // 2. Fallback: 데이터가 없는 경우 기존 스태틱 목업 반환
     const communityData: Record<string, Array<{ text: string; channel: string; sentiment: string; impact: "low" | "medium" | "high" | "critical" }>> = {
       beauty: [
         {
@@ -42,7 +85,7 @@ export class CommunityCollector implements SignalCollector {
     ];
 
     return items.map((item) => ({
-      workspace_id: workspaceId || null,
+      workspace_id: wsId,
       source_type: "community",
       industry: targetIndustry,
       raw_text: item.text,
@@ -57,3 +100,4 @@ export class CommunityCollector implements SignalCollector {
     }));
   }
 }
+export default CommunityCollector;

@@ -70,13 +70,79 @@ export async function login(formData: FormData) {
 
         redirectPath = `/ko/${wsSlug}`;
       } else {
-        redirectPath = `/ko/demo-brand-semantic-lab`;
+        // Redirect to onboarding page for brand setup if no workspace exists
+        redirectPath = `/ko/onboarding`;
       }
     }
   }
 
   revalidatePath("/", "layout");
-  redirect(redirectPath || "/ko/demo-brand-semantic-lab");
+  redirect(redirectPath || "/ko/onboarding");
+}
+
+export async function signup(formData: FormData) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  const fullName = formData.get("full_name") as string;
+  const inviteToken = formData.get("invite_token") as string || "";
+
+  const supabase = await createClient();
+  const { data: authData, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+      }
+    }
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  let redirectPath = "/ko/onboarding";
+
+  // Handle invitation token if present
+  if (inviteToken && authData.user) {
+    const adminSupabase = getSupabaseAdminClient();
+    const { data: invite, error: inviteErr } = await adminSupabase
+      .from('workspace_invitations')
+      .select('*')
+      .eq('token', inviteToken)
+      .eq('status', 'pending')
+      .single();
+
+    if (invite && !inviteErr) {
+      // Create membership
+      await adminSupabase
+        .from('workspace_memberships')
+        .insert({
+          workspace_id: invite.workspace_id,
+          user_id: authData.user.id,
+          role: invite.role
+        });
+
+      // Mark invitation as accepted
+      await adminSupabase
+        .from('workspace_invitations')
+        .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+        .eq('id', invite.id);
+
+      const { data: ws } = await adminSupabase
+        .from('workspaces')
+        .select('slug')
+        .eq('id', invite.workspace_id)
+        .single();
+
+      if (ws) {
+        redirectPath = `/ko/${ws.slug}`;
+      }
+    }
+  }
+
+  revalidatePath("/", "layout");
+  redirect(redirectPath);
 }
 
 export async function logout() {

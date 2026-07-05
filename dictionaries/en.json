@@ -32,6 +32,7 @@
     "site_audit_llms": "llms.txt Generator",
     "industry_benchmark": "Industry Benchmark",
     "benchmark": "Industry Benchmark",
+    "benchmark_admin": "Benchmark Admin",
     "sbs_index": "Public AI Index (SBS)",
     "industry_report": "Industry AEO/GEO Report",
     "deep_dive": "Deep Dive Analysis",

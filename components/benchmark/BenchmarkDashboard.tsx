@@ -3,15 +3,17 @@ import { calcOCR, calcBSF } from '../../lib/benchmark/lightweight-metric-runner'
 import { calcWeightedAAS } from '../../lib/benchmark/mention-classifier';
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import {
   TrendingUp, TrendingDown, Minus,
   Search, Activity, Award, ChevronRight,
   HelpCircle, Sparkles, Camera, Droplets,
-  BarChart3, Clock, RefreshCw, Music
+  BarChart3, Clock, RefreshCw, Music, Compass,
+  ChevronDown, Settings, History, LayoutGrid
 } from "lucide-react";
 // runLightBenchmark는 API Route(/api/benchmark/run)로 호출합니다 (maxDuration=60s)
 import type { DomainLeaderboardResult, BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark";
+import type { MeasurementRun } from "../../app/actions/benchmark-history";
 import { BENCHMARK_DOMAINS } from "../../lib/benchmark/domain-config";
 import { calculatePerLayerMetrics } from "../../lib/benchmark/per-layer-metrics";
 import { OpportunityAnalyzer, type BrandOpportunityReport } from "../../lib/benchmark/opportunity-analyzer";
@@ -19,9 +21,12 @@ import type { QuestionDetail } from "../../lib/benchmark/lightweight-metric-runn
 import OpportunityIntelligenceSection from "./OpportunityIntelligenceSection";
 import EvidenceExplorer from "./EvidenceExplorer";
 import BrandDetailDrawer from "./BrandDetailDrawer";
+import ThemeSelectorModal from "./ThemeSelectorModal";
+import MeasurementHistoryBrowser from "./MeasurementHistoryBrowser";
 
 interface BenchmarkDashboardProps {
   summaries: Record<string, DomainLeaderboardResult | null>;
+  measurementHistory?: MeasurementRun[];
 }
 
 // ─── Mini SVG Line Chart ────────────────────────────────────────
@@ -181,6 +186,14 @@ function LeaderboardTable({
                   <span className="text-[11px] font-bold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">
                     CWR {entry.cwr !== null ? `${entry.cwr}%` : '-'}
                   </span>
+                  <div className="flex gap-1 mt-0.5">
+                    <span className="text-[9px] font-bold text-cyan-400 bg-cyan-900/30 px-1 py-0.5 rounded">
+                      T3 {entry.top3 !== undefined && entry.top3 !== null ? `${entry.top3}%` : '-'}
+                    </span>
+                    <span className="text-[9px] font-bold text-teal-400 bg-teal-900/30 px-1 py-0.5 rounded">
+                      T5 {entry.top5 !== undefined && entry.top5 !== null ? `${entry.top5}%` : '-'}
+                    </span>
+                  </div>
                 </div>
               </td>
               <td className="py-4 text-center">
@@ -215,12 +228,16 @@ function DomainIcon({ slug }: { slug: string }) {
   if (slug === 'wedding_studio') return <Camera className="h-4 w-4" />;
   if (slug.startsWith('seoul_district')) return <Sparkles className="h-4 w-4" />;
   if (slug.startsWith('kpop_idol')) return <Music className="h-4 w-4" />;
+  if (slug.startsWith('jeju_place')) return <Compass className="h-4 w-4" />;
   return <BarChart3 className="h-4 w-4" />;
 }
 
 // ─── Main Dashboard ──────────────────────────────────────────────
-export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProps) {
+export default function BenchmarkDashboard({ summaries, measurementHistory = [] }: BenchmarkDashboardProps) {
   const router = useRouter();
+  const params = useParams() as { locale?: string; workspace_slug?: string };
+  const locale = params.locale ?? 'ko';
+  const workspaceSlug = params.workspace_slug ?? '';
   const domainSlugs = Object.keys(BENCHMARK_DOMAINS);
 
   // URL hash에서 활성 탭 복원 (예: #tab=wedding_studio)
@@ -253,6 +270,12 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
   const [questionDetails, setQuestionDetails] = useState<QuestionDetail[]>([]);
   const [rawQueryResults, setRawQueryResults] = useState<{questionIdx:number;text:string;citations:{url:string;domain:string;title:string}[]}[]>([]);
   const [runBrands, setRunBrands] = useState<{slug:string;name:string}[]>([]);
+
+  // Theme selector modal
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  // History panel
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [activeHistoryRun, setActiveHistoryRun] = useState<MeasurementRun | null>(null);
 
   React.useEffect(() => {
     setActiveTab(getInitialTab());
@@ -487,7 +510,7 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         }
 
         if (compositeResults.length === 0) {
-          return { brand_slug: brand.slug, brand_name: brand.name, aas: 0, ocr: 0, bsf: 0, bair: 0, bdr: 0, cwr: 0, iri: 0, opp: 0, mention_count: 0, citation_count: 0, sample_size: questions.length, measured_at: measuredAt };
+          return { brand_slug: brand.slug, brand_name: brand.name, aas: 0, ocr: 0, bsf: 0, bair: 0, bdr: 0, cwr: 0, iri: 0, opp: 0, top3: 0, top5: 0, mention_count: 0, citation_count: 0, sample_size: questions.length, measured_at: measuredAt };
         }
 
         const mentionCount = compositeResults.filter(r => r.aas).length;
@@ -500,7 +523,7 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
 
         const advanced = calculatePerLayerMetrics(brand, questionDetails, questions, 'gemini_grounding');
 
-        return { brand_slug: brand.slug, brand_name: brand.name, aas, ocr, bsf, bair, bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp, mention_count: mentionCount, citation_count: citationCount, sample_size: questions.length, measured_at: measuredAt };
+        return { brand_slug: brand.slug, brand_name: brand.name, aas, ocr, bsf, bair, bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp, top3: advanced.top3, top5: advanced.top5, mention_count: mentionCount, citation_count: citationCount, sample_size: questions.length, measured_at: measuredAt };
       });
 
       const targetBrand = brands[0];
@@ -615,33 +638,54 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
           )}
         </div>
       )}
+      {/* Theme selector modal */}
+      {showThemeModal && (
+        <ThemeSelectorModal
+          activeSlug={activeTab}
+          onSelect={(slug) => { handleTabChange(slug); }}
+          onClose={() => setShowThemeModal(false)}
+          isAdmin={true}
+          onAddTheme={() => router.push(`/${locale}/${workspaceSlug}/benchmark/admin`)}
+        />
+      )}
+
       {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+        <div className="max-w-full px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-tr from-violet-500 to-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
-              <BarChart3 className="h-5 w-5 text-white" />
+            <div className="p-1.5 bg-gradient-to-tr from-violet-500 to-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
+              <BarChart3 className="h-4 w-4 text-white" />
             </div>
             <div>
-              <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+              <span className="font-extrabold text-base tracking-tight bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
                 AI Brand Benchmark
               </span>
-              <span className="text-xs block text-slate-400 font-semibold">
-                BSW-OS 업종별 AI 가시성 지표 공개 보드
+              <span className="text-[10px] block text-slate-400 font-semibold">
+                업종별 AI 가시성 지표 보드
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-
+          <div className="flex items-center gap-2">
             {!isRunning && hasSavedSession && (
               <button
                 onClick={handleResume}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30"
               >
                 <RefreshCw className="h-3 w-3" />
-                이어서 측정하기
+                이어서 측정
               </button>
             )}
+            <button
+              onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                showHistoryPanel
+                  ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400'
+                  : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <History className="h-3 w-3" />
+              이력 {activeHistoryRun ? `— ${new Date(activeHistoryRun.measured_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}` : ''}
+            </button>
             <button
               onClick={() => handleRunMeasurement(false)}
               disabled={isRunning && !isPaused}
@@ -652,16 +696,19 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
               }`}
             >
               <Sparkles className={`h-3 w-3 ${isRunning && !isPaused ? "animate-pulse" : ""}`} />
-              {isRunning && !isPaused ? "실측 진행 중..." : (hasSavedSession ? "새로 시작" : "즉시 실측 실행")}
+              {isRunning && !isPaused ? "실측 진행 중..." : (hasSavedSession ? "새로 시작" : "즉시 실측")}
             </button>
+            {workspaceSlug && (
+              <a
+                href={`/${locale}/${workspaceSlug}/benchmark/admin`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+              >
+                <Settings className="h-3 w-3" />
+                어드민
+              </a>
+            )}
             <a
-              href={`/ko/drjart/deep-dive?domain=${activeTab}`}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-indigo-500 text-indigo-300 hover:bg-indigo-500/20 transition-all"
-            >
-              Client Deep Dive 시작 →
-            </a>
-            <a
-              href="/ko/sbs-index"
+              href={`/${locale}/sbs-index`}
               className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-700 text-slate-300 hover:border-indigo-500 hover:text-indigo-300 transition-all"
             >
               SBS Index →
@@ -670,43 +717,62 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      {/* History + main content layout */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Main panel */}
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 min-w-0">
         {/* Hero */}
-        <div className="relative mb-10 text-center md:text-left">
+        <div className="relative mb-6">
           <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 to-indigo-500/10 blur-3xl rounded-3xl -z-10" />
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-4">
-            <Sparkles className="h-3.5 w-3.5" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-3">
+            <Sparkles className="h-3 w-3" />
             ChatGPT Search + Gemini Grounding 실측
           </div>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-3">
-            업종별 브랜드 AI 가시성<br className="md:hidden" /> 정기 지표 보드
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-2">
+            업종별 브랜드 AI 가시성 정기 지표 보드
           </h1>
-          <p className="text-slate-400 text-sm max-w-2xl leading-relaxed">
+          <p className="text-slate-400 text-xs max-w-2xl leading-relaxed">
             AI 검색 엔진이 답변할 때 각 브랜드가 얼마나 자주 언급되는지(AAS),
-            공식 도메인이 인용되는지(OCR)를 텍스트 매칭 기반으로 정기 측정하여 공개합니다.
+            공식 도메인이 인용되는지(OCR)를 텍스트 매칭 기반으로 정기 측정합니다.
           </p>
         </div>
 
-        {/* Domain Tab Selector */}
-        <div className="flex gap-2 mb-8 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-fit">
-          {domainSlugs.map(slug => {
-            const cfg = BENCHMARK_DOMAINS[slug];
-            return (
-              <button
-                key={slug}
-                id={`tab-${slug}`}
-                onClick={() => handleTabChange(slug)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-lg transition-all ${
-                  activeTab === slug
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <DomainIcon slug={slug} />
-                {cfg.name}
+        {/* Theme selector bar */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            id="theme-selector-btn"
+            onClick={() => setShowThemeModal(true)}
+            className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-900/60 border border-slate-800 rounded-xl hover:border-slate-700 hover:bg-slate-800/60 transition-all group"
+          >
+            <div className="p-1 rounded-lg bg-indigo-500/10">
+              <DomainIcon slug={activeTab} />
+            </div>
+            <div className="text-left">
+              <div className="text-xs text-slate-500 font-semibold">현재 테마</div>
+              <div className="text-sm font-black text-slate-100">{activeDomainConfig?.name}</div>
+            </div>
+            <ChevronDown className="h-4 w-4 text-slate-400 group-hover:text-slate-200 transition-colors ml-1" />
+          </button>
+
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span>
+              {domainSlugs.length}개 테마 ·{' '}
+              {activeDomainConfig?.brands?.length ?? 0}개 브랜드
+            </span>
+          </div>
+
+          {activeHistoryRun && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold">
+              <History className="h-3.5 w-3.5" />
+              과거 데이터 보기: {new Date(activeHistoryRun.measured_at).toLocaleDateString('ko-KR', {
+                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+              })}
+              <button onClick={() => setActiveHistoryRun(null)} className="ml-1 text-amber-500 hover:text-amber-300">
+                ✕
               </button>
-            );
-          })}
+            </div>
+          )}
         </div>
 
         {/* Summary Cards */}
@@ -866,36 +932,40 @@ export default function BenchmarkDashboard({ summaries }: BenchmarkDashboardProp
           />
         )}
 
+
         {/* Methodology Disclosure */}
-        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/20 backdrop-blur-md flex items-start gap-3">
+        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/20 backdrop-blur-md flex items-start gap-3 mb-6">
           <HelpCircle className="h-5 w-5 text-violet-400 shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-xs font-bold text-slate-200">
-              지표 산출 방법론 공시 (Methodology Disclosure)
-            </h4>
+            <h4 className="text-xs font-bold text-slate-200">지표 산출 방법론 공시 (Methodology Disclosure)</h4>
             <div className="text-[10px] text-slate-400 leading-relaxed mt-1 space-y-1">
-              <p>
-                <strong className="text-slate-300">AAS (Brand Answer Share)</strong>: AI 검색 엔진(ChatGPT Search, Gemini Grounding)의 응답 텍스트에서 각 브랜드 키워드가 등장하는 비율을 텍스트 매칭으로 산출합니다. AI Judge LLM은 사용하지 않습니다.
-              </p>
-              <p>
-                <strong className="text-slate-300">OCR (Observed Citation Rate)</strong>: AI 답변의 Citations에 브랜드 공식 도메인이 포함되는 비율입니다. 인용 여부를 도메인 문자열 매칭으로 판별합니다.
-              </p>
-              <p>
-                <strong className="text-slate-300">BAIR (Brand AI Recommendation Index)</strong>: AAS × (BSF/100) 으로 파생 산출합니다. BSF는 must_include 용어 매칭 비율입니다.
-              </p>
-              <p className="text-slate-500">
-                본 데이터는 샘플링된 프로브 질문 세트에 기반한 정기 관측 지표이며, 실제 AI 모델 내부 상태와 다를 수 있습니다. AEO(AI 엔진 최적화) 전략 수립을 위한 참고 자료로 활용되어야 합니다.
-              </p>
+              <p><strong className="text-slate-300">AAS (Brand Answer Share)</strong>: AI 검색 엔진(ChatGPT Search, Gemini Grounding)의 응답 텍스트에서 각 브랜드 키워드가 등장하는 비율을 텍스트 매칭으로 산출합니다.</p>
+              <p><strong className="text-slate-300">OCR (Observed Citation Rate)</strong>: AI 답변의 Citations에 브랜드 공식 도메인이 포함되는 비율입니다.</p>
+              <p><strong className="text-slate-300">BAIR (Brand AI Recommendation Index)</strong>: AAS × (BSF/100) 으로 파생 산출합니다.</p>
+              <p className="text-slate-500">본 데이터는 샘플링된 프로브 질문 세트에 기반한 정기 관측 지표이며, AEO 전략 수립 참고 자료로 활용되어야 합니다.</p>
             </div>
           </div>
         </div>
       </main>
 
-      <footer className="border-t border-slate-800 bg-slate-900/30 py-8 text-center text-xs text-slate-500 mt-12">
-        <p>© 2026 BSW-OS Brand Semantic Website OS. All Rights Reserved.</p>
-        <p className="mt-1">
-          Powered by ChatGPT Search API + Google Gemini Grounding API
-        </p>
+
+        {/* History side panel */}
+        {showHistoryPanel && (
+          <MeasurementHistoryBrowser
+            runs={measurementHistory}
+            activeRunId={activeHistoryRun?.id ?? null}
+            onSelectRun={(run) => {
+              setActiveHistoryRun(run);
+              if (!run) setShowHistoryPanel(false);
+            }}
+            onClose={() => setShowHistoryPanel(false)}
+            currentDomainSlug={activeTab}
+          />
+        )}
+      </div>
+
+      <footer className="border-t border-slate-800 bg-slate-900/30 py-4 text-center text-xs text-slate-500 flex-shrink-0">
+        <p>© 2026 BSW-OS Brand Semantic Website OS. All Rights Reserved. · Powered by ChatGPT Search + Gemini Grounding</p>
       </footer>
 
       {/* Brand Detail Drawer */}

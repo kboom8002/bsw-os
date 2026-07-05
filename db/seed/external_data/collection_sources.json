@@ -1,0 +1,65 @@
+[
+  {
+    "id": "cs-beauty-1",
+    "name": "화해 앱 리뷰 (Hwahae Skincare)",
+    "url": "https://www.hwahae.co.kr",
+    "source_type": "crawl",
+    "identifier": "HWAHAE",
+    "enabled": true,
+    "industry": "beauty"
+  },
+  {
+    "id": "cs-beauty-2",
+    "name": "파우더룸 커뮤니티 (Powderroom)",
+    "url": "https://www.powderroom.co.kr",
+    "source_type": "crawl",
+    "identifier": "POWDERROOM",
+    "enabled": true,
+    "industry": "beauty"
+  },
+  {
+    "id": "cs-beauty-3",
+    "name": "네이버 지식iN 피부과/스킨케어 Q&A",
+    "url": "https://kin.naver.com",
+    "source_type": "crawl",
+    "identifier": "NAVER_KIN",
+    "enabled": true,
+    "industry": "beauty"
+  },
+  {
+    "id": "cs-beauty-4",
+    "name": "네이버 뉴스 API (스킨케어/화장품)",
+    "url": "https://openapi.naver.com/v1/search/news.json",
+    "source_type": "api",
+    "identifier": "NAVER_NEWS",
+    "enabled": true,
+    "industry": "beauty"
+  },
+  {
+    "id": "cs-beauty-5",
+    "name": "네이버 DataLab API (스킨케어 트렌드)",
+    "url": "https://openapi.naver.com/v1/datalab/search",
+    "source_type": "api",
+    "identifier": "NAVER_DATALAB",
+    "enabled": true,
+    "industry": "beauty"
+  },
+  {
+    "id": "cs-beauty-6",
+    "name": "Cosmetics Design-Asia RSS",
+    "url": "https://www.cosmeticsdesign-asia.com/service/rss/feed/active",
+    "source_type": "rss",
+    "identifier": "COSMETICS_DESIGN",
+    "enabled": true,
+    "industry": "beauty"
+  },
+  {
+    "id": "cs-beauty-7",
+    "name": "대한피부과학회 학술소식 RSS",
+    "url": "http://www.derma.or.kr/rss/dermal.xml",
+    "source_type": "rss",
+    "identifier": "DERMATOLOGY_RSS",
+    "enabled": true,
+    "industry": "beauty"
+  }
+]

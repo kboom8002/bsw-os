@@ -33,6 +33,16 @@ export const workspaceSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().min(2).max(100),
   slug: z.string().min(2).max(50).regex(/^[a-z0-9-]+$/),
+  industry_slug: z.string().max(100).optional().nullable(),
+  brand_url: z.string().url().optional().nullable(),
+  brand_logo_url: z.string().url().optional().nullable(),
+  brand_description: z.string().max(500).optional().nullable(),
+  primary_keywords: z.array(z.string()).default([]),
+  competitor_slugs: z.array(z.string()).default([]),
+  subscription_tier: z.enum(['starter', 'pro', 'enterprise']).default('starter'),
+  onboarding_step: z.number().int().min(0).max(5).default(0),
+  onboarding_completed_at: z.string().optional().nullable(),
+  trial_expires_at: z.string().optional().nullable(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
@@ -50,6 +60,21 @@ export const workspaceMembershipSchema = z.object({
 });
 
 export type WorkspaceMembership = z.infer<typeof workspaceMembershipSchema>;
+
+export const workspaceInvitationSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  inviter_user_id: z.string().uuid(),
+  invitee_email: z.string().email(),
+  role: z.enum(WORKSPACE_ROLES).default('brand_strategist'),
+  token: z.string(),
+  status: z.enum(['pending', 'accepted', 'expired', 'revoked']).default('pending'),
+  created_at: z.string().optional(),
+  expires_at: z.string().optional(),
+  accepted_at: z.string().optional().nullable(),
+});
+
+export type WorkspaceInvitation = z.infer<typeof workspaceInvitationSchema>;
 
 // 3. Domain
 export const domainSchema = z.object({
@@ -283,11 +308,45 @@ export const questionSignalSchema = z.object({
   matched_tco_concepts: z.array(z.string()).optional(),
   matched_kg_nodes: z.array(z.string()).optional(),
   panel_layer: z.string().optional(),
+  
+  // QPA-OS 확장 컬럼들
+  domain_id: z.string().optional().nullable(),
+  source_type: z.string().default('manual_input'),
+  source_url: z.string().url().optional().nullable(),
+  normalized_question: z.string().optional().nullable(),
+  language: z.string().default('ko'),
+  locale: z.string().optional().nullable(),
+  persona: z.string().optional().nullable(),
+  journey_stage: z.string().optional().nullable(),
+  source_payload: z.any().default({}),
+  extracted_entities: z.any().default([]),
+  duplicate_cluster_id: z.string().uuid().optional().nullable(),
+  scored_at: z.string().optional().nullable(),
+  promoted_at: z.string().optional().nullable(),
+  
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
 
 export type QuestionSignal = z.infer<typeof questionSignalSchema>;
+
+// 18b. Question Cluster (QPA-OS 추가)
+export const questionClusterSchema = z.object({
+  id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid(),
+  domain_id: z.string().optional().nullable(),
+  cluster_label: z.string().optional().nullable(),
+  representative_question: z.string().optional().nullable(),
+  signal_count: z.number().default(0),
+  embedding: z.array(z.number()).optional(),
+  dominant_intents: z.any().default([]),
+  dominant_entities: z.any().default([]),
+  status: z.string().default('draft'),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export type QuestionCluster = z.infer<typeof questionClusterSchema>;
 
 // 19. Question Capital Node
 export const questionCapitalNodeSchema = z.object({
@@ -313,7 +372,23 @@ export const canonicalQuestionSchema = z.object({
   normalized_question: z.string().min(5),
   slug: z.string().min(5).max(255).regex(/^[a-z0-9-]+$/),
   signature: z.string().min(5).max(64),
+  
+  // QPA-OS 확장 컬럼들
+  domain_id: z.string().optional().nullable(),
+  variants: z.any().default([]).optional(),
+  primary_intent: z.string().optional().nullable(),
+  user_context: z.any().default({}).optional(),
+  constraints: z.any().default([]).optional(),
+  evidence_need: z.any().default([]).optional(),
+  risk_level: z.string().default('low').optional(),
+  preferred_answer_type: z.any().default([]).optional(),
+  linked_tco_entities: z.any().default([]).optional(),
+  qvs_summary: z.any().default({}).optional(),
+  cps_score: z.number().optional().nullable(),
+  status: z.string().default('draft').optional(),
+  
   created_at: z.string().optional(),
+  updated_at: z.string().optional(),
 });
 
 export type CanonicalQuestion = z.infer<typeof canonicalQuestionSchema>;
@@ -333,7 +408,20 @@ export const qisSceneSchema = z.object({
   must_include: z.array(z.string()).default([]).optional(),
   must_not_do: z.array(z.string()).default([]).optional(),
   confidence_score: z.number().min(0).max(1).default(0.50).optional(),
+  
+  // QPA-OS 확장 컬럼들
+  domain_id: z.string().optional().nullable(),
+  context_tensor: z.any().default({}).optional(),
+  evidence_requirements: z.any().default([]).optional(),
+  risk_policy: z.any().default({}).optional(),
+  answer_policy: z.any().default({}).optional(),
+  cta_policy: z.any().default({}).optional(),
+  must_do: z.any().default([]).optional(),
+  output_targets: z.any().default([]).optional(),
+  readiness_score: z.number().optional().nullable(),
+  
   created_at: z.string().optional(),
+  updated_at: z.string().optional(),
 });
 
 export type QisScene = z.infer<typeof qisSceneSchema>;
@@ -348,7 +436,18 @@ export const tcoConceptSchema = z.object({
   is_strategic: z.boolean().default(false),
   concept_type: z.string().min(2).default('tco_domain_entity'),
   operational_fields: z.record(z.string(), z.any()).default({}),
+  
+  // QPA-OS 확장 및 TCO Entity 속성 통합
+  aliases: z.any().default([]).optional(),
+  activation_condition: z.any().default({}).optional(),
+  boundary: z.any().default({}).optional(),
+  operator: z.any().default({}).optional(),
+  risk_vector: z.any().default({}).optional(),
+  action_policy: z.any().default({}).optional(),
+  status: z.string().default('active').optional(),
+  
   created_at: z.string().optional(),
+  updated_at: z.string().optional(),
 });
 
 export type TcoConcept = z.infer<typeof tcoConceptSchema>;
@@ -1818,6 +1917,11 @@ export const industryReportBrandRankingSchema = z.object({
   bdr: z.number().min(0).max(100).nullable().optional(),
   cwr: z.number().min(0).max(100).nullable().optional(),
   opp: z.number().min(0).max(100).nullable().optional(),
+
+  // Top-N Presence & Freshness
+  top3: z.number().min(0).max(100).nullable().optional(),
+  top5: z.number().min(0).max(100).nullable().optional(),
+  freshness: z.number().min(0).max(100).nullable().optional(),
 
   // AEPI 7차원 breakdown
   aepi_dimensions: z.record(z.string(), z.number()).nullable().optional(),

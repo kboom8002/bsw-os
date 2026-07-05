@@ -2,7 +2,7 @@
 
 > **작성일**: 2026-06-28  
 > **대상 독자**: AIHompy Hub 온보딩 파이프라인 팀  
-> **BSW 프로덕션 URL**: `https://bsw-os.vercel.app`  
+> **BSW 프로덕션 URL**: `https://answerhub.kr`  
 > **상태**: Phase 0~3 구현 완료, 프로덕션 배포 완료
 
 ---
@@ -193,12 +193,12 @@ BSW 골든 레퍼런스 시스템은 **업종별 25개+ 벤치마크 사이트**
 
 **전체 번들 다운로드:**
 ```
-GET https://bsw-os.vercel.app/api/golden/export?subIndustryKey=skincare
+GET https://answerhub.kr/api/golden/export?subIndustryKey=skincare
 ```
 
 **단일 산출물 다운로드:**
 ```
-GET https://bsw-os.vercel.app/api/golden/export?subIndustryKey=skincare&deliverable=tokens
+GET https://answerhub.kr/api/golden/export?subIndustryKey=skincare&deliverable=tokens
 ```
 
 **응답 형태:**
@@ -298,7 +298,7 @@ interface ColorConsensusEntry {
 **Hub 사용 예시:**
 ```typescript
 // Hub: signalProfile.ts
-const tokens = await fetch('https://bsw-os.vercel.app/api/golden/export?subIndustryKey=skincare&deliverable=tokens').then(r => r.json());
+const tokens = await fetch('https://answerhub.kr/api/golden/export?subIndustryKey=skincare&deliverable=tokens').then(r => r.json());
 const { colorConsensus, cssVariables } = tokens.deliverables.tokens;
 
 // CSS 변수 직접 주입
@@ -651,7 +651,7 @@ sequenceDiagram
 ```typescript
 // hub/lib/golden-reference-client.ts
 
-const BSW_API = 'https://bsw-os.vercel.app';
+const BSW_API = 'https://answerhub.kr';
 
 export async function fetchGoldenReference(industry: string) {
   const res = await fetch(

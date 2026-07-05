@@ -85,9 +85,14 @@ export class OpportunityAnalyzer {
 
       // 1. GAP Detection: target brand is missing, but competitors are present
       if (!mentionedInCurrentAnyEngine && competitorsPresent.length > 0) {
-        // If it's a high intent question, it's a high severity gap
-        const severity = isHighIntent ? 'high' : 'medium';
-        const priority = isHighIntent ? 90 : 60;
+        // LLM Judge가 명시적으로 경쟁사 우위를 판정했는지 확인
+        const llmConfirmsCompetitorWin = Object.values(q.per_engine).some(
+          e => e.llm_cwr_winner && e.llm_cwr_winner !== targetBrandName && e.llm_cwr_winner !== 'tie'
+        );
+
+        // If it's a high intent question or LLM Judge confirms competitor win, it's a high severity gap
+        const severity = (isHighIntent || llmConfirmsCompetitorWin) ? 'high' : 'medium';
+        const priority = (isHighIntent || llmConfirmsCompetitorWin) ? 90 : 60;
         
         let advice = `경쟁사(${competitorsPresent.slice(0, 2).join(', ')} 등)가 등장했지만 자사 브랜드는 누락되었습니다. 관련 키워드 콘텐츠 최적화가 필요합니다.`;
         if (eeatDim === 'expertise') advice = `전문성(Expertise) 신호 부족: 해당 주제에 대한 임상/성분 데이터를 구조화하여 발행하세요. (${competitorsPresent[0]} 등 경쟁사 우위)`;
@@ -154,7 +159,11 @@ export class OpportunityAnalyzer {
       if (mentionedInCurrentAnyEngine && competitorsPresent.length > 0) {
          let avgBsf = 0;
          for (const eng of enginesWithMention) {
-           avgBsf += q.per_engine[eng].bsf_score;
+           // LLM Judge가 매긴 bsf_score가 존재한다면 우선 반영
+           const engineBsf = q.per_engine[eng].llm_bsf_score !== undefined
+             ? q.per_engine[eng].llm_bsf_score!
+             : q.per_engine[eng].bsf_score;
+           avgBsf += engineBsf;
          }
          avgBsf = avgBsf / enginesWithMention.length;
 

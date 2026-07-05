@@ -19,7 +19,8 @@ import type { SeedProbeQuestion } from '../../db/seed/industry-panels/questions-
 import { calculatePerLayerMetrics } from './per-layer-metrics';
 import { fairProbeSetBuilder } from './fair-probe-templates';
 import { calcWeightedAAS } from './mention-classifier';
-
+import { llmJudge } from './llm-judge';
+import { calculateFreshnessMetrics } from './freshness-analyzer';
 
 export interface LightweightBrandResult {
   brand_slug: string;
@@ -37,6 +38,9 @@ export interface LightweightBrandResult {
   citation_count: number;
   sample_size: number;
   measured_at: string;
+  top3?: number;       // 0-100 Top-3 Presence Rate
+  top5?: number;       // 0-100 Top-5 Presence Rate
+  freshness?: number;  // 0-100 Freshness Score
 }
 
 export interface QuestionDetail {
@@ -48,6 +52,9 @@ export interface QuestionDetail {
     brands_mentioned: string[];
     citation_domains: string[];
     bsf_score: number;
+    search_queries?: string[];
+    llm_cwr_winner?: string;
+    llm_bsf_score?: number;
   }>;
 }
 
@@ -150,13 +157,23 @@ export class LightweightMetricRunner {
       ? domainConfig.sampleQuestionsForLight
       : domainConfig.sampleQuestionsForFull;
 
-    const sampledQuestions = this._sampleQuestions(questions, sampleCount, domainConfig);
+    // 역방향 환류 (QIS/PA/Hub 데이터로 프로브 강화)
+    let enrichment;
+    try {
+      const { ProbeEnricher } = await import('./probe-enricher');
+      const enricher = new ProbeEnricher();
+      enrichment = await enricher.enrich(domainConfig.slug);
+    } catch (e: any) {
+      console.warn(`[LightweightRunner] Dynamic enrichment skipped: ${e.message}`);
+    }
+
+    const sampledQuestions = this._sampleQuestions(questions, sampleCount, domainConfig, enrichment);
 
     console.log(`\n[LightweightRunner] Domain: ${domainConfig.name} | ${sampledQuestions.length}Q × ${this.engines.length} engines`);
 
     // 모든 질문을 한 번만 API 호출하여 공유 (비용 절감)
     // 병렬 배치 처리: 5개 질문씩 동시 실행하여 순차 실행 대비 ~5배 속도 향상
-    const queryResults: Map<string, Record<string, { text: string; citations: any[] }>> = new Map();
+    const queryResults: Map<string, Record<string, { text: string; citations: any[]; search_queries?: string[] }>> = new Map();
     const BATCH_SIZE = 5;
 
     for (let batchStart = 0; batchStart < sampledQuestions.length; batchStart += BATCH_SIZE) {
@@ -167,13 +184,31 @@ export class LightweightMetricRunner {
         const queryText = q.question_text.replace(/{brand}/g, '').trim();
         try {
           const multiRes = await SearchProviderFactory.runMultiEngine(queryText, this.engines);
-          const perEngineResult: Record<string, { text: string; citations: any[] }> = {};
+          const perEngineResult: Record<string, { text: string; citations: any[]; search_queries?: string[]; llm_cwr_winner?: string; llm_bsf_score?: number; }> = {};
           for (const engine of this.engines) {
             const engineRes = multiRes.results[engine];
             if (engineRes) {
+              let llm_cwr_winner;
+              let llm_bsf_score;
+
+              if (q.layer === 'L2_competitive' || q.layer === 'L7_brand') {
+                const targetBrand = (q as any).target_brand || 'TargetBrand';
+                const competitorBrand = (q as any).target_competitor;
+                try {
+                  const judgeRes = await llmJudge.evaluate(queryText, engineRes.raw_response_text, targetBrand, competitorBrand, q.must_include);
+                  llm_cwr_winner = judgeRes.cwr_winner ?? undefined;
+                  llm_bsf_score = judgeRes.bsf_score;
+                } catch (e) {
+                  console.error('LLM Judge failed', e);
+                }
+              }
+
               perEngineResult[engine] = {
                 text: engineRes.raw_response_text,
                 citations: engineRes.citations || [],
+                search_queries: engineRes.response_metadata?.search_queries,
+                llm_cwr_winner,
+                llm_bsf_score
               };
             }
           }
@@ -262,13 +297,31 @@ export class LightweightMetricRunner {
         const queryText = q.question_text.replace(/{brand}/g, '').trim();
         try {
           const multiRes = await SearchProviderFactory.runMultiEngine(queryText, this.engines);
-          const perEngineResult: Record<string, { text: string; citations: any[] }> = {};
+          const perEngineResult: Record<string, { text: string; citations: any[]; search_queries?: string[]; llm_cwr_winner?: string; llm_bsf_score?: number; }> = {};
           for (const engine of this.engines) {
             const engineRes = multiRes.results[engine];
             if (engineRes) {
+              let llm_cwr_winner;
+              let llm_bsf_score;
+
+              if (q.layer === 'L2_competitive' || q.layer === 'L7_brand') {
+                const targetBrand = (q as any).target_brand || 'TargetBrand';
+                const competitorBrand = (q as any).target_competitor;
+                try {
+                  const judgeRes = await llmJudge.evaluate(queryText, engineRes.raw_response_text, targetBrand, competitorBrand, q.must_include);
+                  llm_cwr_winner = judgeRes.cwr_winner ?? undefined;
+                  llm_bsf_score = judgeRes.bsf_score;
+                } catch (e) {
+                  console.error('LLM Judge failed', e);
+                }
+              }
+
               perEngineResult[engine] = {
                 text: engineRes.raw_response_text,
                 citations: engineRes.citations || [],
+                search_queries: engineRes.response_metadata?.search_queries,
+                llm_cwr_winner,
+                llm_bsf_score
               };
             }
           }
@@ -306,6 +359,15 @@ export class LightweightMetricRunner {
       bsf: br.bsf,
       ars: null,
       bair: br.bair,
+      // Per-Layer Metrics
+      iri: br.iri ?? null,
+      bdr: br.bdr ?? null,
+      cwr: br.cwr ?? null,
+      opp: br.opp ?? null,
+      // Top-N Presence & Freshness
+      top3: br.top3 ?? null,
+      top5: br.top5 ?? null,
+      freshness: br.freshness ?? null,
       mention_count: br.mention_count,
       citation_count: br.citation_count,
       sample_size: br.sample_size,
@@ -326,27 +388,270 @@ export class LightweightMetricRunner {
   ): Promise<LightweightDomainResult> {
     const measuredAt = new Date().toISOString();
     const brandResults: LightweightBrandResult[] = [];
-    return this.finalizeResults(domainConfig, sampledQuestions, queryResults, measurementType);
+
+    // ── AIPR 방식 AAS 분모 계산 ──────────────────────────────────────────
+    let brandedResponseCount = 0;
+    for (const [_qt, engineResults] of queryResults.entries()) {
+      for (const engine of this.engines) {
+        const res = engineResults[engine];
+        if (!res) continue;
+        const anyBrand = domainConfig.brands.some(b => calcWeightedAAS(res.text, b.keywords).hit);
+        if (anyBrand) brandedResponseCount++;
+      }
+    }
+    console.log(`\n  [AIPR] branded responses: ${brandedResponseCount} / ${queryResults.size * this.engines.length} total`);
+
+    // 브랜드별 집계
+    for (const brand of domainConfig.brands) {
+      // 브랜드 도메인 설정 (OCR 계산용)
+      SearchProviderFactory.setBrandDomains(brand.domains);
+
+      const compositeResults: Array<{
+        aas: boolean; ocr: boolean; bsf: number;
+      }> = [];
+
+      for (const [_qText, engineResults] of queryResults.entries()) {
+        const q = sampledQuestions.find(sq => sq.question_text === _qText);
+        if (!q) continue;
+
+        for (const engine of this.engines) {
+          const res = engineResults[engine];
+          if (!res) continue;
+
+          let aasHit = calcWeightedAAS(res.text, brand.keywords).hit;
+          const qAny = q as any;
+          if (aasHit) {
+            if (q.layer === 'L2_competitive') {
+              if (qAny.target_brand !== brand.name && qAny.target_competitor !== brand.name) {
+                aasHit = false; // Exclude third-party brands
+              }
+            } else if (q.layer === 'L7_brand') {
+              if (qAny.target_brand !== brand.name) {
+                aasHit = false; // Exclude other brands
+              }
+            }
+          }
+          const ocrHit = calcOCR(res.citations, brand.domains);
+          const bsf = calcBSF(res.text, q.must_include || [], q.should_include || []);
+
+          compositeResults.push({ aas: aasHit, ocr: ocrHit, bsf });
+        }
+      }
+
+      if (compositeResults.length === 0) {
+        brandResults.push({
+          brand_slug: brand.slug,
+          brand_name: brand.name,
+          engine_name: 'composite',
+          aas: 0, ocr: 0, bsf: 0, bair: 0,
+          bdr: 0, cwr: 0, iri: 0, opp: 0,
+          top3: 0, top5: 0, freshness: 0,
+          mention_count: 0, citation_count: 0,
+          sample_size: sampledQuestions.length,
+          measured_at: measuredAt,
+        });
+        continue;
+      }
+
+      const mentionCount = compositeResults.filter(r => r.aas).length;
+      const citationCount = compositeResults.filter(r => r.ocr).length;
+
+      const aiprDenominator = brandedResponseCount > 0 ? brandedResponseCount : compositeResults.length;
+      const aas = parseFloat(((mentionCount / aiprDenominator) * 100).toFixed(1));
+      const ocr = parseFloat(((citationCount / compositeResults.length) * 100).toFixed(1));
+      const bsf = parseFloat((compositeResults.reduce((s, r) => s + r.bsf, 0) / compositeResults.length).toFixed(1));
+      const bair = parseFloat((aas * (bsf / 100)).toFixed(1));
+
+      // Calculate Advanced Metrics
+      const tempDetails: QuestionDetail[] = [];
+      for (const [_qText, engineResults] of queryResults.entries()) {
+        const q = sampledQuestions.find(sq => sq.question_text === _qText);
+        if (!q) continue;
+        const det: QuestionDetail = { question_text: q.question_text, question_type: q.question_type || 'general', layer: q.layer || 'unknown', per_engine: {} };
+        for (const engine of this.engines) {
+          const res = engineResults[engine];
+          if (!res) continue;
+          const mentioned = domainConfig.brands.filter(b => {
+            let hit = calcWeightedAAS(res.text, b.keywords).hit;
+            const qAny = q as any;
+            if (hit) {
+              if (q.layer === 'L2_competitive') {
+                if (qAny.target_brand !== b.name && qAny.target_competitor !== b.name) hit = false;
+              } else if (q.layer === 'L7_brand') {
+                if (qAny.target_brand !== b.name) hit = false;
+              }
+            }
+            return hit;
+          }).map(b => b.name);
+          det.per_engine[engine] = { raw_response_text: res.text, brands_mentioned: mentioned, citation_domains: [], bsf_score: 0 };
+        }
+        tempDetails.push(det);
+      }
+      const advanced = calculatePerLayerMetrics(brand, tempDetails, sampledQuestions, 'composite');
+
+      // Freshness Score 산출
+      const brandResponseTexts: string[] = [];
+      for (const [, engineResults] of queryResults) {
+        for (const eng of this.engines) {
+          const res = engineResults[eng];
+          if (res?.text) {
+            brandResponseTexts.push(res.text);
+          }
+        }
+      }
+      const freshnessResult = calculateFreshnessMetrics(brandResponseTexts);
+
+      brandResults.push({
+        brand_slug: brand.slug,
+        brand_name: brand.name,
+        engine_name: 'composite',
+        aas, ocr, bsf, bair,
+        bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp,
+        top3: advanced.top3, top5: advanced.top5,
+        freshness: freshnessResult.freshnessScore,
+        mention_count: mentionCount,
+        citation_count: citationCount,
+        sample_size: sampledQuestions.length,
+        measured_at: measuredAt,
+      });
+
+      console.log(`    [${brand.name}] AAS: ${aas}% | BDR: ${advanced.bdr}% | CWR: ${advanced.cwr}% | Top3: ${advanced.top3}% | Top5: ${advanced.top5}% | Fresh: ${freshnessResult.freshnessScore}% | IRI: ${advanced.iri}%`);
+    }
+
+    // ── Question Details 수집 (Opportunity Intelligence용) ──
+    const questionDetails: QuestionDetail[] = [];
+    for (const [_qText, engineResults] of queryResults.entries()) {
+      const q = sampledQuestions.find(sq => sq.question_text === _qText);
+      if (!q) continue;
+
+      const detail: QuestionDetail = {
+        question_text: q.question_text,
+        question_type: q.question_type || 'general',
+        layer: q.layer || 'unknown',
+        per_engine: {}
+      };
+
+      for (const engine of this.engines) {
+        const res = engineResults[engine];
+        if (!res) continue;
+
+        const mentioned = domainConfig.brands.filter(b => calcWeightedAAS(res.text, b.keywords).hit).map(b => b.name);
+        const domains = res.citations.map(c => c.domain);
+        const bsf = calcBSF(res.text, q.must_include || [], q.should_include || []);
+
+        detail.per_engine[engine] = {
+          raw_response_text: res.text,
+          brands_mentioned: mentioned,
+          citation_domains: domains,
+          bsf_score: bsf,
+          search_queries: (res as any).search_queries,
+          llm_cwr_winner: (res as any).llm_cwr_winner,
+          llm_bsf_score: (res as any).llm_bsf_score
+        };
+      }
+      questionDetails.push(detail);
+    }
+
+    return {
+      domain_slug: domainConfig.slug,
+      domain_name: domainConfig.name,
+      measurement_type: measurementType,
+      engines: this.engines,
+      brand_results: brandResults,
+      measured_at: measuredAt,
+      question_details: questionDetails
+    };
   }
 
   private _sampleQuestions(
     questions: SeedProbeQuestion[],
     count: number,
-    domainConfig: DomainConfig
+    domainConfig: DomainConfig,
+    enrichment?: {
+      qis_injected_must_include: string[];
+      pa_dynamic_probes: any[];
+      hub_priority_weights: Map<string, number>;
+      tco_discovered_keywords: string[];
+    }
   ): SeedProbeQuestion[] {
     const brands = domainConfig.brands;
-    const genericLayers = new Set(['L1_universal', 'L3_ingredient', 'L5_ymyl', 'L6_trend']);
-    
-    // Extract generic questions only (we don't need l2/l7 from questions-data.ts anymore)
-    const genericQuestions = questions.filter(q => genericLayers.has(q.layer || 'unknown') || !q.layer);
-    
-    // Use fairProbeSetBuilder to dynamically inject K=2 repetitions of L2/L7
     
     const isPlaceBrand = domainConfig.slug.startsWith('seoul_district');
     const isKpop = domainConfig.slug.startsWith('kpop');
     const lang = domainConfig.slug.endsWith('_en') ? 'en' : 'ko';
     const kCount = domainConfig.repetitionCount ?? 2;
-    return fairProbeSetBuilder(genericQuestions, Math.floor(count / 2), brands, kCount, isPlaceBrand, lang as any, isKpop);
+    
+    // 1. 일반적인 샘플러 실행
+    let baseProbes = fairProbeSetBuilder(questions, Math.floor(count / 2), brands, kCount, isPlaceBrand, lang as any, isKpop);
 
+    // 2. 채널①: QIS Scene must_include 주입
+    if (enrichment?.qis_injected_must_include && enrichment.qis_injected_must_include.length > 0) {
+      baseProbes = baseProbes.map(q => {
+        if (q.layer === 'L7_brand' || q.layer === 'L2_competitive' || q.layer === 'L4_practical') {
+          const merged = Array.from(new Set([...(q.must_include || []), ...enrichment.qis_injected_must_include]));
+          return { ...q, must_include: merged };
+        }
+        return q;
+      });
+    }
+
+    // 3. 채널②: PA Dynamic Probes 추가
+    if (enrichment?.pa_dynamic_probes && enrichment.pa_dynamic_probes.length > 0) {
+      console.log(`[LightweightRunner] Injecting ${enrichment.pa_dynamic_probes.length} PA dynamic templates...`);
+      for (const brand of brands) {
+        for (const template of enrichment.pa_dynamic_probes) {
+          if (template.layer === 'L7_brand') {
+            const questionText = template.template_text.replace(/{brand}/g, brand.name);
+            const basicMustInclude = template.must_include_templates.map((t: string) => t.replace(/{brand}/g, brand.name));
+            const finalMustInclude = enrichment.qis_injected_must_include
+              ? Array.from(new Set([...basicMustInclude, ...enrichment.qis_injected_must_include]))
+              : basicMustInclude;
+
+            baseProbes.push({
+              question_text: questionText,
+              target_keyword: brand.name,
+              must_include: finalMustInclude,
+              should_include: [],
+              must_not_do: template.must_not_do,
+              layer: 'L7_brand',
+              intent_context: template.intent_context,
+              risk_level: template.risk_level,
+              decision_stage: template.decision_stage,
+              question_type: template.question_type,
+              weight: template.weight,
+              target_brand: brand.name
+            } as any);
+          } else if (template.layer === 'L2_competitive') {
+            const competitors = brands.filter(b => b.name !== brand.name);
+            if (competitors.length > 0) {
+              const competitor = competitors[Math.floor(Math.random() * competitors.length)].name;
+              const questionText = template.template_text.replace(/{brand}/g, brand.name).replace(/{competitor}/g, competitor);
+              const basicMustInclude = template.must_include_templates.map((t: string) => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, competitor));
+              const finalMustInclude = enrichment.qis_injected_must_include
+                ? Array.from(new Set([...basicMustInclude, ...enrichment.qis_injected_must_include]))
+                : basicMustInclude;
+
+              baseProbes.push({
+                question_text: questionText,
+                target_keyword: brand.name,
+                must_include: finalMustInclude,
+                should_include: [],
+                must_not_do: template.must_not_do,
+                layer: 'L2_competitive',
+                intent_context: template.intent_context,
+                risk_level: template.risk_level,
+                decision_stage: template.decision_stage,
+                question_type: template.question_type,
+                weight: template.weight,
+                target_brand: brand.name,
+                target_competitor: competitor
+              } as any);
+            }
+          }
+        }
+      }
+    }
+
+    return baseProbes;
   }
 }

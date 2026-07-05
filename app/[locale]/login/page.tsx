@@ -4,6 +4,7 @@ import { useState } from "react";
 import { login } from "../../actions/auth";
 import { useSearchParams } from "next/navigation";
 import { ShieldCheck, ArrowRight, Activity, Layers } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -98,6 +99,13 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+
+          <div className="mt-6 text-center">
+            <span className="text-xs text-slate-400">계정이 없으신가요? </span>
+            <Link href="/ko/signup" className="text-xs font-semibold text-indigo-400 hover:underline">
+              회원가입하기
+            </Link>
+          </div>
         </div>
       </div>
     </div>

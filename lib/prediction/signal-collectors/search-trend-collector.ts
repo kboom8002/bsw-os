@@ -1,10 +1,41 @@
 import { EmergenceSignal } from "../../schema";
 import { SignalCollector } from "../types";
+import { CollectionStorage } from "../../signal-collection/collection-storage";
 
 export class SearchTrendCollector implements SignalCollector {
   async collect(workspaceId?: string, industry?: string): Promise<EmergenceSignal[]> {
     const targetIndustry = industry ?? "beauty";
+    const wsId = workspaceId || "demo-brand-semantic-lab";
 
+    // 1. 실제 네이버 DataLab 검색 트렌드 데이터 조회
+    const searchTrends = await CollectionStorage.getSearchTrends(wsId);
+
+    if (searchTrends.length > 0) {
+      // 키워드별 가장 최근 volume이 높은 트렌드를 정렬 및 선별
+      const latestTrends = searchTrends.slice(0, 5); // 상위 5개 수집
+      
+      return latestTrends.map((trend) => {
+        const spike = trend.relative_volume > 80 ? 3.0 : trend.relative_volume > 50 ? 2.0 : 1.5;
+        const impact: "low" | "medium" | "high" | "critical" = trend.relative_volume > 80 ? "critical" : trend.relative_volume > 50 ? "high" : "medium";
+        
+        return {
+          workspace_id: wsId,
+          source_type: "search_trend",
+          industry: targetIndustry,
+          raw_text: `네이버 데이터랩 분석: 키워드 '${trend.keyword}'의 상대 검색량이 ${trend.relative_volume}%를 기록하며 트렌드 지수가 상승했습니다.`,
+          source_url: null,
+          ai_analysis: {
+            target_query: trend.keyword,
+            volume_spike_multiplier: spike,
+            search_platform: "Naver DataLab",
+          },
+          predicted_impact: impact,
+          status: "new",
+        };
+      });
+    }
+
+    // 2. Fallback: 데이터가 없는 경우 기존 스태틱 목업 반환
     const searchTrendData: Record<string, Array<{ text: string; query: string; spike: number; impact: "low" | "medium" | "high" | "critical" }>> = {
       beauty: [
         {
@@ -42,7 +73,7 @@ export class SearchTrendCollector implements SignalCollector {
     ];
 
     return items.map((item) => ({
-      workspace_id: workspaceId || null,
+      workspace_id: wsId,
       source_type: "search_trend",
       industry: targetIndustry,
       raw_text: item.text,
@@ -57,3 +88,4 @@ export class SearchTrendCollector implements SignalCollector {
     }));
   }
 }
+export default SearchTrendCollector;

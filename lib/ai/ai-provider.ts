@@ -345,16 +345,17 @@ class OpenAIProvider implements AIProvider {
  * 웹 검색 포함 관측은 SearchProviderFactory를 사용하세요.
  */
 export function getAIProvider(): AIProvider {
+  if (process.env.NODE_ENV === 'test' || process.env.MOCK_AI === 'true') {
+    return new MockProvider();
+  }
+
   const mode = process.env.AI_PROVIDER_MODE || 'mock';
   if (mode === 'gemini') {
     return new GeminiProvider();
-  }
-  if (mode === 'openai') {
+  } else if (mode === 'openai') {
     return new OpenAIProvider();
-  }
-  if (mode === 'claude') {
-    return new ClaudeProvider();
+  } else if (mode === 'claude') {
+    return new MockProvider(); // Claude provider (placeholder)
   }
   return new MockProvider();
 }
-

@@ -8,7 +8,7 @@ export type MentionStrength = 'strong' | 'neutral' | 'negative';
 
 const NEGATIVE_PATTERNS_KO = [
   '추천하지 않', '비추', '단점', '주의', '피하', '안 좋', '논란',
-  '부작용', '자극', '효과가 없', '실망', '개선이 필요', '아쉬'
+  '부작용', '자극', '효과가 없', '실망', '개선이 필요', '아쉬', '부담', '아쉽', '호불호'
 ];
 const NEGATIVE_PATTERNS_EN = [
   'not recommend', 'avoid', 'concern', 'drawback', 'caution',
@@ -16,16 +16,16 @@ const NEGATIVE_PATTERNS_EN = [
 ];
 
 const STRONG_PATTERNS_KO = [
-  '추천', '최고', '1위', '가장 좋', '강추', '인기', '베스트', '대표'
+  '추천', '최고', '1위', '가장 좋', '강추', '인기', '베스트', '대표', '훌륭', '더 좋', '더 나', '장점', '뛰어'
 ];
 const STRONG_PATTERNS_EN = [
-  'recommend', 'best', 'top pick', '#1', 'highly rated', 'popular'
+  'recommend', 'best', 'top pick', '#1', 'highly rated', 'popular', 'better', 'excellent'
 ];
 
 export function classifyMention(
   fullText: string,
   brandKeyword: string,
-  windowSize: number = 80
+  windowSize: number = 150
 ): MentionStrength {
   const text = fullText.toLowerCase();
   const kwLower = brandKeyword.toLowerCase();

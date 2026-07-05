@@ -697,6 +697,7 @@ export default function DeepDivePage() {
                 <option value="wedding_studio">Wedding Studio</option>
                 <option value="kpop_idol_ko">K-pop Idols (KO)</option>
                 <option value="kpop_idol_en">K-pop Idols (EN)</option>
+                <option value="jeju_place_en">Jeju Competitors (EN)</option>
               </select>
             </div>
 

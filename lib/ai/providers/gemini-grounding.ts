@@ -42,7 +42,7 @@ export class GeminiGroundingProvider implements SearchProvider {
   async search(query: string): Promise<SearchResult> {
     const start = Date.now();
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY || process.env.MOCK_AI === 'true') {
       return this._mockResult(query, start);
     }
 
@@ -53,6 +53,7 @@ export class GeminiGroundingProvider implements SearchProvider {
         config: {
           tools: [{ googleSearch: {} }],
           temperature: 0.2,
+          maxOutputTokens: 8192,
         },
       });
 
@@ -68,7 +69,10 @@ export class GeminiGroundingProvider implements SearchProvider {
       const meta =
         (response as any).candidates?.[0]?.groundingMetadata ??
         (response as any).groundingMetadata ?? {};
-      const chunks: any[] = meta.groundingChunks ?? meta.webSearchQueries ?? [];
+        
+      const searchQueries: string[] = meta.webSearchQueries ?? [];
+      
+      const chunks: any[] = meta.groundingChunks ?? searchQueries ?? [];
       // groundingSupports 또는 groundingChunks
       const chunkList: any[] = meta.groundingChunks ?? [];
       chunkList.forEach((chunk: any, idx: number) => {
@@ -86,7 +90,7 @@ export class GeminiGroundingProvider implements SearchProvider {
       });
 
       if (citations.length > 0) {
-        console.log(`  [Gemini] ✓ ${citations.length} citations extracted`);
+        console.log(`  [Gemini] ✓ ${citations.length} citations extracted. Queries: ${searchQueries.length}`);
       }
 
       return {
@@ -98,6 +102,7 @@ export class GeminiGroundingProvider implements SearchProvider {
           response_latency_ms: latency,
           has_structured_data: false,
           provider_type: this.providerType,
+          search_queries: searchQueries,
         },
       };
     } catch (err: any) {

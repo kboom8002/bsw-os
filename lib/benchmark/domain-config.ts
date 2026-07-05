@@ -90,6 +90,30 @@ const SEOUL_DISTRICTS_BRANDS = [
   { slug: 'jungnang', name: '중랑구', name_en: 'Jungnang-gu', domains: ['jungnang.go.kr', 'visitseoul.net/jungnang'], keywords: ['중랑구', 'jungnang'], color: '#6ee7b7', comparative_pairs: ['dongdaemun', 'nowon'] },
 ];
 
+export const JEJU_COMPETITOR_BRANDS = [
+  { slug: 'jeju', name: '제주도', name_en: 'Jeju Island', domains: ['visitjeju.net', 'ijeto.or.kr'], keywords: ['제주', '제주도', 'jeju', 'jeju island'], color: '#ef4444', comparative_pairs: ['okinawa', 'bali', 'hawaii'] },
+  { slug: 'okinawa', name: '오키나와', name_en: 'Okinawa', domains: ['visitokinawa.jp'], keywords: ['오키나와', 'okinawa', 'visit okinawa'], color: '#f59e0b', comparative_pairs: ['jeju', 'bali'] },
+  { slug: 'bali', name: '발리', name_en: 'Bali', domains: ['indonesia.travel', 'balitourismboard.org'], keywords: ['발리', 'bali', 'visit bali'], color: '#10b981', comparative_pairs: ['jeju', 'phuket'] },
+  { slug: 'phuket', name: '푸켓', name_en: 'Phuket', domains: ['tourismthailand.org', 'phuket.net'], keywords: ['푸켓', 'phuket', 'visit phuket'], color: '#ec4899', comparative_pairs: ['bali', 'langkawi'] },
+  { slug: 'langkawi', name: '랑카위', name_en: 'Langkawi', domains: ['langkawi.gov.my', 'naturallylangkawi.my'], keywords: ['랑카위', 'langkawi'], color: '#06b6d4', comparative_pairs: ['phuket', 'bali'] },
+  { slug: 'hokkaido', name: '홋카이도', name_en: 'Hokkaido', domains: ['visit-hokkaido.jp'], keywords: ['홋카이도', 'hokkaido', 'visit hokkaido'], color: '#eab308', comparative_pairs: ['jeju', 'tasmania'] },
+  { slug: 'hawaii', name: '하와이', name_en: 'Hawaii', domains: ['gohawaii.com'], keywords: ['하와이', 'hawaii', 'go hawaii'], color: '#3b82f6', comparative_pairs: ['jeju', 'maldives'] },
+  { slug: 'maldives', name: '몰디브', name_en: 'Maldives', domains: ['visitmaldives.com'], keywords: ['몰디브', 'maldives', 'visit maldives'], color: '#14b8a6', comparative_pairs: ['hawaii', 'fiji'] },
+  { slug: 'santorini', name: '산토리니', name_en: 'Santorini', domains: ['visitgreece.gr', 'santorini.gr'], keywords: ['산토리니', 'santorini', 'visit santorini'], color: '#0ea5e9', comparative_pairs: ['mallorca', 'sardinia'] },
+  { slug: 'mallorca', name: '마요르카', name_en: 'Mallorca', domains: ['infomallorca.net', 'spain.info'], keywords: ['마요르카', 'mallorca', 'majorca'], color: '#8b5cf6', comparative_pairs: ['santorini', 'sardinia'] },
+  { slug: 'fiji', name: '피지', name_en: 'Fiji', domains: ['fiji.travel'], keywords: ['피지', 'fiji', 'tourism fiji'], color: '#c084fc', comparative_pairs: ['maldives', 'hawaii'] },
+  { slug: 'tenerife', name: '테네리페', name_en: 'Tenerife', domains: ['webtenerife.com'], keywords: ['테네리페', 'tenerife', 'visit tenerife'], color: '#a855f7', comparative_pairs: ['azores', 'jeju'] },
+  { slug: 'iceland', name: '아이슬란드', name_en: 'Iceland', domains: ['visiticeland.com'], keywords: ['아이슬란드', 'iceland', 'visit iceland'], color: '#6366f1', comparative_pairs: ['jeju', 'tasmania'] },
+  { slug: 'azores', name: '아조레스', name_en: 'Azores', domains: ['visitazores.com'], keywords: ['아조레스', 'azores'], color: '#0284c7', comparative_pairs: ['tenerife', 'mallorca'] },
+  { slug: 'tasmania', name: '태즈메이니아', name_en: 'Tasmania', domains: ['discovertasmania.com.au'], keywords: ['태즈메이니아', 'tasmania', 'discover tasmania'], color: '#15803d', comparative_pairs: ['hokkaido', 'queenstown'] },
+  { slug: 'mauritius', name: '모리셔스', name_en: 'Mauritius', domains: ['mymauritius.travel'], keywords: ['모리셔스', 'mauritius'], color: '#b91c1c', comparative_pairs: ['maldives', 'fiji'] },
+  { slug: 'palawan', name: '팔라완', name_en: 'Palawan', domains: ['palawan.gov.ph'], keywords: ['팔라완', 'palawan'], color: '#0f766e', comparative_pairs: ['phuket', 'da-nang'] },
+  { slug: 'sardinia', name: '사르데냐', name_en: 'Sardinia', domains: ['sardegnaturismo.it'], keywords: ['사르데냐', 'sardinia', 'sardegna'], color: '#4338ca', comparative_pairs: ['mallorca', 'santorini'] },
+  { slug: 'sri-lanka', name: '스리랑카', name_en: 'Sri Lanka', domains: ['srilanka.travel'], keywords: ['스리랑카', 'sri lanka', 'srilanka'], color: '#a21caf', comparative_pairs: ['bali', 'da-nang'] },
+  { slug: 'da-nang', name: '다낭', name_en: 'Da Nang', domains: ['danangfantasticity.com'], keywords: ['다낭', 'da nang', 'danang'], color: '#be123c', comparative_pairs: ['phuket', 'sri-lanka'] },
+  { slug: 'queenstown', name: '퀸스타운', name_en: 'Queenstown', domains: ['queenstownnz.co.nz'], keywords: ['퀸스타운', 'queenstown'], color: '#1e3a8a', comparative_pairs: ['tasmania', 'hokkaido'] }
+];
+
 export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
   skincare: {
     slug: 'skincare',
@@ -447,6 +471,70 @@ export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
     sampleQuestionsForFull: 80,
     repetitionCount: 1,
     brands: KPOP_BRANDS
+  },
+
+  jeju_smb: {
+    slug: 'jeju_smb',
+    name: '제주 소상공인',
+    icon: '🏝️',
+    description: '제주도 지역×업종 소상공인 브랜드 AI 가시성 지표',
+    industryType: 'jeju_smb',
+    deep_dive_enabled: true,
+    sampleQuestionsForLight: 50,
+    sampleQuestionsForFull: 94,
+    repetitionCount: 1,
+    brands: [
+      // ── 맛집 / 식당 ──
+      { slug: 'donsadon', name: '돈사돈', name_en: 'Donsadon', domains: ['donsadon.com', 'donsadon'], keywords: ['돈사돈', 'donsadon', '제주 흑돼지'], color: '#ef4444', comparative_pairs: ['heukdonga', 'sukseongdo'] },
+      { slug: 'heukdonga', name: '흑돈가', name_en: 'Heukdonga', domains: ['heukdonga.com', 'heukdonga'], keywords: ['흑돈가', '제주 흑돼지 맛집'], color: '#f97316', comparative_pairs: ['donsadon', 'sukseongdo'] },
+      { slug: 'haenyeo-kitchen', name: '해녀의부엌', name_en: 'Haenyeo Kitchen', domains: ['haenyeokitchen.com', 'haenyeo-kitchen'], keywords: ['해녀의부엌', '해녀 해산물', 'haenyeo'], color: '#0ea5e9', comparative_pairs: ['donsadon', 'chunsimne'] },
+      { slug: 'sukseongdo', name: '숙성도', name_en: 'Sukseongdo', domains: ['sukseongdo'], keywords: ['숙성도', 'sukseongdo'], color: '#3b82f6', comparative_pairs: ['donsadon', 'gobdeullak'] },
+      { slug: 'ujin-haejangguk', name: '우진해장국', name_en: 'Ujin Haejangguk', domains: ['woojinhj', 'ujin-haejangguk'], keywords: ['우진해장국', '고사리육개장'], color: '#10b981', comparative_pairs: ['ollae-guksu', 'jamae-guksu'] },
+      { slug: 'chunsimne', name: '춘심이네', name_en: 'Chunsimne', domains: ['chunsimne'], keywords: ['춘심이네', 'chunsimne'], color: '#84cc16', comparative_pairs: ['haenyeo-kitchen'] },
+      { slug: 'hyeopjae-kalguksu', name: '협재칼국수', name_en: 'Hyeopjae Kalguksu', domains: ['hyeopjae-kalguksu'], keywords: ['협재칼국수', '협재 칼국수'], color: '#06b6d4', comparative_pairs: ['ollae-guksu'] },
+      { slug: 'gobdeullak', name: '곱들락', name_en: 'Gobdeullak', domains: ['gobdeullak'], keywords: ['곱들락', 'gobdeullak'], color: '#a855f7', comparative_pairs: ['sukseongdo'] },
+      { slug: 'ollae-guksu', name: '올래국수', name_en: 'Ollae Guksu', domains: ['ollae-guksu'], keywords: ['올래국수', '올래 국수'], color: '#d946ef', comparative_pairs: ['ujin-haejangguk', 'jamae-guksu'] },
+      { slug: 'mungae-eomung', name: '문개어멍', name_en: 'Mungae Eomung', domains: ['mungae-eomung'], keywords: ['문개어멍', '문개어머'], color: '#ec4899', comparative_pairs: ['haenyeo-kitchen'] },
+      { slug: 'matna-sikdang', name: '맛나식당', name_en: 'Matna Sikdang', domains: ['matna-sikdang'], keywords: ['맛나식당', '맛나 식당'], color: '#f43f5e', comparative_pairs: ['chunsimne'] },
+      { slug: 'sinseol-oreum', name: '신설오름', name_en: 'Sinseol Oreum', domains: ['sinseol-oreum'], keywords: ['신설오름', '신설 오름'], color: '#fb7185', comparative_pairs: ['ujin-haejangguk'] },
+      { slug: 'oneunjeong-gimbap', name: '오는정김밥', name_en: 'Oneunjeong Gimbap', domains: ['oneunjeong'], keywords: ['오는정김밥', '오는정'], color: '#fbbf24', comparative_pairs: ['yeondon'] },
+      { slug: 'jamae-guksu', name: '자매국수', name_en: 'Jamae Guksu', domains: ['jamae-guksu'], keywords: ['자매국수', '자매 국수'], color: '#f97316', comparative_pairs: ['ollae-guksu', 'ujin-haejangguk'] },
+      { slug: 'yeondon', name: '연돈', name_en: 'Yeondon', domains: ['yeondon'], keywords: ['연돈', 'yeondon'], color: '#eab308', comparative_pairs: ['oneunjeong-gimbap'] },
+      { slug: 'suwoondong', name: '수우동', name_en: 'Suwoondong', domains: ['suwoondong.com', 'suwoondong'], keywords: ['수우동', '협재 수우동'], color: '#14b8a6', comparative_pairs: ['hyeopjae-kalguksu'] },
+      { slug: 'bbolsaljib', name: '뽈살집', name_en: 'Bbolsaljib', domains: ['bbolsaljib'], keywords: ['뽈살집', '서귀포 뽈살집'], color: '#8b5cf6', comparative_pairs: ['donsadon'] },
+      // ── 카페 / 베이커리 / 기타 ──
+      { slug: 'mongsang-aewol', name: '몽상드애월', name_en: 'Mongsang de Aewol', domains: ['mongsang.co.kr', 'mongsang-aewol'], keywords: ['몽상드애월', '몽상', '애월 카페'], color: '#8b5cf6', comparative_pairs: ['cafe-delmundo', 'cafe-gongbaek'] },
+      { slug: 'cafe-delmundo', name: '카페 델문도', name_en: 'Cafe Delmundo', domains: ['cafedelmundo.kr', 'cafe-delmundo'], keywords: ['카페 델문도', '델문도', '제주 카페'], color: '#6366f1', comparative_pairs: ['mongsang-aewol', 'hotel-sand'] },
+      { slug: 'cafe-gongbaek', name: '카페 공백', name_en: 'Cafe Gongbaek', domains: ['cafegongbaek.com', 'cafe-gongbaek'], keywords: ['카페 공백', '공백카페'], color: '#a855f7', comparative_pairs: ['mongsang-aewol'] },
+      { slug: 'osulloc', name: '오설록 티뮤지엄', name_en: 'Osulloc Tea Museum', domains: ['osulloc.com', 'osulloc'], keywords: ['오설록', 'osulloc', '녹차 체험'], color: '#22c55e', comparative_pairs: ['innisfree-jeju'] },
+      { slug: 'innisfree-jeju', name: '이니스프리 제주하우스', name_en: 'Innisfree Jeju House', domains: ['innisfree.com', 'innisfree-jeju'], keywords: ['이니스프리 제주하우스', '이니스프리 제주'], color: '#84cc16', comparative_pairs: ['osulloc'] },
+      { slug: 'anthracite-hallim', name: '앤트러사이트 한림', name_en: 'Anthracite Hallim', domains: ['anthracite', 'anthracite-hallim'], keywords: ['앤트러사이트 한림', '앤트러사이트'], color: '#10b981', comparative_pairs: ['cafe-gongbaek'] },
+      { slug: 'the-cliff', name: '더클리프', name_en: 'The Cliff', domains: ['thecliff', 'the-cliff'], keywords: ['더클리프', 'the cliff'], color: '#ef4444', comparative_pairs: ['cafe-delmundo'] },
+      { slug: 'oasis80', name: '오아시스80', name_en: 'Oasis 80', domains: ['oasis80'], keywords: ['오아시스80', 'oasis80'], color: '#f59e0b', comparative_pairs: ['lazypump'] },
+      { slug: 'lazypump', name: '레이지펌프', name_en: 'Lazy Pump', domains: ['lazypump'], keywords: ['레이지펌프', 'lazypump'], color: '#eab308', comparative_pairs: ['oasis80'] },
+      { slug: 'cafe-orrn', name: '카페 오른', name_en: 'Cafe Orrn', domains: ['orrn', 'cafe-orrn'], keywords: ['카페 오른', '카페오른', 'orrn'], color: '#fca5a5', comparative_pairs: ['cafe-gongbaek'] },
+      { slug: 'hotel-sand', name: '호텔샌드', name_en: 'Hotel Sand', domains: ['hotelsand', 'hotel-sand'], keywords: ['호텔샌드', '호텔 샌드'], color: '#fdba74', comparative_pairs: ['cafe-delmundo'] },
+      { slug: 'bomnal-cafe', name: '봄날카페', name_en: 'Bomnal Cafe', domains: ['bomnal-cafe'], keywords: ['봄날카페', '봄날 카페'], color: '#fcd34d', comparative_pairs: ['mongsang-aewol'] },
+      { slug: 'ultramarine', name: '울트라마린', name_en: 'Ultramarine', domains: ['ultramarine'], keywords: ['울트라마린', 'ultramarine'], color: '#fde047', comparative_pairs: ['hotel-sand'] },
+      { slug: 'azulejo', name: '아줄레주', name_en: 'Azulejo', domains: ['azulejo'], keywords: ['아줄레주', 'azulejo'], color: '#bef264', comparative_pairs: ['cafe-orrn'] },
+      { slug: 'abebe-bakery', name: '아베베 베이커리', name_en: 'Abebe Bakery', domains: ['abebe', 'abebe-bakery'], keywords: ['아베베 베이커리', '아베베'], color: '#86efac', comparative_pairs: ['randys-donut-jeju'] },
+      { slug: 'randys-donut-jeju', name: '랜디스도넛 제주', name_en: 'Randys Donut Jeju', domains: ['randys-donut', 'randys-donut-jeju'], keywords: ['랜디스도넛', '랜디스 도넛'], color: '#6ee7b7', comparative_pairs: ['abebe-bakery'] },
+      { slug: 'jeju-beer', name: '제주맥주', name_en: 'Jeju Beer', domains: ['jejubeer.co.kr', 'jeju-beer'], keywords: ['제주맥주', 'jeju beer', '크래프트 맥주'], color: '#f59e0b', comparative_pairs: ['magpie'] },
+      { slug: 'nohyeong-supermaket', name: '노형슈퍼마켙', name_en: 'Nohyeong Supermaket', domains: ['nohyeongsupermaket.com', 'nohyeong-supermaket'], keywords: ['노형슈퍼마켙', '노형슈퍼마켓'], color: '#ec4899', comparative_pairs: ['jeju-beer'] },
+    ],
+  },
+
+  jeju_place_en: {
+    slug: 'jeju_place_en',
+    name: '제주 글로벌 경쟁 (영문)',
+    icon: '🏝️',
+    description: 'Jeju Island vs 20 Global Resort Destination AI Visibility Benchmark (EN)',
+    industryType: 'jeju_place_en',
+    deep_dive_enabled: true,
+    sampleQuestionsForLight: 50,
+    sampleQuestionsForFull: 80,
+    repetitionCount: 1,
+    brands: JEJU_COMPETITOR_BRANDS
   },
 } as const;
 

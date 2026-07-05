@@ -38,6 +38,8 @@ export interface SearchResult {
     /** 응답 지연 시간 (ms) */
     response_latency_ms: number;
     token_count?: number;
+    /** 검색 의도 및 추출된 실제 쿼리 (Gemini webSearchQueries 등) */
+    search_queries?: string[];
     has_structured_data: boolean;
     provider_type: ProviderType;
   };

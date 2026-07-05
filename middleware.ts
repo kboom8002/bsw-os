@@ -52,11 +52,15 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Check if it's a login route
-  const isLoginRoute = pathWithoutLocale === '/login' || pathWithoutLocale.startsWith('/login/');
+  // Check if it's a public route
+  const isPublicRoute = 
+    pathWithoutLocale === '/login' || pathWithoutLocale.startsWith('/login/') ||
+    pathWithoutLocale === '/signup' || pathWithoutLocale.startsWith('/signup/') ||
+    pathWithoutLocale.startsWith('/invite/') ||
+    pathWithoutLocale === '/';
   
-  // Protect all non-login routes (workspaces, etc.)
-  if (!user && !isLoginRoute && pathWithoutLocale !== '/') {
+  // Protect all non-public routes
+  if (!user && !isPublicRoute) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = `/${pathnameHasLocale ? pathname.split('/')[1] : locale}/login`;
     return NextResponse.redirect(redirectUrl);

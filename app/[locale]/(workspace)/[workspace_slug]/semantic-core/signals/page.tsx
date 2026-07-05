@@ -15,8 +15,26 @@ import {
   Loader2,
   ArrowUpDown,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
+  Database,
+  Plus,
+  Trash2,
+  Play,
+  RefreshCw,
+  Globe,
+  Rss,
+  Code
 } from "lucide-react";
+import { 
+  getCollectionSourcesAction,
+  saveCollectionSourceAction,
+  deleteCollectionSourceAction,
+  toggleCollectionSourceAction,
+  triggerCollectionAction,
+  triggerAllCollectionsAction,
+  getExternalSignalsAction
+} from "@/app/actions/collection";
+
 
 interface SignalItem {
   id: string;
@@ -42,6 +60,20 @@ export default function SignalsPage() {
   const [wsId, setWsId] = useState<string>("");
   const [signals, setSignals] = useState<SignalItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Collection Source & Extracted Data states
+  const [activeTab, setActiveTab] = useState<"analysis" | "sources">("analysis");
+  const [sources, setSources] = useState<any[]>([]);
+  const [externalSignals, setExternalSignals] = useState<any[]>([]);
+  const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [syncingSourceId, setSyncingSourceId] = useState<string | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
+
+  // Add Source Form states
+  const [newSourceName, setNewSourceName] = useState("");
+  const [newSourceUrl, setNewSourceUrl] = useState("");
+  const [newSourceType, setNewSourceType] = useState<"rss" | "community_board" | "api" | "crawl">("rss");
+  const [newSourceIdentifier, setNewSourceIdentifier] = useState("");
 
   // Filters & Sorting
   const [filterGate, setFilterGate] = useState<string>("all");
@@ -74,11 +106,15 @@ export default function SignalsPage() {
 
       if (resolvedId) {
         setWsId(resolvedId);
-        await loadSignals(resolvedId);
+        await Promise.all([
+          loadSignals(resolvedId),
+          loadCollectionData(resolvedId)
+        ]);
       } else {
         setDbError("워크스페이스 ID를 찾을 수 없습니다. 시드 데이터가 올바르게 실행되었는지 확인해 주세요.");
       }
     } catch (err: any) {
+
       console.error("Failed to initialize signals page:", err);
       setDbError(err.message || "시그널 페이지 초기화 실패");
     } finally {
@@ -114,6 +150,100 @@ export default function SignalsPage() {
       setDbError(err.message || "시그널 데이터를 불러오는 중 오류가 발생했습니다.");
     }
   };
+
+  const loadCollectionData = async (currentWsId: string) => {
+    setSourcesLoading(true);
+    try {
+      const [srcData, sigData] = await Promise.all([
+        getCollectionSourcesAction(currentWsId),
+        getExternalSignalsAction(currentWsId)
+      ]);
+      setSources(srcData);
+      setExternalSignals(sigData);
+    } catch (err) {
+      console.error("Failed to load collection data:", err);
+    } finally {
+      setSourcesLoading(false);
+    }
+  };
+
+  const handleAddSource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!wsId || !newSourceName.trim()) return;
+    try {
+      await saveCollectionSourceAction(wsId, {
+        name: newSourceName,
+        url: newSourceUrl.trim() || null,
+        source_type: newSourceType,
+        identifier: newSourceIdentifier.toUpperCase().trim() || 'CUSTOM',
+        enabled: true,
+        industry: keywordSeed === "웨딩" ? "wedding" : "beauty"
+      });
+      // Reset inputs
+      setNewSourceName("");
+      setNewSourceUrl("");
+      setNewSourceIdentifier("");
+      await loadCollectionData(wsId);
+      alert("수집 소스가 추가되었습니다.");
+    } catch (err: any) {
+      alert("추가 실패: " + err.message);
+    }
+  };
+
+  const handleDeleteSource = async (id: string) => {
+    if (!wsId || !confirm("이 수집 소스를 삭제하시겠습니까?")) return;
+    try {
+      await deleteCollectionSourceAction(wsId, id);
+      await loadCollectionData(wsId);
+    } catch (err: any) {
+      alert("삭제 실패: " + err.message);
+    }
+  };
+
+  const handleToggleSource = async (id: string, enabled: boolean) => {
+    if (!wsId) return;
+    try {
+      await toggleCollectionSourceAction(wsId, id, enabled);
+      setSources(prev => prev.map(s => s.id === id ? { ...s, enabled } : s));
+    } catch (err: any) {
+      alert("변경 실패: " + err.message);
+    }
+  };
+
+  const handleSyncSource = async (id: string) => {
+    if (!wsId) return;
+    setSyncingSourceId(id);
+    try {
+      const res = await triggerCollectionAction(wsId, id, [keywordSeed]);
+      alert(`수집 완료! 새로 수집된 시그널: ${res.fetchedCount}건`);
+      await Promise.all([
+        loadCollectionData(wsId),
+        loadSignals(wsId)
+      ]);
+    } catch (err: any) {
+      alert("수집 실패: " + err.message);
+    } finally {
+      setSyncingSourceId(null);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    if (!wsId) return;
+    setSyncingAll(true);
+    try {
+      const res = await triggerAllCollectionsAction(wsId, [keywordSeed]);
+      alert(`전체 수집 완료! 총 ${res.totalFetched}건의 새로운 시그널이 적재되었습니다.`);
+      await Promise.all([
+        loadCollectionData(wsId),
+        loadSignals(wsId)
+      ]);
+    } catch (err: any) {
+      alert("전체 수집 실패: " + err.message);
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
 
   const handleRunAgent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,9 +378,35 @@ export default function SignalsPage() {
         </div>
       </div>
 
+      {/* Tab Switcher */}
+      <div className="flex gap-4 border-b border-white/5 pb-1">
+        <button
+          onClick={() => setActiveTab("analysis")}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all ${
+            activeTab === "analysis"
+              ? "border-cyan-500 text-cyan-400 font-extrabold"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          시그널 분석 & 승격
+        </button>
+        <button
+          onClick={() => setActiveTab("sources")}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all ${
+            activeTab === "sources"
+              ? "border-cyan-500 text-cyan-400 font-extrabold"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          원천 수집원 관리 (Admin)
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          {/* AI Miner form */}
+          {activeTab === "analysis" ? (
+            <>
+              {/* AI Miner form */}
           <form onSubmit={handleRunAgent} className="p-6 rounded-2xl border border-white/5 bg-slate-950/40 space-y-4">
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <Cpu className="w-5 h-5 text-cyan-400" />
@@ -522,6 +678,226 @@ export default function SignalsPage() {
               </table>
             )}
           </div>
+          </>
+          ) : (
+            <div className="space-y-6">
+              {/* Sync All & Add Source Form */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Add Source Form (Left 2 cols) */}
+                <form onSubmit={handleAddSource} className="md:col-span-2 p-6 rounded-2xl border border-white/5 bg-slate-950/40 space-y-4">
+                  <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
+                    <Plus className="w-5 h-5 text-cyan-400" />
+                    새로운 수집 소스 추가
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-400">수집원 이름</label>
+                      <input
+                        type="text"
+                        value={newSourceName}
+                        onChange={(e) => setNewSourceName(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs"
+                        placeholder="e.g. 올리브영 화장품 리뷰"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-400">식별 코드 (Identifier)</label>
+                      <input
+                        type="text"
+                        value={newSourceIdentifier}
+                        onChange={(e) => setNewSourceIdentifier(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs font-mono"
+                        placeholder="e.g. OLIVEYOUNG_REVIEW"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-400">수집 방식</label>
+                      <select
+                        value={newSourceType}
+                        onChange={(e) => setNewSourceType(e.target.value as any)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900 text-slate-100 focus:outline-none focus:border-cyan-500 text-xs"
+                      >
+                        <option value="rss">RSS 피드 수집 (RSS)</option>
+                        <option value="crawl">웹 cheerio 크롤러 (Crawl)</option>
+                        <option value="api">외부 API 연동 (API)</option>
+                      </select>
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <label className="block text-xs font-semibold text-slate-400">대상 URL (웹주소/RSS주소)</label>
+                      <input
+                        type="url"
+                        value={newSourceUrl}
+                        onChange={(e) => setNewSourceUrl(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs"
+                        placeholder="https://example.com/rss.xml"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all text-xs flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    수집 소스 추가 등록
+                  </button>
+                </form>
+
+                {/* Control card (Right 1 col) */}
+                <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/40 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2 mb-2">
+                      <RefreshCw className="w-5 h-5 text-cyan-400" />
+                      전체 수집 일괄 실행
+                    </h3>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                      활성화된 모든 수집원에서 실시간으로 새로운 원천 시그널 데이터를 가져옵니다. 수집된 시그널은 즉시 AI 예측 파이프라인의 분석 원천 데이터로 사용됩니다.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSyncAll}
+                    disabled={syncingAll}
+                    className="w-full px-5 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {syncingAll ? <Loader2 className="w-4 h-4 animate-spin text-slate-950" /> : <Play className="w-4 h-4" />}
+                    {syncingAll ? "전체 수집 동기화 중..." : "전체 수집 동기화 실행 (자동)"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Data Sources List */}
+              <div className="border border-white/5 rounded-2xl overflow-hidden bg-slate-950/20">
+                <div className="p-4 bg-slate-950/40 border-b border-white/5 flex justify-between items-center">
+                  <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
+                    <Database className="w-4 h-4 text-cyan-500" />
+                    등록된 데이터 수집원 목록 ({sources.length}개)
+                  </h3>
+                </div>
+                {sourcesLoading ? (
+                  <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                    <span>수집 소스 목록을 불러오는 중...</span>
+                  </div>
+                ) : sources.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500 text-xs">
+                    등록된 수집 소스가 없습니다. 위의 폼에서 추가해 주세요.
+                  </div>
+                ) : (
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-slate-950/40 font-mono text-[10px] text-slate-400">
+                        <th className="p-4 w-16 text-center">활성</th>
+                        <th className="p-4">수집원 이름 / 식별자</th>
+                        <th className="p-4">유형</th>
+                        <th className="p-4">URL</th>
+                        <th className="p-4 text-center">최근 수집 내역</th>
+                        <th className="p-4 text-right">작업</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {sources.map((src) => (
+                        <tr key={src.id} className="hover:bg-white/[0.01] transition-colors">
+                          <td className="p-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={src.enabled}
+                              onChange={(e) => handleToggleSource(src.id, e.target.checked)}
+                              className="w-4 h-4 rounded border-white/20 bg-transparent accent-cyan-500 cursor-pointer"
+                            />
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold text-slate-200">{src.name}</div>
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">{src.identifier}</div>
+                          </td>
+                          <td className="p-4">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono uppercase text-[9px]">
+                              {src.source_type === 'rss' && <Rss className="w-2.5 h-2.5" />}
+                              {src.source_type === 'crawl' && <Globe className="w-2.5 h-2.5" />}
+                              {src.source_type === 'api' && <Code className="w-2.5 h-2.5" />}
+                              {src.source_type}
+                            </span>
+                          </td>
+                          <td className="p-4 max-w-[200px] truncate text-slate-400 font-mono text-[10px]">
+                            {src.url || '—'}
+                          </td>
+                          <td className="p-4 text-center">
+                            {src.last_fetched_at ? (
+                              <div>
+                                <div className="text-slate-300">{new Date(src.last_fetched_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                <div className="text-[10px] text-emerald-400 font-mono mt-0.5">+{src.last_fetch_count || 0}건</div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-600 text-[10px]">미실행</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-right space-x-2">
+                            <button
+                              onClick={() => handleSyncSource(src.id)}
+                              disabled={syncingSourceId === src.id || !src.enabled}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition-all text-[11px] disabled:opacity-30 inline-flex items-center gap-1"
+                            >
+                              {syncingSourceId === src.id ? <Loader2 className="w-3 h-3 animate-spin text-slate-200" /> : <RefreshCw className="w-3 h-3" />}
+                              수집
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSource(src.id)}
+                              className="p-1.5 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all inline-flex items-center"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Raw Extracted Signals List */}
+              <div className="border border-white/5 rounded-2xl overflow-hidden bg-slate-950/20">
+                <div className="p-4 bg-slate-950/40 border-b border-white/5 flex justify-between items-center">
+                  <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-cyan-500" />
+                    최근 수집 완료된 원천 시그널 피드
+                  </h3>
+                </div>
+                <div className="divide-y divide-white/5 max-h-[350px] overflow-y-auto">
+                  {externalSignals.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 text-xs">
+                      수집된 원천 시그널 피드가 없습니다. 소스를 수집해 보세요.
+                    </div>
+                  ) : (
+                    externalSignals.map((sig) => (
+                      <div key={sig.id} className="p-4 hover:bg-white/[0.01] transition-colors space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="px-2 py-0.5 rounded bg-cyan-950/30 text-cyan-400 border border-cyan-900/30 uppercase font-mono">
+                            {sig.source_type}
+                          </span>
+                          <span className="text-slate-500">
+                            {new Date(sig.collected_at || sig.published_at || '').toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-200 font-bold leading-relaxed">
+                          {sig.content}
+                        </p>
+                        {sig.url && (
+                          <div className="text-[10px] text-slate-500 font-mono truncate">
+                            <span className="text-slate-600">URL: </span>
+                            <a href={sig.url} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 underline">
+                              {sig.url}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* AI Agent Console Logs Panel */}

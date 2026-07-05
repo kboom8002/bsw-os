@@ -59,6 +59,33 @@ export async function getUserWorkspaces(): Promise<
   const userId = user.id;
   const adminClient = getSupabaseAdminClient();
 
+  // Super Admin Auto-membership check
+  const isSuper = user.email === 'kboom8002@gmail.com';
+  if (isSuper) {
+    const { data: allWs } = await adminClient
+      .from('workspaces')
+      .select('id, name, slug');
+
+    if (allWs && allWs.length > 0) {
+      const upsertPayload = allWs.map(ws => ({
+        workspace_id: ws.id,
+        user_id: userId,
+        role: 'owner'
+      }));
+
+      await adminClient
+        .from('workspace_memberships')
+        .upsert(upsertPayload, { onConflict: 'workspace_id,user_id' });
+
+      return allWs.map(ws => ({
+        id: ws.id,
+        name: ws.name,
+        slug: ws.slug,
+        role: 'owner'
+      }));
+    }
+  }
+
   const { data, error } = await adminClient
     .from('workspace_memberships')
     .select('role, workspaces(id, name, slug)')
@@ -223,6 +250,25 @@ export async function getAuditRunHistory(
 // 6. 워크스페이스 slug → UUID 해석 (서버 액션)
 // ────────────────────────────────────────────
 export async function resolveWorkspaceSlug(slug: string): Promise<string | null> {
+  // Guard: undefined/empty slug → 첫 번째 워크스페이스 반환
+  if (!slug || slug === 'undefined' || slug === 'null' || slug.trim() === '') {
+    try {
+      const adminClient = getSupabaseAdminClient();
+      const { data } = await adminClient
+        .from('workspaces')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+      if (data?.id) {
+        console.log(`[resolveWorkspaceSlug] slug 없음 → 첫 번째 워크스페이스 사용: ${data.id}`);
+        return data.id;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
   const adminClient = getSupabaseAdminClient();
   const { data, error } = await adminClient
     .from('workspaces')
@@ -237,3 +283,4 @@ export async function resolveWorkspaceSlug(slug: string): Promise<string | null>
 
   return data.id;
 }
+

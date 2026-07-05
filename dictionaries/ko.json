@@ -32,6 +32,7 @@
     "site_audit_llms": "llms.txt 생성기",
     "industry_benchmark": "업종 벤치마크",
     "benchmark": "업종별 실측 벤치마크",
+    "benchmark_admin": "벤치마크 어드민",
     "sbs_index": "공개 AI 평판지수 (SBS)",
     "industry_report": "업종 AEO 경쟁 리포트",
     "deep_dive": "Deep Dive 심층 분석",

@@ -134,6 +134,7 @@ export class ChatGPTSearchProvider implements SearchProvider {
                   },
                 ],
                 temperature: 0.3,
+                max_tokens: 4096,
               }),
             });
 

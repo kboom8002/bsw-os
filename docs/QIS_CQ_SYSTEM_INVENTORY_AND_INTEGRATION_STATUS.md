@@ -346,7 +346,7 @@ QIS_API_KEY_HASH=<sha256-of-api-key>
 
 **aihompyhub (.env):**
 ```
-BSW_API_URL=https://bsw-os.vercel.app
+BSW_API_URL=https://answerhub.kr
 BSW_API_KEY=<bsw-api-key>
 QIS_API_KEY=<same-key-as-bsw-hash-source>
 ```

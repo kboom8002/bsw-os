@@ -18,6 +18,8 @@ import { AepiCalculator } from '../benchmark/aepi-calculator';
 import { calculatePerLayerMetrics } from '../benchmark/per-layer-metrics';
 import { buildForIndustryReport, type IndustryReportProbeOptions } from '../benchmark/fair-probe-templates';
 import { calcWeightedAAS } from '../benchmark/mention-classifier';
+import { analyzeFreshness } from '../benchmark/freshness-analyzer';
+import { getBrandPosition } from '../benchmark/per-layer-metrics';
 import {
   calculatePositionMatrix,
   type BrandBdrCwr,
@@ -186,6 +188,7 @@ export class IndustryReportRunner {
       const brandMetricsMap = new Map<string, {
         bair: number; bsf: number; aas_w: number; ocr: number; mq: number;
         iri: number; bdr: number; cwr: number; opp: number;
+        top3: number; top5: number; freshness: number;
         aepiScore: number; aepiDimensions: Record<string, number>;
         sampleSize: number; isEstimated: boolean;
       }>();
@@ -201,6 +204,8 @@ export class IndustryReportRunner {
         let l7Defended = 0;
         let l2Total = 0;
         let l2Won = 0;
+        let l2Top3 = 0;
+        let l2Top5 = 0;
 
         for (const [_qText, perEngine] of queryResults) {
           const probe = probes.find((p: any) => p.question_text === _qText);
@@ -250,6 +255,22 @@ export class IndustryReportRunner {
               return brandIdx !== -1 && (compIdx === -1 || brandIdx < compIdx);
             });
             if (won) l2Won++;
+
+            // Top-N Position 산출
+            for (const eng of engines) {
+              const res = perEngine[eng];
+              if (!res) continue;
+              // 이 응답에서 언급된 모든 브랜드 수집
+              const mentionedInResponse = brands
+                .filter((b) => hasBrandMention(res.text, b))
+                .map((b) => b.name);
+              if (mentionedInResponse.includes(brand.name)) {
+                const pos = getBrandPosition(res.text, brand.name, mentionedInResponse);
+                if (pos <= 3) l2Top3++;
+                if (pos <= 5) l2Top5++;
+              }
+              break; // 첫 번째 엔진 기준
+            }
           }
         }
 
@@ -272,11 +293,27 @@ export class IndustryReportRunner {
         }
         const aasW = aasCount > 0 ? clamp((aasWeightSum / aasCount) * 100) : 0;
 
-        // IRI / BDR / CWR / OPP
+        // Freshness Score
+        let freshnessWeightSum = 0;
+        let freshnessCount = 0;
+        for (const [, perEngine] of queryResults) {
+          for (const engine of engines) {
+            const res = perEngine[engine];
+            if (!res?.text) continue;
+            const fr = analyzeFreshness(res.text);
+            freshnessWeightSum += fr.weight;
+            freshnessCount++;
+          }
+        }
+        const freshness = freshnessCount > 0 ? clamp((freshnessWeightSum / freshnessCount) * 100) : 0;
+
+        // IRI / BDR / CWR / OPP / Top-N
         const iri = totalQCount > 0 ? clamp((anyBrandMentionedCount / totalQCount) * 100) : 0;
         const opp = 100 - iri;
         const bdr = l7Total > 0 ? clamp((l7Defended / l7Total) * 100) : 0;
         const cwr = l2Total > 0 ? clamp((l2Won / l2Total) * 100) : 0;
+        const top3 = l2Total > 0 ? clamp((l2Top3 / l2Total) * 100) : 0;
+        const top5 = l2Total > 0 ? clamp((l2Top5 / l2Total) * 100) : 0;
 
         // BAIR V2 (가중 합산)
         const bair = clamp(0.35 * bsf + 0.25 * aasW + 0.20 * ocr + 0.10 * 0 + 0.10 * mq);
@@ -298,6 +335,7 @@ export class IndustryReportRunner {
         brandMetricsMap.set(brand.slug, {
           bair, bsf, aas_w: aasW, ocr, mq,
           iri, bdr, cwr, opp,
+          top3, top5, freshness,
           aepiScore, aepiDimensions,
           sampleSize: totalQCount,
           isEstimated: totalQCount < 5,
@@ -374,6 +412,9 @@ export class IndustryReportRunner {
             bdr: Number(item.metrics.bdr.toFixed(1)),
             cwr: Number(item.metrics.cwr.toFixed(1)),
             opp: Number(item.metrics.opp.toFixed(1)),
+            top3: Number(item.metrics.top3.toFixed(1)),
+            top5: Number(item.metrics.top5.toFixed(1)),
+            freshness: Number(item.metrics.freshness.toFixed(1)),
             aepi_dimensions: item.metrics.aepiDimensions,
             prev_rank_position: prevRank,
             rank_change: prevRank !== null ? prevRank - rank : 0,

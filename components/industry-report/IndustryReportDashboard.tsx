@@ -73,6 +73,9 @@ function RankingTable({ rankings }: { rankings: BrandRankingRow[] }) {
             <th className="text-right py-2 px-3 text-slate-400 font-medium">OCR</th>
             <th className="text-right py-2 px-3 text-slate-400 font-medium">BDR</th>
             <th className="text-right py-2 px-3 text-slate-400 font-medium">CWR</th>
+            <th className="text-right py-2 px-3 text-slate-400 font-medium">Top3</th>
+            <th className="text-right py-2 px-3 text-slate-400 font-medium">Top5</th>
+            <th className="text-right py-2 px-3 text-slate-400 font-medium">Fresh</th>
             <th className="text-left py-2 px-3 text-slate-400 font-medium">포지션</th>
           </tr>
         </thead>
@@ -107,6 +110,13 @@ function RankingTable({ rankings }: { rankings: BrandRankingRow[] }) {
                 <td className="py-3 px-3 text-right font-mono text-slate-300">{row.ocr.toFixed(1)}</td>
                 <td className="py-3 px-3 text-right font-mono text-blue-300">{row.bdr?.toFixed(1) ?? '─'}</td>
                 <td className="py-3 px-3 text-right font-mono text-purple-300">{row.cwr?.toFixed(1) ?? '─'}</td>
+                <td className="py-3 px-3 text-right font-mono text-cyan-300">{row.top3?.toFixed(1) ?? '─'}</td>
+                <td className="py-3 px-3 text-right font-mono text-teal-300">{row.top5?.toFixed(1) ?? '─'}</td>
+                <td className="py-3 px-3 text-right">
+                  <span className={`font-mono ${(row.freshness ?? 0) >= 70 ? 'text-emerald-300' : (row.freshness ?? 0) >= 40 ? 'text-amber-300' : 'text-red-300'}`}>
+                    {row.freshness?.toFixed(1) ?? '─'}
+                  </span>
+                </td>
                 <td className="py-3 px-3">
                   {quadStyle && (
                     <span className={`text-xs px-2 py-0.5 rounded-full ${quadStyle.badge}`}>

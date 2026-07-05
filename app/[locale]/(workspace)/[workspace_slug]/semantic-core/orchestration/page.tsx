@@ -1,12 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
 import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
 import { getPipelineReadiness, seedDemoData } from "@/app/actions/semantic";
 import { deleteAuditRun, resolveWorkspaceSlug } from "@/app/actions/workspace";
+import {
+  pausePipelineAction,
+  resumePipelineAction,
+  retryFromFailedPhaseAction,
+  resetBootstrapAction,
+  resetPipelineDataAction,
+  runFromPhaseAction,
+} from "@/app/actions/pipeline-control";
+import { PIPELINE_PHASES, PHASE_LABELS, type ResetScope } from "@/lib/pipeline/pipeline-state-manager";
 import {
   ArrowLeft,
   Sparkles,
@@ -16,6 +25,9 @@ import {
   Cpu,
   Layers,
   Play,
+  Pause,
+  SkipForward,
+  RotateCcw,
   CheckCircle,
   Database,
   HelpCircle,
@@ -24,7 +36,10 @@ import {
   GitFork,
   ArrowRight,
   Trash2,
-  Filter
+  Filter,
+  ChevronDown,
+  AlertCircle,
+  XCircle,
 } from "lucide-react";
 
 interface RecentRunItem {
@@ -53,38 +68,82 @@ interface ReadinessData {
   recentRuns: RecentRunItem[];
 }
 
+interface PhaseProgress {
+  [phase: string]: {
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'paused' | 'skipped';
+    label: string;
+    completedAt?: string;
+    error?: string;
+  };
+}
+
+type ResetModalScope = ResetScope | null;
+
 export default function OrchestrationPage() {
   const params = useParams();
   const { t } = useTranslation();
   const locale = (params?.locale as string) || "ko";
-  const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
+  const rawSlug = params?.workspace_slug as string;
+  const workspaceSlug = (rawSlug && rawSlug !== 'undefined') ? rawSlug : "demo-brand-semantic-lab";
   const [workspaceId, setWorkspaceId] = useState<string>('');
-  
+
   const [selectedDomain, setSelectedDomain] = useState('skincare');
   const [selectedBrand, setSelectedBrand] = useState('dr-o');
-  
+  const [startFromPhase, setStartFromPhase] = useState<string>('phase0_bootstrap');
+
   const [loading, setLoading] = useState(true);
   const [runningPipeline, setRunningPipeline] = useState(false);
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [runStatus, setRunStatus] = useState<string | null>(null); // 'running'|'paused'|'failed'|'completed'
+  const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({});
   const [pipelineLogs, setPipelineLogs] = useState<string[]>([]);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<{ success: boolean; message: string } | null>(null);
   const [deletingRunId, setDeletingRunId] = useState<string | null>(null);
   const [runTypeFilter, setRunTypeFilter] = useState<string>('all');
+
+  // 데이터 관리 상태
+  const [resetModal, setResetModal] = useState<ResetModalScope>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<string | null>(null);
+  const [controlLoading, setControlLoading] = useState(false);
+  const [controlMsg, setControlMsg] = useState<string | null>(null);
+  const [depWarnings, setDepWarnings] = useState<string[]>([]);
+
   const [readiness, setReadiness] = useState<ReadinessData>({
-    benchmarkCount: 0,
-    goldenCount: 0,
-    auditCount: 0,
-    deepDiveCount: 0,
-    tcoCount: 0,
-    kgCount: 0,
-    signalCount: 0,
-    cqCount: 0,
-    sceneCount: 0,
+    benchmarkCount: 0, goldenCount: 0, auditCount: 0, deepDiveCount: 0,
+    tcoCount: 0, kgCount: 0, signalCount: 0, cqCount: 0, sceneCount: 0,
     recentRuns: []
   });
 
   const domainConfig = BENCHMARK_DOMAINS[selectedDomain];
   const brands = domainConfig?.brands ?? [];
+
+  // 상태 폴링 — runId가 있고 running/paused 상태일 때
+  const startPolling = (runId: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/pipeline/e2e/status?runId=${runId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setPhaseProgress(data.phases ?? {});
+        setRunStatus(data.status);
+        if (data.status === 'completed' || data.status === 'failed' || data.status === 'paused') {
+          clearInterval(pollRef.current!);
+          setRunningPipeline(data.status === 'running');
+          const updatedReadiness = await getPipelineReadiness(workspaceId, selectedDomain);
+          setReadiness(updatedReadiness);
+        }
+      } catch {}
+    }, 3000); // 3초마다 폴링
+  };
+
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
 
   useEffect(() => {
     initPage();
@@ -123,15 +182,24 @@ export default function OrchestrationPage() {
     }
   };
 
-  const triggerE2EPipeline = async () => {
+  const triggerE2EPipeline = async (fromPhase?: string) => {
     if (!workspaceId) return;
+
+    // Phase 선택 실행 시 의존성 경고 체크
+    if (fromPhase && fromPhase !== 'phase0_bootstrap') {
+      const depRes = await fetch('/api/pipeline/e2e', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check_deps', workspaceSlug, domainKey: selectedDomain, startPhase: fromPhase }),
+      }).catch(() => null);
+      // (경고만, 블로킹 없음)
+    }
+
     setRunningPipeline(true);
-    setPipelineLogs(["[System] Initializing E2E QIS Pipeline Execution...", `[System] Workspace: ${workspaceSlug}`, `[System] Industry: ${selectedDomain}`]);
+    setPhaseProgress({});
+    setPipelineLogs([`[System] E2E QIS Pipeline 시작`, `[System] 도메인: ${selectedDomain}`, fromPhase ? `[System] ${PHASE_LABELS[fromPhase] ?? fromPhase}부터 실행` : '[System] 전체 실행']);
 
     try {
-      setPipelineLogs(prev => [...prev, "[System] Launching Phase 0: Bootstrap TCO/KG (checks existing data)..."]);
-
-      // API Route 호출 (maxDuration=300 보장)
       const res = await fetch('/api/pipeline/e2e', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,48 +207,101 @@ export default function OrchestrationPage() {
           workspaceId,
           domainName: selectedDomain,
           brandName: selectedBrand === 'all' ? undefined : selectedBrand,
-          options: { mode: selectedBrand === 'all' ? 'hub' : 'standalone' },
+          options: {
+            mode: selectedBrand === 'all' ? 'hub' : 'standalone',
+            resumeFromPhase: fromPhase !== 'phase0_bootstrap' ? fromPhase : undefined,
+          },
         }),
       });
 
       if (res.status === 409) {
         const { error } = await res.json();
         setPipelineLogs(prev => [...prev, `[Blocked] ${error}`]);
+        setRunningPipeline(false);
         return;
       }
-
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         throw new Error(error);
       }
 
       const { result } = await res.json();
+      setCurrentRunId(result.runId ?? null);
+      setRunStatus(result.status);
 
-      const statusEmoji = result.status === 'success' ? '✅' : result.status === 'partial_success' ? '⚠️' : '❌';
+      if (result.runId) startPolling(result.runId);
 
+      const emoji = result.status === 'success' ? '✅' : result.status === 'partial_success' ? '⚠️' : result.status === 'paused' ? '⏸️' : '❌';
       setPipelineLogs(prev => [
         ...prev,
-        `[Phase 0] Bootstrap Completed (Concepts: ${result.phase0_bootstrap?.tcoConcepts || 0}, Ontology: ${result.phase0_bootstrap?.kgNodes || 0})`,
-        `[Phase 1] Signal Collection Done (Generated: ${result.phase1_signals?.count || 0})`,
-        `[Phase 2] Benchmark Opps Mapped (Imported: ${result.phase2_opportunities?.fedCount || 0})`,
-        `[Phase 3] MMR Promotion Executed (Promoted to CQ: ${result.phase3_promotions?.promotedCount || 0})`,
-        ...(result.phaseErrors?.length > 0
-          ? result.phaseErrors.map((e: any) => `[⚠ ${e.phase}] ${e.message}`)
-          : []),
-        `${statusEmoji} Pipeline ${result.status} in ${result.totalDuration ? (result.totalDuration / 1000).toFixed(1) : 0}s.${
-          result.runId ? ` (runId: ${result.runId.slice(0, 8)}...)` : ''
-        }`,
+        `[Phase 0] Bootstrap (TCO: ${result.phase0_bootstrap?.tcoConcepts ?? 0}, KG: ${result.phase0_bootstrap?.kgNodes ?? 0})${result.phase0_bootstrap?.skipped ? ' — 캐시 사용' : ''}`,
+        `[Phase 1] 시그널 수집 (${result.phase1_signals?.count ?? 0}건)`,
+        `[Phase 3] CQ 승격 (${result.phase3_promotions?.promotedCount ?? 0}건 → CQ ${result.phase3_promotions?.cqCreated ?? 0}개)`,
+        ...(result.phaseErrors?.length > 0 ? result.phaseErrors.map((e: any) => `[⚠ ${e.phase}] ${e.message}`) : []),
+        `${emoji} 상태: ${result.status} (${result.totalDuration ? (result.totalDuration / 1000).toFixed(1) : 0}s)${result.runId ? ` | runId: ${result.runId.slice(0, 8)}...` : ''}`,
       ]);
-
-      // Readiness 업데이트
       const updatedReadiness = await getPipelineReadiness(workspaceId, selectedDomain);
       setReadiness(updatedReadiness);
     } catch (err: any) {
-      console.error("Pipeline run failed:", err);
-      const errMsg = err?.message || '알 수 없는 오류가 발생했습니다.';
-      setPipelineLogs(prev => [...prev, `[❌ Error] ${errMsg}`]);
+      setPipelineLogs(prev => [...prev, `[❌ Error] ${err?.message}`]);
     } finally {
       setRunningPipeline(false);
+    }
+  };
+
+  // ── 파이프라인 제어 핸들러 ──────────────────────────────────
+  const handlePause = async () => {
+    if (!currentRunId) return;
+    setControlLoading(true);
+    const res = await pausePipelineAction(workspaceSlug, currentRunId);
+    setControlMsg(res.message);
+    setRunStatus('pausing');
+    setControlLoading(false);
+  };
+
+  const handleResume = async () => {
+    if (!currentRunId) return;
+    setControlLoading(true);
+    setRunningPipeline(true);
+    const res = await resumePipelineAction(workspaceSlug, currentRunId);
+    setControlMsg(res.message);
+    if (res.ok) {
+      setRunStatus('running');
+      startPolling(currentRunId);
+    }
+    setControlLoading(false);
+  };
+
+  const handleRetry = async () => {
+    if (!currentRunId) return;
+    setControlLoading(true);
+    setRunningPipeline(true);
+    const res = await retryFromFailedPhaseAction(workspaceSlug, currentRunId);
+    setControlMsg(res.message);
+    if (res.ok && currentRunId) {
+      setRunStatus('running');
+      startPolling(currentRunId);
+    }
+    setControlLoading(false);
+  };
+
+  const handleReset = async () => {
+    if (!resetModal) return;
+    setResetting(true);
+    setResetResult(null);
+    try {
+      const res = await resetPipelineDataAction(workspaceSlug, selectedDomain, resetModal);
+      setResetResult(res.message);
+      setCurrentRunId(null);
+      setRunStatus(null);
+      setPhaseProgress({});
+      const updatedReadiness = await getPipelineReadiness(workspaceId, selectedDomain);
+      setReadiness(updatedReadiness);
+    } catch (err: any) {
+      setResetResult(`오류: ${err.message}`);
+    } finally {
+      setResetting(false);
+      setResetModal(null);
     }
   };
 
@@ -397,7 +518,7 @@ export default function OrchestrationPage() {
                   <div className="text-[11px] text-slate-400">상류 데이터를 기반으로 시그널 수집, 정밀 평가, 질문 자산 승격을 원클릭 실행합니다.</div>
                 </div>
                 <button
-                  onClick={triggerE2EPipeline}
+                  onClick={() => triggerE2EPipeline()}
                   disabled={runningPipeline || !workspaceId}
                   className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-extrabold rounded-lg transition-all shrink-0 flex items-center gap-1 disabled:opacity-50"
                 >
@@ -408,20 +529,82 @@ export default function OrchestrationPage() {
             </div>
           </div>
 
-          {/* Console / Output Logs */}
-          {(runningPipeline || pipelineLogs.length > 0) && (
-            <div className="p-4 rounded-xl border border-white/5 bg-slate-950 font-mono text-xs space-y-2">
-              <div className="flex items-center justify-between text-slate-400 border-b border-white/5 pb-2">
-                <span className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-cyan-400 animate-pulse" />
-                  ORCHESTRATOR_RUN_CONSOLE
-                </span>
-                <span className="text-[10px] text-slate-500">v4.0</span>
+          {/* Pipeline Control + Phase Progress Console */}
+          {(runningPipeline || pipelineLogs.length > 0 || currentRunId) && (
+            <div className="space-y-3">
+              {/* 제어 버튼 */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {runStatus === 'running' && (
+                  <button
+                    onClick={handlePause}
+                    disabled={controlLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                  >
+                    {controlLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5" />}
+                    중지
+                  </button>
+                )}
+                {(runStatus === 'paused') && (
+                  <button
+                    onClick={handleResume}
+                    disabled={controlLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                  >
+                    {controlLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                    계속 실행
+                  </button>
+                )}
+                {runStatus === 'failed' && (
+                  <button
+                    onClick={handleRetry}
+                    disabled={controlLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+                  >
+                    {controlLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                    실패 Phase 재시도
+                  </button>
+                )}
+                {controlMsg && (
+                  <span className="text-[10px] text-slate-400 font-mono">{controlMsg}</span>
+                )}
               </div>
-              <div className="max-h-60 overflow-y-auto space-y-1 text-cyan-400/90 whitespace-pre-wrap">
-                {pipelineLogs.map((log, i) => (
-                  <div key={i}>{log}</div>
-                ))}
+
+              {/* Phase 진행 체크리스트 */}
+              {Object.keys(phaseProgress).length > 0 && (
+                <div className="p-3 rounded-xl border border-white/5 bg-slate-950 space-y-1">
+                  <div className="text-[10px] text-slate-500 font-mono pb-1 border-b border-white/5 mb-2">PHASE PROGRESS</div>
+                  {PIPELINE_PHASES.map(phase => {
+                    const p = phaseProgress[phase];
+                    if (!p) return null;
+                    const icon = p.status === 'completed' ? '✅' : p.status === 'running' ? '⏳' : p.status === 'failed' ? '❌' : p.status === 'paused' ? '⏸️' : p.status === 'skipped' ? '⏭️' : '⬜';
+                    return (
+                      <div key={phase} className="flex items-center justify-between text-[10px] font-mono">
+                        <span className={`${
+                          p.status === 'running' ? 'text-cyan-400 animate-pulse' :
+                          p.status === 'completed' ? 'text-emerald-400' :
+                          p.status === 'failed' ? 'text-red-400' :
+                          p.status === 'paused' ? 'text-amber-400' :
+                          'text-slate-600'
+                        }`}>{icon} {p.label ?? PHASE_LABELS[phase] ?? phase}</span>
+                        {p.error && <span className="text-red-400 truncate max-w-[120px]" title={p.error}>{p.error}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 로그 콘솔 */}
+              <div className="p-3 rounded-xl border border-white/5 bg-slate-950 font-mono text-xs space-y-1">
+                <div className="flex items-center justify-between text-slate-400 border-b border-white/5 pb-1.5 mb-2">
+                  <span className="flex items-center gap-2">
+                    <Activity className={`w-3.5 h-3.5 ${runningPipeline ? 'text-cyan-400 animate-pulse' : 'text-slate-600'}`} />
+                    ORCHESTRATOR_RUN_CONSOLE
+                  </span>
+                  <span className="text-[9px] text-slate-600">v5.0</span>
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-0.5 text-cyan-400/80 whitespace-pre-wrap">
+                  {pipelineLogs.map((log, i) => <div key={i}>{log}</div>)}
+                </div>
               </div>
             </div>
           )}
@@ -553,31 +736,114 @@ export default function OrchestrationPage() {
             </div>
           </div>
 
-          {/* Demo Seeding Card */}
+          {/* Data Management Card — 데모 시딩 + 데이터 리셋 통합 */}
           <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/40 space-y-4">
             <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
               <Database className="w-4 h-4 text-cyan-400" />
-              데모 데이터 초기화 시딩
+              데이터 관리
             </h3>
-            <p className="text-slate-500 text-xs leading-normal">
-              테스트 및 검증을 위해 워크스페이스에 기본 스킨케어, K-뷰티, 웨딩 등의 질문 자산 데모 데이터를 구축합니다.
-            </p>
+
+            {/* Phase 선택 실행 */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-400">특정 Phase부터 실행</label>
+              <div className="flex gap-2">
+                <select
+                  value={startFromPhase}
+                  onChange={(e) => setStartFromPhase(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-xl border border-white/10 bg-slate-900 text-slate-100 text-xs font-mono focus:outline-none focus:border-cyan-500"
+                >
+                  {PIPELINE_PHASES.map(p => (
+                    <option key={p} value={p}>{PHASE_LABELS[p] ?? p}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => triggerE2EPipeline(startFromPhase)}
+                  disabled={runningPipeline || !workspaceId}
+                  className="px-3 py-2 rounded-xl border border-cyan-500/20 text-cyan-400 text-xs font-bold hover:bg-cyan-500/10 transition-all disabled:opacity-50 flex items-center gap-1"
+                  title={`${PHASE_LABELS[startFromPhase] ?? startFromPhase}부터 실행`}
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Bootstrap 리셋 */}
             <button
-              onClick={handleSeedDemo}
-              disabled={seeding}
-              className="w-full py-2.5 text-xs font-bold rounded-xl border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/5 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+              onClick={() => setResetModal('bootstrap_only')}
+              disabled={resetting}
+              className="w-full py-2 text-xs font-bold rounded-xl border border-amber-500/20 text-amber-400 hover:bg-amber-500/5 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
             >
-              {seeding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
-              {seeding ? "시딩 진행 중..." : "데모 데이터 생성"}
+              <RotateCcw className="w-3.5 h-3.5" />
+              Bootstrap 리셋 (TCO/KG 재생성)
             </button>
-            {seedResult && (
-              <div className={`p-2.5 rounded-lg border text-[10px] ${seedResult.success ? "border-green-500/20 text-green-400 bg-green-950/10" : "border-red-500/20 text-red-400 bg-red-950/10"}`}>
-                {seedResult.message}
+
+            {/* 전체 데이터 리셋 */}
+            <button
+              onClick={() => setResetModal('full')}
+              disabled={resetting}
+              className="w-full py-2 text-xs font-bold rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/5 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              전체 데이터 리셋 (시그널+CQ+Bootstrap)
+            </button>
+
+            {/* 구분선 */}
+            <div className="border-t border-white/5 pt-3 space-y-2">
+              <p className="text-slate-500 text-[10px] leading-normal">
+                테스트용 데모 데이터를 워크스페이스에 생성합니다.
+              </p>
+              <button
+                onClick={handleSeedDemo}
+                disabled={seeding}
+                className="w-full py-2 text-xs font-bold rounded-xl border border-white/10 text-slate-400 hover:bg-white/5 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+              >
+                {seeding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
+                {seeding ? "시딩 진행 중..." : "데모 데이터 생성"}
+              </button>
+            </div>
+
+            {(seedResult || resetResult) && (
+              <div className={`p-2.5 rounded-lg border text-[10px] ${
+                (seedResult?.success || resetResult?.startsWith('리셋')) ? "border-green-500/20 text-green-400 bg-green-950/10" : "border-amber-500/20 text-amber-400 bg-amber-950/10"
+              }`}>
+                {seedResult?.message ?? resetResult}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* ── 리셋 확인 모달 ── */}
+      {resetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 p-6 rounded-2xl border border-white/10 bg-slate-900 shadow-2xl space-y-4">
+            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-400" />
+              데이터 리셋 확인
+            </h3>
+            <p className="text-sm text-slate-400">
+              {resetModal === 'bootstrap_only' && 'TCO 개념과 KG 온톨로지 데이터를 삭제합니다. 다음 파이프라인 실행 시 Phase 0이 재실행됩니다.'}
+              {resetModal === 'signals_and_cq' && '시그널, CQ, QIS Scene 데이터를 삭제합니다.'}
+              {resetModal === 'full' && 'TCO/KG Bootstrap + 시그널 + CQ + QIS Scene 전체를 삭제합니다. 이 작업은 되돌릴 수 없습니다.'}
+            </p>
+            <p className="text-xs text-amber-400 font-bold">⚠️ 이 작업은 되돌릴 수 없습니다.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setResetModal(null)}
+                className="flex-1 py-2 rounded-xl border border-white/10 text-slate-400 text-sm font-bold hover:bg-white/5 transition-all"
+              >취소</button>
+              <button
+                onClick={handleReset}
+                disabled={resetting}
+                className="flex-1 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                리셋 실행
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,6 +21,13 @@ import { TargetQisEngine } from '../../lib/deep-dive/target-qis-engine';
 import { SignalOrchestrator } from '../../lib/signal-collection/orchestrator';
 import { BENCHMARK_DOMAINS } from '../../lib/benchmark/domain-config';
 import { requireAuthOrDemo } from '../../lib/auth';
+import { SignalBridge } from '../../lib/signal-collection/signal-bridge';
+import {
+  PipelineStateManager,
+  PipelinePausedError,
+  PIPELINE_PHASES,
+  type PipelinePhase,
+} from '../../lib/pipeline/pipeline-state-manager';
 
 // ═══════════════════════════════════════════════════════════════
 // 1. 벤치마크 기회 → 질문 시그널 자동 피딩
@@ -406,16 +413,26 @@ export interface PipelinePhaseError {
 
 export interface E2EPipelineResult {
   phase0_bootstrap: { tcoConcepts: number; kgNodes: number; kgEdges: number; skipped: boolean };
+  phase0_5_signals?: { collected: number; converted: number; volumeEnriched: number };
+  phase0_6_hubFeedback?: { newSignals: number; cpsUpdated: number; source: string };
   phase1_signals: { count: number; source: string };
+  phase1b_brandSignals?: { 
+    brandsProcessed: number; 
+    totalSignals: number; 
+    perBrand: Record<string, number>;
+    costLimitReached: boolean;
+  };
   phase1_5_deepDive?: { targetsFound: number; fedCount: number; skipped?: boolean; reason?: string };
   phase2_opportunities: { gapCount: number; blindSpotCount: number; fedCount: number };
+  phase2_1_reportGaps?: { weakCategories: number; fedCount: number };
   phase2_5_surfacePersist?: { persisted: number; skipped?: boolean; reason?: string };
+  phase2_6_deepDiveEnrich?: { brandsEnriched: number; additionalCQ: number };
   phase3_promotions: { promotedCount: number; cqCreated: number };
-  phase4_hubPush?: { pushed: boolean; count: number };
+  phase3_1_brandAssignment?: { packagesCreated: number; cqAssigned: number };
+  phase4_hubPush?: { pushed: boolean; cqCount: number; sceneCount: number; arenaCreated: number; errors: string[] };
+  phase5_saturation?: { coveragePercent: number; isNearSaturation: boolean; recommendation?: string };
   totalDuration: number;
-  /** 'success' | 'partial_success' | 'failed' */
   status: string;
-  /** Collected errors from each phase (non-blocking) */
   phaseErrors: PipelinePhaseError[];
   runId?: string;
 }
@@ -432,6 +449,13 @@ export async function runE2EPipeline(
     autoPromoteTopN?: number;
     brandUSP?: string;
     industryKey?: string;
+    enableBrandRotation?: boolean;
+    enableReportGapFeed?: boolean;
+    enableSaturationCheck?: boolean;
+    /** 이 Phase부터 실행 (이전 Phase는 기존 결과 재사용) */
+    resumeFromPhase?: string;
+    /** 기존 run을 재사용 (resume/retry 시) */
+    existingRunId?: string;
   }
 ): Promise<E2EPipelineResult> {
   await requireAuthOrDemo();
@@ -447,7 +471,8 @@ export async function runE2EPipeline(
   const startTime = Date.now();
   const mode = options?.mode || 'standalone';
   const autoPromoteTopN = Math.max(1, Math.min(20, options?.autoPromoteTopN ?? 5));
-  const industryKey = options?.industryKey || 'wedding_studio';
+  const industryKey = options?.industryKey || domainName || 'skincare';
+  const resumeFromPhase = options?.resumeFromPhase;
 
   const phaseErrors: PipelinePhaseError[] = [];
   const addPhaseError = (phase: string, err: unknown) => {
@@ -466,76 +491,148 @@ export async function runE2EPipeline(
     phaseErrors,
   };
 
+  // ── Phase 실행 헬퍼: 중지 체크 + 스킵(resume) + 체크포인트 ────────
+  const executePhase = async <T>(
+    phaseName: string,
+    fn: () => Promise<T>
+  ): Promise<T | null> => {
+    const phaseIdx = PIPELINE_PHASES.indexOf(phaseName as PipelinePhase);
+    const resumeIdx = resumeFromPhase
+      ? PIPELINE_PHASES.indexOf(resumeFromPhase as PipelinePhase)
+      : -1;
+
+    // resumeFromPhase 이전 Phase는 이전 결과를 DB에서 로드하여 스킵
+    if (resumeIdx > 0 && phaseIdx < resumeIdx) {
+      if (runId) {
+        const prev = await PipelineStateManager.getRunProgress(runId);
+        const cached = prev.phases[phaseName];
+        if (cached?.status === 'completed') {
+          console.log(`[E2E Pipeline] [${phaseName}] ⏭ 스킵 (resume, 이전 결과 재사용)`);
+          return cached as unknown as T;
+        }
+      }
+      return null;
+    }
+
+    // 중지 플래그 확인
+    if (runId && await PipelineStateManager.shouldPause(runId)) {
+      await PipelineStateManager.markAsPaused(runId, phaseName);
+      throw new PipelinePausedError(phaseName);
+    }
+
+    // Phase 시작 — 현재 Phase 업데이트
+    if (runId) {
+      await PipelineStateManager.updatePhaseResult(runId, phaseName, { status: 'running' });
+    }
+
+    try {
+      const res = await fn();
+      // 체크포인트 저장
+      if (runId) {
+        await PipelineStateManager.updatePhaseResult(runId, phaseName, {
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          ...(res as any),
+        });
+      }
+      return res;
+    } catch (err: any) {
+      if (err instanceof PipelinePausedError) throw err;
+      if (runId) {
+        await PipelineStateManager.updatePhaseResult(runId, phaseName, {
+          status: 'failed',
+          error: err.message,
+          completed_at: new Date().toISOString(),
+        });
+      }
+      throw err;
+    }
+  };
+
   const supabase = getSupabaseAdminClient();
 
   // ── 동시 실행 방지 및 pipeline_runs 이력 기록 ───────────────────
-  let runId: string | undefined;
+  let runId: string | undefined = options?.existingRunId;
   try {
-    // 현재 실행 중인 파이프라인이 있는지 확인
-    const { data: existingRun } = await supabase
-      .from('pipeline_runs')
-      .select('id, started_at')
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'running')
-      .order('started_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (existingRun) {
-      const runningFor = Date.now() - new Date(existingRun.started_at).getTime();
-      // 5분 이상된 running 상태는 stale로 간주하고 계속 진행
-      if (runningFor < 5 * 60 * 1000) {
-        throw new Error(`Pipeline is already running (started ${Math.round(runningFor / 1000)}s ago). Please wait for it to complete.`);
-      }
-      // stale run 정리
-      await supabase.from('pipeline_runs').update({ status: 'stale' }).eq('id', existingRun.id);
-    }
-
-    // 새 실행 기록 생성
-    const { data: newRun } = await supabase
-      .from('pipeline_runs')
-      .insert({
-        workspace_id: workspaceId,
-        pipeline_type: 'e2e_qis',
-        status: 'running',
-        domain_key: domainName,
-        brand_name: brandName || null,
-        started_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
-
-    if (newRun) {
-      runId = newRun.id;
+    if (runId) {
+      // 기존 run 재사용 (resume/retry 시) — running 상태로 전환
+      await supabase.from('pipeline_runs')
+        .update({ status: 'running', pause_requested: false, resume_from: resumeFromPhase ?? null })
+        .eq('id', runId);
       result.runId = runId;
+    } else {
+      // 현재 실행 중인 파이프라인이 있는지 확인
+      const { data: activeRun } = await supabase
+        .from('pipeline_runs')
+        .select('id, started_at')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'running')
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeRun) {
+        const runningFor = Date.now() - new Date(activeRun.started_at).getTime();
+        // 5분 이상된 running 상태는 stale로 간주하고 계속 진행
+        if (runningFor < 5 * 60 * 1000) {
+          throw new Error(`Pipeline is already running (started ${Math.round(runningFor / 1000)}s ago). Please wait for it to complete.`);
+        }
+        await supabase.from('pipeline_runs').update({ status: 'stale' }).eq('id', activeRun.id);
+      }
+
+      // 새 실행 기록 생성
+      const { data: newRun } = await supabase
+        .from('pipeline_runs')
+        .insert({
+          workspace_id: workspaceId,
+          pipeline_type: 'e2e_qis',
+          status: 'running',
+          domain_key: domainName,
+          brand_name: brandName || null,
+          started_at: new Date().toISOString(),
+          resume_from: resumeFromPhase ?? null,
+          current_phase: resumeFromPhase ?? 'phase0_bootstrap',
+        })
+        .select('id')
+        .single();
+
+      if (newRun) {
+        runId = newRun.id;
+        result.runId = runId;
+      }
     }
   } catch (err: any) {
-    // '이미 실행 중' 에러는 re-throw
     if (err.message?.includes('already running')) throw err;
     console.warn('[E2E Pipeline] pipeline_runs insert failed (non-blocking):', err.message);
   }
 
-  // ── Phase 0: 실측 기반 TCO/KG 부트스트랩 (데이터 부재 시 자동 기동) ──
+  // ── Phase 0: 실측 기반 TCO/KG 부트스트랩 (캐시 우선, 없으면 생성) ──
   try {
-    const [tcoCount, kgCount] = await Promise.all([
-      supabase.from('tco_concepts').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
-      supabase.from('brand_ontology_nodes').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId)
-    ]);
+    await executePhase('phase0_bootstrap', async () => {
+      // PipelineStateManager로 캐시 확인 (DB 카운트 쿼리 최소화)
+      const bootstrapStatus = await PipelineStateManager.getBootstrapStatus(workspaceId);
 
-    if ((tcoCount.count ?? 0) === 0 || (kgCount.count ?? 0) === 0) {
+      if (bootstrapStatus.isComplete) {
+        // 이미 완료 — 스킵 (캐시 기반)
+        result.phase0_bootstrap.skipped = true;
+        result.phase0_bootstrap.tcoConcepts = bootstrapStatus.tcoCount;
+        result.phase0_bootstrap.kgNodes = bootstrapStatus.kgCount;
+        console.log(`[E2E Pipeline] [Phase 0] ✅ Bootstrap 스킵 (캐시: TCO ${bootstrapStatus.tcoCount}, KG ${bootstrapStatus.kgCount})`);
+        return { tcoConcepts: bootstrapStatus.tcoCount, kgNodes: bootstrapStatus.kgCount, skipped: true };
+      }
+
+      // Bootstrap 필요 — 생성
       result.phase0_bootstrap.skipped = false;
       const { generateIndustryConcepts, generateIndustryOntology } = await import('./semantic');
 
-      // TCO 개념 20개 자동 도출
-      if ((tcoCount.count ?? 0) === 0) {
+      // TCO 개념 자동 도출
+      if (!bootstrapStatus.isPartial || bootstrapStatus.tcoCount === 0) {
         let tcoRes = { created: 0 };
         try {
           tcoRes = await generateIndustryConcepts(workspaceId, domainName, brandName, industryKey);
         } catch (e: any) {
           console.warn('[E2E Pipeline] generateIndustryConcepts failed:', e.message);
         }
-        
-        // Fallback: TCO 생성이 0개이거나 실패한 경우, 기본 시드 2개 삽입
         if (tcoRes.created === 0) {
           console.log('[E2E Pipeline] TCO fallback triggered. Inserting 2 seed concepts.');
           const seedConcepts = [
@@ -549,45 +646,193 @@ export async function runE2EPipeline(
       }
 
       // 온톨로지 KG 구축
-      if ((kgCount.count ?? 0) === 0) {
+      if (!bootstrapStatus.isPartial || bootstrapStatus.kgCount === 0) {
         const kgRes = await generateIndustryOntology(workspaceId, domainName, brandName, industryKey);
         result.phase0_bootstrap.kgNodes = kgRes.nodesCreated;
         result.phase0_bootstrap.kgEdges = kgRes.edgesCreated;
       }
-    }
+
+      return {
+        tcoConcepts: result.phase0_bootstrap.tcoConcepts,
+        kgNodes: result.phase0_bootstrap.kgNodes,
+        skipped: false,
+      };
+    });
   } catch (err: any) {
+    if (err instanceof PipelinePausedError) {
+      result.status = 'paused';
+      result.totalDuration = Date.now() - startTime;
+      return result;
+    }
     addPhaseError('phase0_bootstrap', err);
+  }
+
+
+  // ── Phase 0.5: 외부 시그널 수집 & 브릿지 (E2E 내장) ──────────
+  const phase0_5_result = { collected: 0, converted: 0, volumeEnriched: 0 };
+  try {
+    await executePhase('phase0_5_external', async () => {
+      console.log('[E2E Pipeline] [Phase 0.5] 외부 시그널 수집 & 브릿지 시작...');
+      const { triggerAllCollectionsAction } = await import('./collection');
+      const collectionResult = await triggerAllCollectionsAction(
+        workspaceId,
+        undefined,
+        industryKey
+      );
+      phase0_5_result.collected = collectionResult.totalFetched;
+      const bridgeResult = await SignalBridge.convertExternalToQuestionSignals(workspaceId, industryKey);
+      phase0_5_result.converted = bridgeResult.converted;
+      const enrichResult = await SignalBridge.enrichVolumeFromTrends(workspaceId);
+      phase0_5_result.volumeEnriched = enrichResult.enriched;
+      return phase0_5_result;
+    });
+  } catch (err: any) {
+    if (err instanceof PipelinePausedError) {
+      result.status = 'paused';
+      result.totalDuration = Date.now() - startTime;
+      return result;
+    }
+    addPhaseError('phase0_5_external', err);
+  }
+
+  // ── Phase 0.6: AI Hub 역방향 피드백 수집 (AI Hub → BSW) ──
+  try {
+    await executePhase('phase0_6_hubFeedback', async () => {
+      const { QisHubClient } = await import('../../lib/qis/hub-client');
+      const { FeedbackProcessor } = await import('../../lib/hub-feedback/feedback-processor');
+      const hubClient = new QisHubClient();
+      const DOMAIN_REGION_MAP: Record<string, string> = { jeju_smb: 'jeju', skincare: 'korea' };
+      const region = DOMAIN_REGION_MAP[industryKey] || 'jeju';
+      const feedback = await hubClient.pullFeedback(region);
+      if (feedback) {
+        await supabase.from('hub_feedback_logs').upsert({
+          workspace_id: workspaceId, region,
+          feedback_date: feedback.date || new Date().toISOString().split('T')[0],
+          source: 'pipeline_pull', payload: feedback, processed: false
+        }, { onConflict: 'workspace_id,region,feedback_date,source' });
+        const processResult = await FeedbackProcessor.processIncoming(workspaceId, feedback, industryKey);
+        result.phase0_6_hubFeedback = { newSignals: processResult.newSignals, cpsUpdated: processResult.cpsUpdated, source: 'pipeline_pull' };
+        return result.phase0_6_hubFeedback;
+      } else {
+        result.phase0_6_hubFeedback = { newSignals: 0, cpsUpdated: 0, source: 'none' };
+        return result.phase0_6_hubFeedback;
+      }
+    });
+  } catch (err: any) {
+    if (err instanceof PipelinePausedError) {
+      result.status = 'paused';
+      result.totalDuration = Date.now() - startTime;
+      return result;
+    }
+    addPhaseError('phase0_6_hubFeedback', err);
+    result.phase0_6_hubFeedback = { newSignals: 0, cpsUpdated: 0, source: 'error' };
   }
 
   // ── Phase 1: S-OGDE v3.0 시그널 수집 (TCO 시드 및 KG 로딩 포함) ────
   try {
-    const { data: tcoSeeds } = await supabase
-      .from('tco_concepts')
-      .select('concept_name, definition')
-      .eq('workspace_id', workspaceId)
-      .eq('is_strategic', true);
-
-    const { data: kgNodes } = await supabase
-      .from('brand_ontology_nodes')
-      .select('id, node_name, node_type')
-      .eq('workspace_id', workspaceId);
-
-    const pipelineResult = await SignalOrchestrator.runFullPipeline(
-      workspaceId,
-      domainName,
-      brandName,
-      {
-        brandUSP: options?.brandUSP,
-        workspaceId,
-        industryKey,
-        tcoConceptSeeds: tcoSeeds || [],
-        kgNodes: kgNodes || [],
-        repeatEval: 1 // 속도를 위해 E2E 실행 시 1회 평가 권장
-      }
-    );
-    result.phase1_signals.count = pipelineResult.savedSignals || 0;
+    await executePhase('phase1_signals', async () => {
+      const { data: tcoSeeds } = await supabase
+        .from('tco_concepts').select('concept_name, definition')
+        .eq('workspace_id', workspaceId).eq('is_strategic', true);
+      const { data: kgNodes } = await supabase
+        .from('brand_ontology_nodes').select('id, node_name, node_type')
+        .eq('workspace_id', workspaceId);
+      const pipelineResult = await SignalOrchestrator.runFullPipeline(
+        workspaceId, domainName, brandName,
+        { brandUSP: options?.brandUSP, workspaceId, industryKey,
+          tcoConceptSeeds: tcoSeeds || [], kgNodes: kgNodes || [], repeatEval: 1 }
+      );
+      result.phase1_signals.count = pipelineResult.savedSignals || 0;
+      return { count: pipelineResult.savedSignals || 0 };
+    });
   } catch (err: any) {
+    if (err instanceof PipelinePausedError) {
+      result.status = 'paused';
+      result.totalDuration = Date.now() - startTime;
+      return result;
+    }
     addPhaseError('phase1_signals', err);
+  }
+
+  // ── Phase 1-B: 브랜드 순회 특화 시그널 생성 ────────────────────
+  if (options?.enableBrandRotation !== false) {
+    try {
+      const domainCfg = BENCHMARK_DOMAINS[industryKey];
+      if (domainCfg) {
+        // Admin UI 설정 조회
+        const { data: configRecord } = await supabase
+          .from('pipeline_stage_configs')
+          .select('config')
+          .eq('workspace_id', workspaceId)
+          .eq('domain_key', industryKey)
+          .eq('stage_key', 'phase1b_brandRotation')
+          .maybeSingle();
+
+        const savedConfig = configRecord?.config as any || {};
+        const selectedSlugs: string[] = savedConfig.selected_brands || [];
+        const costLimit = savedConfig.daily_cost_limit || 10.0; // 일일 비용 제한 $10
+
+        let targetBrands = domainCfg.brands.filter(b => selectedSlugs.includes(b.slug));
+        if (targetBrands.length === 0) {
+          // 백업: 점수 하위 5개 순회
+          const { data: brandRankings } = await supabase
+            .from('industry_benchmark_snapshots')
+            .select('brand_slug')
+            .eq('workspace_id', workspaceId)
+            .order('aepi_score', { ascending: true })
+            .limit(5);
+
+          targetBrands = (brandRankings?.length
+            ? brandRankings.map(r => domainCfg.brands.find(b => b.slug === r.brand_slug)).filter(Boolean)
+            : domainCfg.brands.slice(0, 5)) as typeof domainCfg.brands;
+        }
+
+        const { CostGuard } = await import('../../lib/pipeline/cost-guard');
+        const perBrand: Record<string, number> = {};
+        let totalBrandSignals = 0;
+        let costLimitReached = false;
+
+        for (const brand of targetBrands) {
+          // 일일 허용 비용 초과 여부 체크
+          const currentCost = await CostGuard.getTodayCost(workspaceId, industryKey);
+          if (currentCost >= costLimit) {
+            costLimitReached = true;
+            console.warn(`[Phase 1-B] Daily cost limit of $${costLimit} reached. Skipping remaining rotation.`);
+            break;
+          }
+
+          const brandResult = await SignalOrchestrator.runFullPipeline(
+            workspaceId,
+            domainName,
+            brand.name,
+            {
+              brandUSP: brand.brand_identity,
+              industryKey,
+              repeatEval: 1 // E2E 순회 효율 극대화
+            }
+          );
+          perBrand[brand.slug] = brandResult.savedSignals || 0;
+          totalBrandSignals += brandResult.savedSignals || 0;
+
+          // S-OGDE v3.0 대략적인 비용 기록 누적 ($0.8 가상 증가)
+          await CostGuard.trackCost(workspaceId, industryKey, 0.8, runId);
+        }
+
+        result.phase1b_brandSignals = {
+          brandsProcessed: Object.keys(perBrand).length,
+          totalSignals: totalBrandSignals,
+          perBrand,
+          costLimitReached
+        };
+      }
+    } catch (err: any) {
+      if (err instanceof PipelinePausedError) {
+        result.status = 'paused';
+        result.totalDuration = Date.now() - startTime;
+        return result;
+      }
+      addPhaseError('phase1b_brandSignals', err);
+    }
   }
 
   // ── Phase 1.5: Deep Dive Target Discovery → Signal Feed ────
@@ -625,6 +870,11 @@ export async function runE2EPipeline(
       }
     }
   } catch (err: any) {
+    if (err instanceof PipelinePausedError) {
+      result.status = 'paused';
+      result.totalDuration = Date.now() - startTime;
+      return result;
+    }
     addPhaseError('phase1_5_deepDive', err);
     result.phase1_5_deepDive = { targetsFound: 0, fedCount: 0, skipped: true, reason: err.message };
   }
@@ -652,7 +902,74 @@ export async function runE2EPipeline(
       }
     }
   } catch (err: any) {
+    if (err instanceof PipelinePausedError) {
+      result.status = 'paused';
+      result.totalDuration = Date.now() - startTime;
+      return result;
+    }
     addPhaseError('phase2_opportunities', err);
+  }
+
+  // ── Phase 2.1: 업종 리포트 약점 카테고리 → 시그널 피딩 ──────────
+  if (options?.enableReportGapFeed !== false) {
+    try {
+      const { data: latestReport } = await supabase
+        .from('industry_report_snapshots')
+        .select('report_data')
+        .eq('workspace_id', workspaceId)
+        .eq('domain_key', domainName)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestReport?.report_data) {
+        const reportData = latestReport.report_data as any;
+        const weakSignals: Array<{ query: string; intent: string; source: string }> = [];
+
+        const rankings = reportData.rankings || [];
+        const weakBrands = rankings
+          .filter((r: any) => r.aepi_score < 40)
+          .slice(0, 5);
+
+        for (const wb of weakBrands) {
+          if (wb.bdr < 30) {
+            weakSignals.push({
+              query: `${wb.brand_name} 장점 단점 비교`,
+              intent: 'comparison',
+              source: 'report_weak_bdr'
+            });
+          }
+          if (wb.cwr < 40) {
+            weakSignals.push({
+              query: `${wb.brand_name} vs 경쟁 브랜드 어디가 나아`,
+              intent: 'comparison',
+              source: 'report_weak_cwr'
+            });
+          }
+        }
+
+        const prescriptions = reportData.executiveSummary?.prescriptions || [];
+        for (const rx of prescriptions.slice(0, 5)) {
+          if (rx.question_text || rx.action) {
+            weakSignals.push({
+              query: rx.question_text || rx.action,
+              intent: 'informational',
+              source: 'report_prescription'
+            });
+          }
+        }
+
+        if (weakSignals.length > 0) {
+          const fed = await feedBenchmarkOpportunitiesToSignals(workspaceId, weakSignals);
+          result.phase2_1_reportGaps = {
+            weakCategories: weakBrands.length,
+            fedCount: fed.fedCount
+          };
+        }
+      }
+    } catch (err: any) {
+      addPhaseError('phase2_1_reportGaps', err);
+    }
   }
 
   // ── Phase 2.5: Surface AnswerCardReverser CQ/QIS → DB 영속화 (P2-3) ──
@@ -710,6 +1027,90 @@ export async function runE2EPipeline(
   } catch (err: any) {
     addPhaseError('phase2_5_surfacePersist', err);
     result.phase2_5_surfacePersist = { persisted: 0, skipped: true, reason: err.message };
+  }
+
+  // ── Phase 2.6: 딥다이브 완료 브랜드 → 심층 질문 자산 강화 (최근 30일) ──
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const { data: deepDiveSessions } = await supabase
+      .from('audit_sessions')
+      .select('result_data, brand_slug')
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'completed')
+      .gte('completed_at', thirtyDaysAgo.toISOString())
+      .not('result_data->questionDetails', 'is', null)
+      .order('completed_at', { ascending: false });
+
+    const deepDiveSignals: Array<{ query: string; intent: string; source: string }> = [];
+
+    for (const session of (deepDiveSessions || [])) {
+      const resData = session.result_data as any;
+      const brandSlug = session.brand_slug;
+      const details = resData?.questionDetails || resData?.question_details || [];
+
+      for (const q of details) {
+        const engines = Object.keys(q.per_engine || {});
+
+        const mentionedAnywhere = engines.some(eng =>
+          (q.per_engine[eng].brands_mentioned || []).includes(brandSlug)
+        );
+
+        if (!mentionedAnywhere) {
+          deepDiveSignals.push({
+            query: q.question_text,
+            intent: q.question_type || 'informational',
+            source: `deep_dive_gap_${brandSlug}`
+          });
+        }
+
+        if (mentionedAnywhere) {
+          const avgBsf = engines.reduce((sum, eng) => {
+            const bsf = q.per_engine[eng].llm_bsf_score ?? q.per_engine[eng].bsf_score ?? 50;
+            return sum + bsf;
+          }, 0) / Math.max(1, engines.length);
+
+          if (avgBsf < 20) {
+            deepDiveSignals.push({
+              query: `${q.question_text} 상세 정보`,
+              intent: q.question_type || 'informational',
+              source: `deep_dive_weak_bsf_${brandSlug}`
+            });
+          }
+        }
+      }
+    }
+
+    let enrichedCQ = 0;
+    if (deepDiveSignals.length > 0) {
+      const fed = await feedBenchmarkOpportunitiesToSignals(workspaceId, deepDiveSignals);
+      enrichedCQ = fed.fedCount;
+
+      if (fed.fedCount > 0) {
+        const { data: newSignals } = await supabase
+          .from('question_signals')
+          .select('id')
+          .eq('workspace_id', workspaceId)
+          .in('source', deepDiveSignals.map(s => s.source))
+          .eq('status', 'mined')
+          .limit(15);
+
+        for (const sig of (newSignals || [])) {
+          await autoPromoteSignalToCQ(workspaceId, sig.id, {
+            autoCreateQisScene: true,
+            industryKey
+          });
+        }
+      }
+    }
+
+    result.phase2_6_deepDiveEnrich = {
+      brandsEnriched: (deepDiveSessions || []).length,
+      additionalCQ: enrichedCQ
+    };
+  } catch (err: any) {
+    addPhaseError('phase2_6_deepDiveEnrich', err);
   }
 
   // ── Phase 3: CPS 및 MMR 다양성 기반 승격 대상 탐색 ────────────────
@@ -780,27 +1181,82 @@ export async function runE2EPipeline(
     addPhaseError('phase3_promotions', err);
   }
 
-  // ── Phase 4: Hub Push (연동 모드만) ─────────────────────────
-  if (mode === 'hub') {
+  // ── Phase 3.1: CQ → 브랜드 배정 & 공급 패키지 ──────────────────
+  try {
+    const domainCfg = BENCHMARK_DOMAINS[industryKey];
+    if (domainCfg) {
+      const { BrandAssigner } = await import('../../lib/pipeline/brand-assigner');
+      const assignResult = await BrandAssigner.assignAndPackage(
+        workspaceId,
+        industryKey,
+        domainCfg.brands
+      );
+      result.phase3_1_brandAssignment = assignResult;
+    }
+  } catch (err: any) {
+    addPhaseError('phase3_1_brandAssignment', err);
+  }
+
+  // ── Phase 4: AI Hub Push (CQ + QIS Scene → AiHompyHub) ──────
+  try {
+    const { QisHubClient } = await import('../../lib/qis/hub-client');
+    const hubClient = new QisHubClient();
+
+    // CQ 조회
+    const { data: cqs } = await supabase
+      .from('canonical_questions')
+      .select('id, normalized_question, primary_intent, risk_level, cps_score, metadata')
+      .eq('workspace_id', workspaceId)
+      .order('cps_score', { ascending: false })
+      .limit(200);
+
+    // QIS Scene 조회
+    const { data: scenes } = await supabase
+      .from('qis_scenes')
+      .select('id, scene_name, risk_level, readiness_score, must_do, must_not_do')
+      .eq('workspace_id', workspaceId)
+      .order('readiness_score', { ascending: false })
+      .limit(50);
+
+    const bswQuestions = QisHubClient.mapCQsToBSWQuestions(cqs || [], industryKey);
+    const bswScenes = QisHubClient.mapQISScenesToBSWScenes(scenes || [], industryKey);
+
+    // 도메인 → 리전 매핑
+    const DOMAIN_REGION_MAP: Record<string, string> = {
+      jeju_smb: 'jeju',
+      skincare: 'korea',
+    };
+    const region = DOMAIN_REGION_MAP[industryKey] || process.env.BSW_HUB_REGION || 'jeju';
+
+    if (bswQuestions.length > 0) {
+      const pushResult = await hubClient.pushToAiHub(region, bswQuestions, bswScenes.length > 0 ? bswScenes : undefined);
+      result.phase4_hubPush = {
+        pushed: pushResult.ok,
+        cqCount: pushResult.ingested,
+        sceneCount: bswScenes.length,
+        arenaCreated: pushResult.arenaCreated,
+        errors: pushResult.errors,
+      };
+    } else {
+      result.phase4_hubPush = { pushed: false, cqCount: 0, sceneCount: 0, arenaCreated: 0, errors: ['No CQs to push'] };
+    }
+  } catch (err: any) {
+    addPhaseError('phase4_hubPush', err);
+    result.phase4_hubPush = { pushed: false, cqCount: 0, sceneCount: 0, arenaCreated: 0, errors: [err.message] };
+  }
+
+  // ── Phase 5: CQ 포화도 체크 ──────────────────────────────────
+  if (options?.enableSaturationCheck !== false) {
     try {
-      const { QisHubClient } = await import('../../lib/qis/hub-client');
-      const hubClient = new QisHubClient();
+      const { SaturationMonitor } = await import('../../lib/pipeline/saturation-monitor');
+      const satResult = await SaturationMonitor.checkSaturation(workspaceId, industryKey);
+      result.phase5_saturation = satResult;
 
-      const { data: predictions } = await supabase
-        .from('predicted_questions')
-        .select('*')
-        .eq('workspace_id', workspaceId)
-        .gte('confidence', 0.7)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (predictions && predictions.length > 0) {
-        const pushed = await hubClient.pushPredictedQuestions(predictions as any);
-        result.phase4_hubPush = { pushed, count: predictions.length };
+      if (satResult.isNearSaturation) {
+        console.warn(`[E2E Pipeline] ⚠️ CQ 포화도 ${satResult.coveragePercent}% — 벤치마크 재실행 권고`);
       }
     } catch (err: any) {
-      addPhaseError('phase4_hubPush', err);
-      result.phase4_hubPush = { pushed: false, count: 0 };
+      addPhaseError('phase5_saturation', err);
     }
   }
 

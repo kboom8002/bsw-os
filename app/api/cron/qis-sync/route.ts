@@ -236,57 +236,49 @@ export async function GET(request: NextRequest) {
   }
   // ═══ Phase 3: Standalone — 독립 모드 (Hub 없이 자체 예측) ═══
   // Hub 연동 없이 자체적으로 S-OGDE 파이프라인 + 벤치마크 기회 피딩을 실행
-  if (phase === 'standalone' || (phase === 'all' && process.env.STANDALONE_MODE === 'true')) {
+  // 기본적으로 'all' 모드에서 항상 실행 (STANDALONE_MODE 환경변수 불필요)
+  if (phase === 'standalone' || phase === 'all') {
     try {
-      const brandName = process.env.BSW_BRAND_NAME ?? 'demo-brand';
-      const domainName = process.env.BSW_DOMAIN_NAME ?? 'demo-domain';
+      const domainKeys = (process.env.BSW_DOMAIN_KEYS ?? 'skincare,jeju_smb')
+        .split(',')
+        .map(s => s.trim());
 
-      // 3a. S-OGDE 파이프라인 실행 → 시그널 수집
-      const pipelineResult = await SignalOrchestrator.runFullPipeline(
-        workspaceId,
-        domainName,
-        brandName
-      );
+      const { runE2EPipeline } = await import('@/app/actions/qis-bridge');
+      const standaloneResults: Record<string, any> = {};
 
-      // 3b. 벤치마크 기회 → 시그널 자동 피딩
-      let benchmarkFedCount = 0;
-      try {
-        const supabase = getSupabaseAdminClient();
-        const { data: recentSnapshots } = await supabase
-          .from('industry_benchmark_snapshots')
-          .select('auto_generated_signals')
-          .eq('workspace_id', workspaceId)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (recentSnapshots) {
-          const autoSignals: Array<{ query: string; intent: string; source: string }> = [];
-          for (const snap of recentSnapshots) {
-            if (snap.auto_generated_signals && Array.isArray(snap.auto_generated_signals)) {
-              autoSignals.push(...(snap.auto_generated_signals as any[]));
-            }
+      for (const domainKey of domainKeys) {
+        console.log(`[QIS-Sync Standalone] Running E2E pipeline for domain: ${domainKey}`);
+        const pipelineResult = await runE2EPipeline(
+          workspaceId,
+          domainKey,
+          undefined, // 업종 레벨 (brandName null)
+          {
+            mode: 'standalone',
+            industryKey: domainKey,
+            enableBrandRotation: true,
+            enableReportGapFeed: true,
+            enableSaturationCheck: true,
           }
-
-          if (autoSignals.length > 0) {
-            const { feedBenchmarkOpportunitiesToSignals } = await import('@/app/actions/qis-bridge');
-            const feedResult = await feedBenchmarkOpportunitiesToSignals(workspaceId, autoSignals);
-            benchmarkFedCount = feedResult.fedCount;
-          }
-        }
-      } catch (bmErr: any) {
-        console.warn('[QIS-Sync Standalone] Benchmark feed skipped:', bmErr.message);
+        );
+        standaloneResults[domainKey] = {
+          status: pipelineResult.status,
+          signalsCollected: pipelineResult.phase1_signals?.count ?? 0,
+          promotions: pipelineResult.phase3_promotions?.promotedCount ?? 0,
+          cqCreated: pipelineResult.phase3_promotions?.cqCreated ?? 0,
+          saturation: pipelineResult.phase5_saturation?.coveragePercent ?? 0,
+          costLimitReached: pipelineResult.phase1b_brandSignals?.costLimitReached ?? false,
+        };
       }
 
       results.standalone = {
-        signalsGenerated: pipelineResult.savedSignals,
-        benchmarkSignalsFed: benchmarkFedCount,
+        domainsProcessed: domainKeys.length,
+        details: standaloneResults,
         mode: 'standalone',
         status: 'ok'
       };
     } catch (err: any) {
       results.standalone = {
-        signalsGenerated: 0,
-        benchmarkSignalsFed: 0,
+        domainsProcessed: 0,
         status: 'error',
         message: err.message
       };

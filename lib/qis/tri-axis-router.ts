@@ -10,6 +10,7 @@
  */
 
 import type { QisSignalPayload, QisPredictedQuestion, HubAxis } from '../qis-shared-schemas';
+import type { QuestionAsset } from '../benchmark/benchmark-asset-extractor';
 
 // ═══════════════════════════════════════════════════════
 // 지역 키워드 매핑 (한국어 → slug)
@@ -19,6 +20,17 @@ const REGION_KEYWORDS: Record<string, string> = {
   '제주도': 'jeju',
   '서귀포': 'jeju',
   '한라산': 'jeju',
+  '애월': 'jeju',
+  '함덕': 'jeju',
+  '중문': 'jeju',
+  '협재': 'jeju',
+  '성산': 'jeju',
+  '우도': 'jeju',
+  '표선': 'jeju',
+  '한림': 'jeju',
+  '조천': 'jeju',
+  '월정리': 'jeju',
+  '이호': 'jeju',
   '성수': 'seongsu',
   '성수동': 'seongsu',
   '강남': 'gangnam',
@@ -75,6 +87,17 @@ const THEME_KEYWORDS: Record<string, string> = {
   '펫': 'k-pet',
   '인테리어': 'k-home',
   '가구': 'k-home',
+  // 제주 소상공인 업종 키워드
+  '흑돼지': 'k-food',
+  '해산물': 'k-food',
+  '횟집': 'k-food',
+  '감귤': 'jeju-local',
+  '한라봉': 'jeju-local',
+  '특산물': 'jeju-local',
+  '게스트하우스': 'k-stay',
+  '스노클링': 'jeju-experience',
+  '올레길': 'jeju-experience',
+  '서핑': 'jeju-experience',
 };
 
 // 축별 추천 콘텐츠 포맷
@@ -257,4 +280,50 @@ function extractGeoKeywords(text: string): string[] {
     }
   }
   return found;
+}
+
+/**
+ * 4종 질문 자산을 공급 대상(Industry, Place, Vortex, Brand)에 맞게 3축 분류 및 분배합니다.
+ */
+export function routeAssetsToTargets(assets: QuestionAsset[]): {
+  industry: QuestionAsset[];
+  place: QuestionAsset[];
+  vortex: QuestionAsset[];
+  brand: Record<string, QuestionAsset[]>;
+} {
+  const payload: {
+    industry: QuestionAsset[];
+    place: QuestionAsset[];
+    vortex: QuestionAsset[];
+    brand: Record<string, QuestionAsset[]>;
+  } = {
+    industry: [],
+    place: [],
+    vortex: [],
+    brand: {},
+  };
+
+  for (const asset of assets) {
+    // 1. target_axis 분류에 따른 3축 분배
+    switch (asset.target_axis) {
+      case 'place':
+        payload.place.push(asset);
+        break;
+      case 'vortex':
+        payload.vortex.push(asset);
+        break;
+      default:
+        payload.industry.push(asset);
+    }
+
+    // 2. brand_slug가 정의된 경우 브랜드별 매핑 추가 (Deep Dive 공급용)
+    if (asset.brand_slug) {
+      if (!payload.brand[asset.brand_slug]) {
+        payload.brand[asset.brand_slug] = [];
+      }
+      payload.brand[asset.brand_slug].push(asset);
+    }
+  }
+
+  return payload;
 }

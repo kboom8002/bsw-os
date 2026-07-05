@@ -1,17 +1,34 @@
-import { getAllDomainSummaries } from '../../actions/benchmark';
-import BenchmarkDashboard from '../../../components/benchmark/BenchmarkDashboard';
+import { redirect } from 'next/navigation';
+import { getSupabaseAdminClient } from '../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
-  title: 'AI Brand Visibility Benchmark | BSW-OS',
-  description:
-    'AI 검색 엔진(ChatGPT, Gemini) 기반 업종별 브랜드 AI 가시성 지표 공개 대시보드. 스킨케어·웨딩 포토 스튜디오 도메인의 AAS·OCR·BAIR 실측 순위.',
-};
+/**
+ * 기존 공개 벤치마크 URL(/[locale]/benchmark)을
+ * 워크스페이스 내 벤치마크(/[locale]/[workspace_slug]/benchmark)로 리다이렉트합니다.
+ */
+export default async function LegacyBenchmarkRedirectPage({
+  params,
+}: {
+  params: { locale: string };
+}) {
+  const { locale } = params;
+  const supabase = getSupabaseAdminClient();
 
-export default async function BenchmarkPage() {
-  // Server Component에서 데이터 fetch
-  const allSummaries = await getAllDomainSummaries();
+  try {
+    if (supabase) {
+      const { data: workspaces } = await supabase
+        .from('workspaces')
+        .select('slug')
+        .limit(1);
 
-  return <BenchmarkDashboard summaries={allSummaries} />;
+      if (workspaces?.[0]?.slug) {
+        redirect(`/${locale}/${workspaces[0].slug}/benchmark`);
+      }
+    }
+  } catch {
+    // Fall through to default redirect
+  }
+
+  redirect(`/${locale}`);
 }

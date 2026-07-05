@@ -9,7 +9,7 @@ async function run() {
   console.log("Generating full industry report for skincare (using 20 domain config brands)...");
   
   try {
-    const res = await fetch('https://bsw-os.vercel.app/api/industry-report/generate', {
+    const res = await fetch('https://answerhub.kr/api/industry-report/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -28,7 +28,7 @@ async function run() {
     
     if (data.reportId) {
       console.log(`\nPublishing report ${data.reportId}...`);
-      const pubRes = await fetch(`https://bsw-os.vercel.app/api/industry-report/${data.reportId}`, {
+      const pubRes = await fetch(`https://answerhub.kr/api/industry-report/${data.reportId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'published' })

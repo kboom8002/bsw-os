@@ -190,7 +190,7 @@ export const KPOP_COMPETITIVE_TEMPLATES: FairProbeTemplate[] = [
 ];
 
 export function fairProbeSetBuilder(
-  genericQuestions: any[],
+  allQuestions: any[],
   genericCount: number,
   brands: { name: string; keywords: string[], comparative_pairs?: string[], slug?: string }[],
   k: number = 2,
@@ -211,10 +211,33 @@ export function fairProbeSetBuilder(
       ? PLACE_COMPETITIVE_TEMPLATES.filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN')) 
       : COMPETITIVE_TEMPLATES;
 
+  const genericLayers = new Set(['L1_universal', 'L3_ingredient', 'L5_ymyl', 'L6_trend']);
+  const genericQuestions = allQuestions.filter(q => genericLayers.has(q.layer || 'unknown') || !q.layer);
+  const hardcodedL7 = allQuestions.filter(q => q.layer === 'L7_brand' || q.layer === 'L4_practical');
+  const hardcodedL2 = allQuestions.filter(q => q.layer === 'L2_competitive');
+
   // 1. L7_brand & L4_practical
   for (const brand of brands) {
-    for (const template of defenseTemplates) {
-      for (let i = 0; i < k; i++) {
+    const brandL7 = hardcodedL7.filter(q => 
+      (q.target_keyword && q.target_keyword.includes(brand.name)) || 
+      q.question_text.includes(brand.name)
+    );
+    
+    // First, use hardcoded L7 questions (up to k)
+    let usedK = 0;
+    for (const hcQ of brandL7) {
+      if (usedK >= k) break;
+      const cloned = { ...hcQ, target_brand: brand.name };
+      const zwsp = '​'.repeat(usedK);
+      cloned.question_text += zwsp;
+      selected.push(cloned);
+      usedK++;
+    }
+
+    // If still need more to reach k, fallback to templates
+    if (usedK < k) {
+      for (const template of defenseTemplates) {
+        if (usedK >= k) break;
         const cloned = {
           question_text: template.template_text.replace(/{brand}/g, brand.name),
           target_keyword: brand.name,
@@ -229,30 +252,71 @@ export function fairProbeSetBuilder(
           weight: template.weight,
           target_brand: brand.name
         };
-        const zwsp = '​'.repeat(i);
+        const zwsp = '​'.repeat(usedK);
         cloned.question_text += zwsp;
         selected.push(cloned);
+        usedK++;
       }
     }
   }
 
   // 2. L2_competitive
   for (const brand of brands) {
-    for (const template of competitiveTemplates) {
-      for (let i = 0; i < k; i++) {
-        let randomCompetitor = '타 브랜드';
-        
-        if (isPlaceBrand && brand.comparative_pairs && brand.comparative_pairs.length > 0) {
-           const competitorSlug = brand.comparative_pairs[Math.floor(Math.random() * brand.comparative_pairs.length)];
-           const compBrand = brands.find(b => b.slug === competitorSlug);
-           if (compBrand) randomCompetitor = compBrand.name;
-        } else {
-           const competitors = brands.filter(b => b.name !== brand.name);
-           if (competitors.length > 0) {
-             randomCompetitor = competitors[Math.floor(Math.random() * competitors.length)].name;
-           }
-        }
+    let randomCompetitor = '타 브랜드';
+    if (isPlaceBrand && brand.comparative_pairs && brand.comparative_pairs.length > 0) {
+       const competitorSlug = brand.comparative_pairs[Math.floor(Math.random() * brand.comparative_pairs.length)];
+       const compBrand = brands.find(b => b.slug === competitorSlug);
+       if (compBrand) randomCompetitor = compBrand.name;
+    } else {
+       const competitors = brands.filter(b => b.name !== brand.name);
+       if (competitors.length > 0) {
+         randomCompetitor = competitors[Math.floor(Math.random() * competitors.length)].name;
+       }
+    }
 
+    const brandL2 = hardcodedL2.filter(q => 
+      ((q.target_keyword && q.target_keyword.includes(brand.name)) || q.question_text.includes(brand.name)) &&
+      (q.question_text.includes(randomCompetitor))
+    );
+
+    let usedK = 0;
+    // First, use hardcoded L2 questions matching brand and competitor
+    for (const hcQ of brandL2) {
+      if (usedK >= k) break;
+      const cloned = { ...hcQ, target_brand: brand.name, target_competitor: randomCompetitor };
+      const zwsp = '​'.repeat(usedK);
+      cloned.question_text += zwsp;
+      selected.push(cloned);
+      usedK++;
+    }
+    // If we didn't find enough exact match, try any hardcoded L2 for this brand
+    if (usedK < k) {
+       const brandL2Any = hardcodedL2.filter(q => 
+         !brandL2.includes(q) &&
+         ((q.target_keyword && q.target_keyword.includes(brand.name)) || q.question_text.includes(brand.name))
+       );
+       for (const hcQ of brandL2Any) {
+         if (usedK >= k) break;
+         // Try to extract the other brand from the question text (simple heuristic: any other brand name)
+         let matchedComp = randomCompetitor;
+         for (const otherBrand of brands) {
+            if (otherBrand.name !== brand.name && hcQ.question_text.includes(otherBrand.name)) {
+               matchedComp = otherBrand.name;
+               break;
+            }
+         }
+         const cloned = { ...hcQ, target_brand: brand.name, target_competitor: matchedComp };
+         const zwsp = '​'.repeat(usedK);
+         cloned.question_text += zwsp;
+         selected.push(cloned);
+         usedK++;
+       }
+    }
+
+    // Fallback to templates
+    if (usedK < k) {
+      for (const template of competitiveTemplates) {
+        if (usedK >= k) break;
         const cloned = {
           question_text: template.template_text.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor),
           target_keyword: brand.name,
@@ -268,9 +332,10 @@ export function fairProbeSetBuilder(
           target_brand: brand.name,
           target_competitor: randomCompetitor
         };
-        const zwsp = '​'.repeat(i);
+        const zwsp = '​'.repeat(usedK);
         cloned.question_text += zwsp;
         selected.push(cloned);
+        usedK++;
       }
     }
   }
@@ -309,7 +374,13 @@ export interface IndustryReportProbeOptions {
 export function buildForIndustryReport(
   genericQuestions: any[],
   brands: { name: string; keywords: string[]; slug: string; comparative_pairs?: string[] }[],
-  options: IndustryReportProbeOptions = {}
+  options: IndustryReportProbeOptions = {},
+  enrichment?: {
+    qis_injected_must_include: string[];
+    pa_dynamic_probes: FairProbeTemplate[];
+    hub_priority_weights: Map<string, number>;
+    tco_discovered_keywords: string[];
+  }
 ): { probes: any[]; hash: string } {
   const {
     maxGenericQuestions = 30,
@@ -321,12 +392,25 @@ export function buildForIndustryReport(
 
   // 1. L7 — 모든 브랜드에 동일 유형 질문 (round-robin, 편향 제로)
   for (const brand of brands) {
-    const defenseTemplates = BRAND_DEFENSE_TEMPLATES.slice(0, l7RepeatPerBrand);
+    const defenseTemplates = [...BRAND_DEFENSE_TEMPLATES.slice(0, l7RepeatPerBrand)];
+    
+    // 채널②: PA Dynamic L7 Probes 추가
+    if (enrichment?.pa_dynamic_probes) {
+      const paL7 = enrichment.pa_dynamic_probes.filter(p => p.layer === 'L7_brand');
+      defenseTemplates.push(...paL7);
+    }
+
     for (const template of defenseTemplates) {
+      const basicMustInclude = template.must_include_templates.map((t) => t.replace(/{brand}/g, brand.name));
+      // 채널①: QIS Scene must_include 키워드 주입
+      const mergedMustInclude = enrichment?.qis_injected_must_include
+        ? Array.from(new Set([...basicMustInclude, ...enrichment.qis_injected_must_include]))
+        : basicMustInclude;
+
       selected.push({
         question_text: template.template_text.replace(/{brand}/g, brand.name),
         target_keyword: brand.name,
-        must_include: template.must_include_templates.map((t) => t.replace(/{brand}/g, brand.name)),
+        must_include: mergedMustInclude,
         should_include: template.should_include_templates.map((t) => t.replace(/{brand}/g, brand.name)),
         must_not_do: template.must_not_do,
         layer: 'L7_brand',
@@ -345,19 +429,38 @@ export function buildForIndustryReport(
     for (let j = i + 1; j < brands.length; j++) {
       const brandA = brands[i];
       const brandB = brands[j];
-      const competitiveTemplates = COMPETITIVE_TEMPLATES.slice(0, 3); // 조합당 3개 템플릿
+      const competitiveTemplates = [...COMPETITIVE_TEMPLATES.slice(0, 3)]; // 조합당 3개 템플릿
+
+      // 채널②: PA Dynamic L2 Probes 추가
+      if (enrichment?.pa_dynamic_probes) {
+        const paL2 = enrichment.pa_dynamic_probes.filter(p => p.layer === 'L2_competitive');
+        competitiveTemplates.push(...paL2);
+      }
 
       for (const template of competitiveTemplates) {
         for (let r = 0; r < l2RepeatPerPair; r++) {
+          const basicAtoB = template.must_include_templates.map((t) =>
+            t.replace(/{brand}/g, brandA.name).replace(/{competitor}/g, brandB.name)
+          );
+          const basicBtoA = template.must_include_templates.map((t) =>
+            t.replace(/{brand}/g, brandB.name).replace(/{competitor}/g, brandA.name)
+          );
+
+          // 채널①: QIS Scene must_include 키워드 주입
+          const mergedAtoB = enrichment?.qis_injected_must_include
+            ? Array.from(new Set([...basicAtoB, ...enrichment.qis_injected_must_include]))
+            : basicAtoB;
+          const mergedBtoA = enrichment?.qis_injected_must_include
+            ? Array.from(new Set([...basicBtoA, ...enrichment.qis_injected_must_include]))
+            : basicBtoA;
+
           // A vs B
           selected.push({
             question_text: template.template_text
               .replace(/{brand}/g, brandA.name)
               .replace(/{competitor}/g, brandB.name),
             target_keyword: brandA.name,
-            must_include: template.must_include_templates.map((t) =>
-              t.replace(/{brand}/g, brandA.name).replace(/{competitor}/g, brandB.name)
-            ),
+            must_include: mergedAtoB,
             should_include: template.should_include_templates.map((t) =>
               t.replace(/{brand}/g, brandA.name).replace(/{competitor}/g, brandB.name)
             ),
@@ -377,9 +480,7 @@ export function buildForIndustryReport(
               .replace(/{brand}/g, brandB.name)
               .replace(/{competitor}/g, brandA.name),
             target_keyword: brandB.name,
-            must_include: template.must_include_templates.map((t) =>
-              t.replace(/{brand}/g, brandB.name).replace(/{competitor}/g, brandA.name)
-            ),
+            must_include: mergedBtoA,
             should_include: template.should_include_templates.map((t) =>
               t.replace(/{brand}/g, brandB.name).replace(/{competitor}/g, brandA.name)
             ),
@@ -398,9 +499,19 @@ export function buildForIndustryReport(
     }
   }
 
-  // 3. 일반 질문 (L1/L3/L5/L6) — 무작위 샘플링
-  const genericShuffled = [...genericQuestions].sort(() => Math.random() - 0.5);
-  const genericSample = genericShuffled.slice(0, maxGenericQuestions);
+  // 3. 일반 질문 (L1/L3/L5/L6) — 무작위 샘플링 및 채널③ Hub 우선순위 가중치 반영
+  let sortedGeneric = [...genericQuestions];
+  if (enrichment?.hub_priority_weights && enrichment.hub_priority_weights.size > 0) {
+    sortedGeneric.sort((a, b) => {
+      const weightA = enrichment.hub_priority_weights.get(a.question_text.toLowerCase()) || 1.0;
+      const weightB = enrichment.hub_priority_weights.get(b.question_text.toLowerCase()) || 1.0;
+      return weightB - weightA; // 가중치 높은 것이 앞쪽으로 오게 함
+    });
+  } else {
+    sortedGeneric.sort(() => Math.random() - 0.5);
+  }
+
+  const genericSample = sortedGeneric.slice(0, maxGenericQuestions);
   selected.push(...genericSample);
 
   // 4. 전체 셔플

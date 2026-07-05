@@ -90,7 +90,7 @@ export async function checkWorkspacePermission(
  * otherwise delegates to the standard requireAuth() flow.
  */
 export async function requireAuthOrDemo(): Promise<string> {
-  if (env.DEMO_MODE === 'true') {
+  if (process.env.DEMO_MODE === 'true' || env.DEMO_MODE === 'true') {
     return 'demo-user-00000000-0000-4000-a000-000000000000';
   }
   return requireAuth();

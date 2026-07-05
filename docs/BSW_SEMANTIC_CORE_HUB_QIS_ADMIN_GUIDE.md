@@ -363,13 +363,13 @@ Phase 2 — Push (BSW → Hub):
 **BSW 측 수동 실행** (CLI):
 ```bash
 # 전체 사이클
-curl "https://bsw-os.vercel.app/api/cron/qis-sync?secret=YOUR_CRON_SECRET"
+curl "https://answerhub.kr/api/cron/qis-sync?secret=YOUR_CRON_SECRET"
 
 # Pull만
-curl "https://bsw-os.vercel.app/api/cron/qis-sync?secret=YOUR_CRON_SECRET&phase=pull"
+curl "https://answerhub.kr/api/cron/qis-sync?secret=YOUR_CRON_SECRET&phase=pull"
 
 # Push만
-curl "https://bsw-os.vercel.app/api/cron/qis-sync?secret=YOUR_CRON_SECRET&phase=push"
+curl "https://answerhub.kr/api/cron/qis-sync?secret=YOUR_CRON_SECRET&phase=push"
 ```
 
 ---
@@ -469,7 +469,7 @@ BSW PredictionAccuracyTracker.verifyPrediction()
 
 | 변수명 | 필수 | 설명 |
 |--------|------|------|
-| `BSW_API_URL` | ✅ | BSW 서버 URL (예: `https://bsw-os.vercel.app`) |
+| `BSW_API_URL` | ✅ | BSW 서버 URL (예: `https://answerhub.kr`) |
 | `QIS_API_KEY` | ✅ | Hub→BSW 호출 시 API 키 (BSW의 QIS_API_KEY_HASH와 매칭) |
 | `CRON_SECRET` | ✅ | Hub Cron API 보안 토큰 |
 

@@ -28,6 +28,9 @@ export interface BrandRankingRow {
   mentionQuality: number | null;
   bdr: number | null;
   cwr: number | null;
+  top3: number | null;
+  top5: number | null;
+  freshness: number | null;
   quadrant: Quadrant | null;
   isEstimated: boolean;
   sampleSize: number;
@@ -121,6 +124,9 @@ export function buildRankingRows(rankings: IndustryReportBrandRanking[]): BrandR
         mentionQuality: r.mention_quality ?? null,
         bdr: r.bdr ?? null,
         cwr: r.cwr ?? null,
+        top3: r.top3 ?? null,
+        top5: r.top5 ?? null,
+        freshness: r.freshness ?? null,
         quadrant: (r.quadrant as Quadrant) ?? null,
         isEstimated: r.is_estimated,
         sampleSize: r.sample_size,

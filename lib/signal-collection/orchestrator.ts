@@ -16,6 +16,7 @@ import { getSupabaseAdminClient } from '../supabase';
 import { INDUSTRY_PANELS_DATA } from '../../db/seed/industry-panels/questions-data';
 import { TcoKgMapper } from '../knowledge-graph/tco-kg-mapper';
 import type { RawSignalCandidate, PipelineResultV2, SignalCluster, PipelineOptionsV3 } from './types';
+import { SignalBridge } from './signal-bridge';
 
 export { type PipelineResultV2 as PipelineResult };
 
@@ -80,6 +81,25 @@ export class SignalOrchestrator {
       log(`TCO 개념 ${tcoSeeds.length}개 획득 완료.`);
     } catch (e: any) {
       log(`TCO 로드 오류 (계속 진행): ${e.message}`);
+    }
+
+    // ─── External Context Injection (Signal Bridge) ────────
+    // 외부 수집 시그널을 VOC 청크로 변환하여 LLM 컨텍스트에 주입
+    if (workspaceId && options.industryKey) {
+      try {
+        const externalChunks = await SignalBridge.buildContextChunks(
+          workspaceId,
+          options.industryKey,
+          20
+        );
+        if (externalChunks.length > 0) {
+          const existingChunks = options.contextChunks || [];
+          (options as any).contextChunks = [...existingChunks, ...externalChunks];
+          log(`외부 시그널 컨텍스트 ${externalChunks.length}개 주입 완료.`);
+        }
+      } catch (bridgeErr: any) {
+        log(`외부 컨텍스트 주입 오류 (계속 진행): ${bridgeErr.message}`);
+      }
     }
 
     // ─── Phase G: Meta Questions ───────────────────────────

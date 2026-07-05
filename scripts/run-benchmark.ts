@@ -212,6 +212,98 @@ async function main() {
     console.warn(`⚠ DB persistence skipped: ${err.message}`);
   }
 
+  // ── Phase 1: 정방향 자동 트리거 (Opportunity to Signals/CQ) ──
+  if (result.question_details) {
+    console.log('\n🔎 Running Opportunity Analysis for all brands to feed QIS...');
+    try {
+      const { OpportunityAnalyzer } = await import('../lib/benchmark/opportunity-analyzer');
+      const { feedBenchmarkOpportunitiesToSignals, autoPromoteSignalToCQ } = await import('../app/actions/qis-bridge');
+
+      const allSignals: Array<{ query: string; intent: string; source: string }> = [];
+
+      for (const brand of domainConfig.brands) {
+        const oppReport = OpportunityAnalyzer.analyze(
+          brand.name,
+          brand.slug,
+          result.question_details
+        );
+        if (oppReport.auto_generated_signals) {
+          allSignals.push(...oppReport.auto_generated_signals);
+        }
+      }
+
+      if (allSignals.length > 0) {
+        console.log(`📡 Feeding ${allSignals.length} opportunities to QIS signals...`);
+        const feedRes = await feedBenchmarkOpportunitiesToSignals(workspace, allSignals);
+        console.log(`✅ QIS Feed: ${feedRes.fedCount} fed, ${feedRes.skippedCount} skipped.`);
+
+        // Auto promote mined signals to CQ/Scene
+        const { getSupabaseAdminClient } = await import('../lib/supabase');
+        const db = getSupabaseAdminClient();
+        const { data: minedSignals, error: sigErr } = await db
+          .from('question_signals')
+          .select('*')
+          .eq('workspace_id', workspace)
+          .eq('status', 'mined');
+
+        if (!sigErr && minedSignals && minedSignals.length > 0) {
+          console.log(`🚀 Auto-promoting ${minedSignals.length} mined signals to CQ/Scene...`);
+          let promoted = 0;
+          for (const sig of minedSignals) {
+            try {
+              await autoPromoteSignalToCQ(workspace, sig.id, { 
+                autoCreateQisScene: true, 
+                industryKey: domain 
+              });
+              promoted++;
+            } catch (e: any) {
+              console.warn(`  ⚠ Promotion failed for "${sig.query}": ${e.message}`);
+            }
+          }
+          console.log(`✅ Promoted ${promoted} signals.`);
+        }
+      }
+
+      // ── Phase 3: 질문 자산 추출기 (BenchmarkAssetExtractor) ──
+      console.log('\n💎 Extracting Question Assets (Discovery, GAP, Volatile, CWR Insights)...');
+      const { BenchmarkAssetExtractor } = await import('../lib/benchmark/benchmark-asset-extractor');
+      const assets = BenchmarkAssetExtractor.extract(result.question_details, domainConfig.brands, domain);
+      console.log(`  ✓ Extracted ${assets.length} question assets.`);
+
+      if (assets.length > 0) {
+        console.log(`📡 Persisting ${assets.length} question assets to Supabase...`);
+        const persistRes = await BenchmarkAssetExtractor.persist(workspace, assets);
+        console.log(`✅ Persisted Assets: ${persistRes.saved} saved, ${persistRes.skipped} skipped.`);
+      }
+
+      // ── Phase 5: TCO 자동 발견 (TcoAutoDiscoverer) ──
+      console.log('\n🧠 Discovering new TCO concepts from search queries...');
+      const { TcoAutoDiscoverer } = await import('../lib/benchmark/tco-auto-discoverer');
+      let existingSlugs: string[] = [];
+      try {
+        const { getSupabaseAdminClient } = await import('../lib/supabase');
+        const db = getSupabaseAdminClient();
+        const { data: tcos } = await db.from('tco_concepts').select('slug').eq('workspace_id', workspace);
+        if (tcos) {
+          existingSlugs = tcos.map(t => t.slug);
+        }
+      } catch (e: any) {
+        console.warn(`  ⚠ Failed to fetch existing TCO concepts: ${e.message}`);
+      }
+
+      const candidates = TcoAutoDiscoverer.discover(result.question_details, existingSlugs);
+      console.log(`  ✓ Discovered ${candidates.length} TCO candidates.`);
+
+      if (candidates.length > 0) {
+        console.log(`📡 Applying ${candidates.length} discovered TCO concepts to Supabase...`);
+        const applyRes = await TcoAutoDiscoverer.apply(workspace, candidates);
+        console.log(`✅ TCO Concepts: ${applyRes.created} created, ${applyRes.enriched} enriched.`);
+      }
+    } catch (err: any) {
+      console.warn(`⚠ QIS auto-pilot feeding/asset extraction/TCO discovery failed: ${err.message}`);
+    }
+  }
+
   console.log('\n✅ Benchmark complete.\n');
 }
 
