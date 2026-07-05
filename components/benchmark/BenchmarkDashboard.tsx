@@ -12,8 +12,8 @@ import {
   ChevronDown, Settings, History, LayoutGrid
 } from "lucide-react";
 // runLightBenchmark는 API Route(/api/benchmark/run)로 호출합니다 (maxDuration=60s)
-import type { DomainLeaderboardResult, BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark";
-import type { MeasurementRun } from "../../app/actions/benchmark-history";
+import type { DomainLeaderboardResult, BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark-types";
+import type { MeasurementRun } from "../../app/actions/benchmark-history-types";
 import { BENCHMARK_DOMAINS } from "../../lib/benchmark/domain-config";
 import { calculatePerLayerMetrics } from "../../lib/benchmark/per-layer-metrics";
 import { calculateFreshnessMetrics } from "../../lib/benchmark/freshness-analyzer";

@@ -10,7 +10,7 @@ import {
   Clock, ChevronRight, X, BarChart3, RefreshCw,
   Calendar, Pencil, Check, Trash2, AlertTriangle
 } from "lucide-react";
-import type { MeasurementRun } from "../../app/actions/benchmark-history";
+import type { MeasurementRun } from "../../app/actions/benchmark-history-types";
 import { updateMeasurementRunLabel, deleteMeasurementRun } from "../../app/actions/benchmark-history";
 
 interface MeasurementHistoryBrowserProps {

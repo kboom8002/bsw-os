@@ -45,8 +45,7 @@ export async function resumeBenchmarkSession(sessionId: string) {
 
 const TABLE = 'industry_benchmark_snapshots';
 
-// ─── 타입 (별도 파일에서 re-export) ──────────────────────────────
-export type { BenchmarkLeaderboardEntry, BenchmarkHistoryPoint, DomainLeaderboardResult } from './benchmark-types';
+// ─── 타입 (benchmark-types.ts에서 직접 import) ──────────────────
 import type { BenchmarkLeaderboardEntry, BenchmarkHistoryPoint, DomainLeaderboardResult } from './benchmark-types';
 
 // ─── 측정 실행 ─────────────────────────────────────────────────

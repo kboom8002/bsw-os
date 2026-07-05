@@ -11,7 +11,6 @@ import { BENCHMARK_DOMAINS } from '../../lib/benchmark/domain-config';
 const SNAPSHOTS_TABLE = 'industry_benchmark_snapshots';
 const RUNS_TABLE = 'benchmark_measurement_runs';
 
-export type { MeasurementRun, MeasurementRunDetail } from './benchmark-history-types';
 import type { MeasurementRun, MeasurementRunDetail } from './benchmark-history-types';
 
 /**

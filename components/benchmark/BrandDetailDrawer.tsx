@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, Minus, BarChart3,
   Target, Eye, Search, Zap, FileText, MessageSquare, Link2, ChevronDown, ChevronUp, Clock, Award
 } from "lucide-react";
-import type { BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark";
+import type { BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark-types";
 import type { QuestionDetail } from "../../lib/benchmark/lightweight-metric-runner";
 
 interface RawQueryResult {
