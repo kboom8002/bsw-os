@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
 import { createOntologyNode, createOntologyEdge, generateIndustryOntology } from "@/app/actions/semantic";
 import { runTcoKgAgent } from "@/lib/ai/semantic_agents";
@@ -76,15 +76,22 @@ export default function KnowledgeGraphPage() {
   const [isCreatingNode, setIsCreatingNode] = useState(false);
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   
+  const searchParams = useSearchParams();
+  const domainFromUrl = searchParams.get('domain') || '';
+
   // Industry selector states
   const domainEntries = useMemo(() => Object.values(BENCHMARK_DOMAINS), []);
-  const [selectedDomainSlug, setSelectedDomainSlug] = useState<string>(domainEntries[0]?.slug || '');
-  const [selectedBrandSlug, setSelectedBrandSlug] = useState<string>('');
-
+  const initialDomainSlug = domainFromUrl && domainEntries.some(d => d.slug === domainFromUrl)
+    ? domainFromUrl
+    : (domainEntries[0]?.slug || '');
+  const [selectedDomainSlug, setSelectedDomainSlug] = useState<string>(initialDomainSlug);
+  
   const selectedDomain = useMemo(
     () => domainEntries.find(d => d.slug === selectedDomainSlug),
     [domainEntries, selectedDomainSlug]
   );
+  
+  const [selectedBrandSlug, setSelectedBrandSlug] = useState<string>(selectedDomain?.brands?.[0]?.slug || '');
   const selectedBrand = useMemo(
     () => selectedDomain?.brands.find(b => b.slug === selectedBrandSlug),
     [selectedDomain, selectedBrandSlug]

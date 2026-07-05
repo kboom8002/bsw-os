@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
 import { getPipelineReadiness, seedDemoData } from "@/app/actions/semantic";
 import { deleteAuditRun, resolveWorkspaceSlug } from "@/app/actions/workspace";
@@ -80,12 +80,14 @@ const SOURCE_LABEL_MAP: Record<string, string> = {
 // ── 컴포넌트 ──────────────────────────────────────────────────────────
 export default function OrchestrationPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const locale = (params?.locale as string) || "ko";
   const rawSlug = params?.workspace_slug as string;
   const workspaceSlug = (rawSlug && rawSlug !== 'undefined') ? rawSlug : "demo-brand-semantic-lab";
+  const domainFromUrl = searchParams.get('domain') || 'skincare';
   const [workspaceId, setWorkspaceId] = useState<string>('');
 
-  const [selectedDomain, setSelectedDomain] = useState('skincare');
+  const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);
   const [selectedBrand, setSelectedBrand] = useState('all');
 
   const [loading, setLoading] = useState(true);

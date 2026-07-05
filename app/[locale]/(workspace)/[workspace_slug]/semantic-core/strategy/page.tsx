@@ -2,19 +2,23 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
+import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
 import { getQvsAepiStrategyMatrix } from "@/app/actions/qis-bridge";
 import { QvsAepiMatrix } from "@/components/benchmark/QvsAepiMatrix";
 import { ArrowLeft, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function StrategyPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
+  const domainFromUrl = searchParams.get('domain') || 'skincare';
   const { t } = useTranslation();
 
   const [wsId, setWsId] = useState<string>("");
+  const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);
   const [matrixData, setMatrixData] = useState<any[]>([]);
   const [summary, setSummary] = useState({ threat: 0, core: 0, ignore: 0, maintain: 0 });
   const [loading, setLoading] = useState(true);
@@ -22,7 +26,7 @@ export default function StrategyPage() {
 
   useEffect(() => {
     initPage();
-  }, [workspaceSlug]);
+  }, [workspaceSlug, selectedDomain]);
 
   const initPage = async () => {
     setLoading(true);
@@ -39,7 +43,7 @@ export default function StrategyPage() {
 
       if (ws?.id) {
         setWsId(ws.id);
-        await loadMatrix(ws.id);
+        await loadMatrix(ws.id, selectedDomain);
       } else {
         setErrorMsg("워크스페이스를 찾을 수 없습니다.");
       }
@@ -51,11 +55,9 @@ export default function StrategyPage() {
     }
   };
 
-  const loadMatrix = async (currentWsId: string) => {
+  const loadMatrix = async (currentWsId: string, domainKey: string) => {
     try {
-      const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
-      const subIndustryKey = searchParams.get("domain") || "skincare";
-      const result = await getQvsAepiStrategyMatrix(currentWsId, subIndustryKey);
+      const result = await getQvsAepiStrategyMatrix(currentWsId, domainKey);
       setMatrixData(result.matrix || []);
       setSummary(result.summary || { threat: 0, core: 0, ignore: 0, maintain: 0 });
     } catch (err: any) {
@@ -80,13 +82,24 @@ export default function StrategyPage() {
             <h1 className="text-2xl font-extrabold text-white">QVS × AEPI 전략 매트릭스</h1>
           </div>
         </div>
-        <button
-          onClick={() => wsId && loadMatrix(wsId)}
-          className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5 text-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          새로고침
-        </button>
+        <div className="flex items-center gap-4">
+          <select
+            value={selectedDomain}
+            onChange={(e) => setSelectedDomain(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border border-white/10 bg-slate-950 text-slate-100 focus:outline-none focus:border-cyan-500 text-xs font-semibold"
+          >
+            {Object.entries(BENCHMARK_DOMAINS).map(([key, cfg]) => (
+              <option key={key} value={key}>{cfg.name} ({key})</option>
+            ))}
+          </select>
+          <button
+            onClick={() => wsId && loadMatrix(wsId, selectedDomain)}
+            className="p-2 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5 text-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            새로고침
+          </button>
+        </div>
       </div>
 
       {loading ? (

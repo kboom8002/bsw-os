@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/context";
 import { createTcoConcept, generateIndustryConcepts } from "@/app/actions/semantic";
 import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
@@ -30,18 +30,20 @@ interface ConceptItem {
 
 export default function ConceptsPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const { t } = useTranslation();
   const locale = (params?.locale as string) || "ko";
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
+  const domainFromUrl = searchParams.get('domain') || '';
   const [workspaceId, setWorkspaceId] = useState<string>('');
   const [dbLoading, setDbLoading] = useState(true);
   const [concepts, setConcepts] = useState<ConceptItem[]>([]);
 
   // ── Industry / Brand selector state ──
-  const [selectedDomain, setSelectedDomain] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState('');
-  const domainConfig = selectedDomain ? BENCHMARK_DOMAINS[selectedDomain] : undefined;
+  const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);
+  const domainConfig = selectedDomain ? BENCHMARK_DOMAINS[selectedDomain as keyof typeof BENCHMARK_DOMAINS] : undefined;
   const brands = domainConfig?.brands ?? [];
+  const [selectedBrand, setSelectedBrand] = useState(brands[0]?.name || '');
 
   // ── AI auto-generate state ──
   const [aiGenerating, setAiGenerating] = useState(false);

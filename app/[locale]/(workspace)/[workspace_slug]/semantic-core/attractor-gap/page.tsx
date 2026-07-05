@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { 
   ArrowLeft, 
   AlertTriangle, 
@@ -24,8 +24,10 @@ import { GapType } from "@/lib/pattern-attractor/types";
 
 export default function AttractorGapPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
+  const domainFromUrl = searchParams.get('domain') || '';
 
   const [wsId, setWsId] = useState<string>("");
   const [domains, setDomains] = useState<any[]>([]);
@@ -64,8 +66,10 @@ export default function AttractorGapPage() {
         
         if (domainList && domainList.length > 0) {
           setDomains(domainList);
-          setSelectedDomainId(domainList[0].id);
-          await runAnalysis(ws.id, domainList[0].id);
+          const matchedDomain = domainFromUrl ? domainList.find(d => d.slug === domainFromUrl) : null;
+          const initialDomainId = matchedDomain ? matchedDomain.id : domainList[0].id;
+          setSelectedDomainId(initialDomainId);
+          await runAnalysis(ws.id, initialDomainId);
         } else {
           setLoading(false);
         }

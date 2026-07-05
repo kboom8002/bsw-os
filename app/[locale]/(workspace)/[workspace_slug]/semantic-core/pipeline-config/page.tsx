@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   Settings,
   Zap,
@@ -34,12 +34,14 @@ import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
 // ─────────────────────────────────────────────────────────
 export default function PipelineConfigPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const rawSlug = params?.workspace_slug as string;
   const workspaceSlug = rawSlug && rawSlug !== "undefined" ? rawSlug : "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
+  const domainFromUrl = searchParams.get('domain') || "jeju_smb";
 
   const [wsId, setWsId] = useState("");
-  const [selectedDomain, setSelectedDomain] = useState("jeju_smb");
+  const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);
   const [config, setConfig] = useState<FullPipelineConfig>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);

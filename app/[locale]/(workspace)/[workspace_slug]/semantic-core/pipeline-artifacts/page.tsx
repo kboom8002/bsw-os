@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   Radio, Filter, Search, Download, RefreshCw, Loader2,
   ChevronLeft, ChevronRight, Database, Layers, MessageSquare,
@@ -49,11 +49,13 @@ type TabKey = typeof TABS[number]["key"];
 // ─────────────────────────────────────────────────────────
 export default function PipelineArtifactsPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const rawSlug = params?.workspace_slug as string;
   const workspaceSlug = rawSlug && rawSlug !== "undefined" ? rawSlug : "demo-brand-semantic-lab";
+  const domainFromUrl = searchParams.get('domain') || "jeju_smb";
 
   const [activeTab, setActiveTab] = useState<TabKey>("signals");
-  const [selectedDomain, setSelectedDomain] = useState("jeju_smb");
+  const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);
   const [loading, setLoading] = useState(false);
   const [saturation, setSaturation] = useState<{ coveragePercent: number; isNearSaturation: boolean; cqCount: number; estimatedPool: number; recommendation?: string } | null>(null);
 
