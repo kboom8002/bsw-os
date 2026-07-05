@@ -34,9 +34,9 @@ export async function GET(req: NextRequest) {
     query = query.eq('status', status);
   }
 
-  // domainKey/industryKey 필터 (선택적)
+  // domainKey/industryKey 필터 (선택적) — industry_key가 null인 시그널도 포함
   if (domainKey) {
-    query = query.eq('industry_key', domainKey);
+    query = query.or(`industry_key.eq.${domainKey},industry_key.is.null`);
   }
 
   const { data: signals, error } = await query;

@@ -170,13 +170,15 @@ export default function OrchestrationPage() {
     if (!workspaceId) return;
     setSignalsLoading(true);
     try {
-      const res = await fetch(`/api/pipeline/signals?workspaceId=${workspaceId}&domainKey=${selectedDomain}&status=mined&limit=300`);
+      const res = await fetch(`/api/pipeline/signals?workspaceId=${workspaceId}&domainKey=${selectedDomain}&status=all&limit=300`);
       if (res.ok) {
         const data = await res.json();
         setSignals(data.signals || []);
         setSignalGroups(data.groups || []);
         // 기본 전체 선택
         setSelectedSignalIds(new Set((data.signals || []).map((s: Signal) => s.id)));
+      } else {
+        console.error('[loadSignals] API error:', res.status, await res.text());
       }
     } finally { setSignalsLoading(false); }
   };
