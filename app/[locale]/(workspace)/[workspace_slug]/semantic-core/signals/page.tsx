@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
 import { useTranslation } from "@/lib/i18n/context";
 import { runUpstreamPipeline, updateMultipleQuestionSignalStatus, promoteMultipleSignalsToQuestionCapital } from "@/app/actions/semantic";
 import { 
@@ -53,8 +54,10 @@ interface SignalItem {
 
 export default function SignalsPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
+  const domainFromUrl = searchParams.get('domain') || 'skincare';
   const { t } = useTranslation();
 
   const [wsId, setWsId] = useState<string>("");
@@ -83,8 +86,9 @@ export default function SignalsPage() {
   const [sortBy, setSortBy] = useState<"cps" | "volume" | "query">("cps");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  const [keywordSeed, setKeywordSeed] = useState("스킨케어");
-  const [brandName, setBrandName] = useState("DR.O");
+  const [keywordSeed, setKeywordSeed] = useState(domainFromUrl);
+  const domainConfig = BENCHMARK_DOMAINS[keywordSeed as keyof typeof BENCHMARK_DOMAINS];
+  const [brandName, setBrandName] = useState(domainConfig?.brands?.[0]?.name || "");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [runningAgent, setRunningAgent] = useState(false);
   const [agentLogs, setAgentLogs] = useState<string[]>([]);
@@ -416,14 +420,19 @@ export default function SignalsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-400">도메인 / 업종</label>
-                <input
-                  type="text"
+                <select
                   value={keywordSeed}
-                  onChange={(e) => setKeywordSeed(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-sm font-mono"
-                  placeholder="e.g. 스킨케어, 웨딩"
-                  required
-                />
+                  onChange={(e) => {
+                    setKeywordSeed(e.target.value);
+                    const cfg = BENCHMARK_DOMAINS[e.target.value as keyof typeof BENCHMARK_DOMAINS];
+                    setBrandName(cfg?.brands?.[0]?.name || "");
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900 text-slate-100 focus:outline-none focus:border-cyan-500 text-sm font-mono"
+                >
+                  {Object.entries(BENCHMARK_DOMAINS).map(([key, cfg]) => (
+                    <option key={key} value={key}>{cfg.name} ({key})</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-400">타겟 브랜드명</label>
