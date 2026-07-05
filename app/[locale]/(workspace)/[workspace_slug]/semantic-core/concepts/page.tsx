@@ -40,10 +40,11 @@ export default function ConceptsPage() {
   const [concepts, setConcepts] = useState<ConceptItem[]>([]);
 
   // ── Industry / Brand selector state ──
+  const brandFromUrl = searchParams.get('brand') || '';
   const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);
   const domainConfig = selectedDomain ? BENCHMARK_DOMAINS[selectedDomain as keyof typeof BENCHMARK_DOMAINS] : undefined;
   const brands = domainConfig?.brands ?? [];
-  const [selectedBrand, setSelectedBrand] = useState(brands[0]?.name || '');
+  const [selectedBrand, setSelectedBrand] = useState(brandFromUrl);
 
   // ── AI auto-generate state ──
   const [aiGenerating, setAiGenerating] = useState(false);

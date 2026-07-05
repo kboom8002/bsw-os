@@ -58,6 +58,7 @@ export default function SignalsPage() {
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
   const domainFromUrl = searchParams.get('domain') || 'skincare';
+  const brandFromUrl = searchParams.get('brand') || '';
   const { t } = useTranslation();
 
   const [wsId, setWsId] = useState<string>("");
@@ -88,7 +89,7 @@ export default function SignalsPage() {
 
   const [keywordSeed, setKeywordSeed] = useState(domainFromUrl);
   const domainConfig = BENCHMARK_DOMAINS[keywordSeed as keyof typeof BENCHMARK_DOMAINS];
-  const [brandName, setBrandName] = useState(domainConfig?.brands?.[0]?.name || "");
+  const [brandName, setBrandName] = useState(brandFromUrl);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [runningAgent, setRunningAgent] = useState(false);
   const [agentLogs, setAgentLogs] = useState<string[]>([]);

@@ -78,6 +78,7 @@ export default function KnowledgeGraphPage() {
   
   const searchParams = useSearchParams();
   const domainFromUrl = searchParams.get('domain') || '';
+  const brandFromUrl = searchParams.get('brand') || '';
 
   // Industry selector states
   const domainEntries = useMemo(() => Object.values(BENCHMARK_DOMAINS), []);
@@ -91,7 +92,7 @@ export default function KnowledgeGraphPage() {
     [domainEntries, selectedDomainSlug]
   );
   
-  const [selectedBrandSlug, setSelectedBrandSlug] = useState<string>(selectedDomain?.brands?.[0]?.slug || '');
+  const [selectedBrandSlug, setSelectedBrandSlug] = useState<string>(brandFromUrl);
   const selectedBrand = useMemo(
     () => selectedDomain?.brands.find(b => b.slug === selectedBrandSlug),
     [selectedDomain, selectedBrandSlug]
