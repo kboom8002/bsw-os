@@ -405,13 +405,13 @@ export async function feedCrossMapGapsToSignals(
 // 4. 원클릭 E2E 파이프라인 (7단계 실측 기반 통합)
 // ═══════════════════════════════════════════════════════════════
 
-export interface PipelinePhaseError {
+interface PipelinePhaseError {
   phase: string;
   message: string;
   timestamp: string;
 }
 
-export interface E2EPipelineResult {
+interface E2EPipelineResult {
   phase0_bootstrap: { tcoConcepts: number; kgNodes: number; kgEdges: number; skipped: boolean };
   phase0_5_signals?: { collected: number; converted: number; volumeEnriched: number };
   phase0_6_hubFeedback?: { newSignals: number; cpsUpdated: number; source: string };

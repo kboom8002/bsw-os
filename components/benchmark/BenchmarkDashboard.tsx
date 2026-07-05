@@ -16,6 +16,7 @@ import type { DomainLeaderboardResult, BenchmarkLeaderboardEntry, BenchmarkHisto
 import type { MeasurementRun } from "../../app/actions/benchmark-history";
 import { BENCHMARK_DOMAINS } from "../../lib/benchmark/domain-config";
 import { calculatePerLayerMetrics } from "../../lib/benchmark/per-layer-metrics";
+import { calculateFreshnessMetrics } from "../../lib/benchmark/freshness-analyzer";
 import { OpportunityAnalyzer, type BrandOpportunityReport } from "../../lib/benchmark/opportunity-analyzer";
 import type { QuestionDetail } from "../../lib/benchmark/lightweight-metric-runner";
 import OpportunityIntelligenceSection from "./OpportunityIntelligenceSection";
@@ -123,8 +124,9 @@ function LeaderboardTable({
             <th className="pb-3 font-semibold uppercase tracking-wider">브랜드</th>
             <th className="pb-3 font-semibold uppercase tracking-wider text-center">Answer Share</th>
             <th className="pb-3 font-semibold uppercase tracking-wider text-center">Citation Rate</th>
-            <th className="pb-3 font-semibold uppercase tracking-wider text-center">BDR / CWR</th>
+            <th className="pb-3 font-semibold uppercase tracking-wider text-center">BDR / CWR / T3·T5</th>
             <th className="pb-3 font-semibold uppercase tracking-wider text-center">BAIR</th>
+            <th className="pb-3 font-semibold uppercase tracking-wider text-center">Freshness</th>
             <th className="pb-3 font-semibold uppercase tracking-wider text-center w-36">30일 트렌드</th>
           </tr>
         </thead>
@@ -204,6 +206,15 @@ function LeaderboardTable({
                   </span>
                 ) : (
                   <span className="text-slate-500">측정 중</span>
+                )}
+              </td>
+              <td className="py-4 text-center">
+                {entry.freshness !== undefined && entry.freshness !== null ? (
+                  <span className={`font-black text-sm ${entry.freshness >= 70 ? 'text-emerald-400' : entry.freshness >= 40 ? 'text-amber-400' : 'text-rose-400'}`}>
+                    {entry.freshness}%
+                  </span>
+                ) : (
+                  <span className="text-slate-500">-</span>
                 )}
               </td>
               <td className="py-4 px-2">
@@ -510,7 +521,7 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
         }
 
         if (compositeResults.length === 0) {
-          return { brand_slug: brand.slug, brand_name: brand.name, aas: 0, ocr: 0, bsf: 0, bair: 0, bdr: 0, cwr: 0, iri: 0, opp: 0, top3: 0, top5: 0, mention_count: 0, citation_count: 0, sample_size: questions.length, measured_at: measuredAt };
+          return { brand_slug: brand.slug, brand_name: brand.name, aas: 0, ocr: 0, bsf: 0, bair: 0, bdr: 0, cwr: 0, iri: 0, opp: 0, top3: 0, top5: 0, freshness: 0, mention_count: 0, citation_count: 0, sample_size: questions.length, measured_at: measuredAt };
         }
 
         const mentionCount = compositeResults.filter(r => r.aas).length;
@@ -523,7 +534,19 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
 
         const advanced = calculatePerLayerMetrics(brand, questionDetails, questions, 'gemini_grounding');
 
-        return { brand_slug: brand.slug, brand_name: brand.name, aas, ocr, bsf, bair, bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp, top3: advanced.top3, top5: advanced.top5, mention_count: mentionCount, citation_count: citationCount, sample_size: questions.length, measured_at: measuredAt };
+        // Freshness 분석
+        const brandResponses: string[] = [];
+        for (const qr of queryResults) {
+          const text = qr.text;
+          const aasHit = calcWeightedAAS(text, brand.keywords).hit;
+          if (aasHit) {
+            brandResponses.push(text);
+          }
+        }
+        const freshnessResult = calculateFreshnessMetrics(brandResponses);
+        const freshness = freshnessResult.freshnessScore;
+
+        return { brand_slug: brand.slug, brand_name: brand.name, aas, ocr, bsf, bair, bdr: advanced.bdr, cwr: advanced.cwr, iri: advanced.iri, opp: advanced.opp, top3: advanced.top3, top5: advanced.top5, freshness, mention_count: mentionCount, citation_count: citationCount, sample_size: questions.length, measured_at: measuredAt };
       });
 
       const targetBrand = brands[0];
@@ -580,6 +603,12 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
   const topBrand = allEntries[0];
   const industryIRI = topBrand?.iri ?? 0;
   const industryOPP = topBrand?.opp ?? 0;
+  const avgFreshness = allEntries.length > 0
+    ? parseFloat((allEntries.reduce((s, e) => s + (e.freshness || 0), 0) / allEntries.length).toFixed(1))
+    : 0;
+  const avgTop3 = allEntries.length > 0
+    ? parseFloat((allEntries.reduce((s, e) => s + (e.top3 || 0), 0) / allEntries.length).toFixed(1))
+    : 0;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -776,7 +805,7 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
           {/* AAS */}
           <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl shadow-xl shadow-slate-950/40">
             <div className="absolute top-0 right-0 p-6 opacity-10">
@@ -878,6 +907,35 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
             </div>
             <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
               제네릭 질문 방어율(IRI)과 아무도 노출되지 않은 레드오션 기회(OPP) 지표
+            </p>
+          </div>
+
+          {/* Freshness & Top-3 */}
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl shadow-xl shadow-slate-950/40">
+            <div className="absolute top-0 right-0 p-6 opacity-10">
+              <Clock className="h-20 w-20 text-teal-500" />
+            </div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold uppercase tracking-widest text-teal-400">
+                정보 최신성 (Freshness)
+              </span>
+              <Clock className="h-4 w-4 text-teal-400" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-black bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                {avgFreshness}
+              </span>
+              <span className="text-xs font-bold text-slate-500">%</span>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+              <span>평균 Top-3 진입률</span>
+              <span className="font-bold text-slate-300">{avgTop3}%</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-1 mt-1">
+              <div className="bg-cyan-400 h-1 rounded-full" style={{ width: `${avgTop3}%` }} />
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+              정보가 최신 시그널을 담고 있는 강도 및 경쟁 질문에서의 Top-3 노출 비율
             </p>
           </div>
         </div>

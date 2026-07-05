@@ -3,12 +3,12 @@
 /**
  * app/actions/fix-it-automation.ts
  *
- * Fix-It RCA 파이프라인 Server Actions.
+ * Fix-It RCA ?뚯씠?꾨씪??Server Actions.
  *
- * - runAutoRCA:      이상 탐지 → RCA 가설 생성 (자동)
- * - approvePatch:    패치 티켓 승인 → 자동 적용 → 쿨다운 스케줄 등록
- * - executeRetest:   쿨다운 종료 후 리테스트 실행
- * - checkRegression: 새 관측 결과로 회귀 탐지
+ * - runAutoRCA:      ?댁긽 ?먯? ??RCA 媛???앹꽦 (?먮룞)
+ * - approvePatch:    ?⑥튂 ?곗폆 ?뱀씤 ???먮룞 ?곸슜 ??荑⑤떎???ㅼ?以??깅줉
+ * - executeRetest:   荑⑤떎??醫낅즺 ??由ы뀒?ㅽ듃 ?ㅽ뻾
+ * - checkRegression: ??愿痢?寃곌낵濡??뚭? ?먯?
  */
 
 import { getSupabaseAdminClient } from '../../lib/supabase';
@@ -20,16 +20,16 @@ import { RegressionGuard } from '../../lib/fix-it/regression-guard';
 import { resolveIndustryKey } from '../../lib/fix-it/cooldown-config';
 import type { Anomaly, RcaHypothesis, PatchTicket, RcaContext } from '../../lib/fix-it/types';
 
-// ─────────────────────────────────────────
-// ① 이상 탐지 + RCA 가설 생성
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
+// ???댁긽 ?먯? + RCA 媛???앹꽦
+// ?????????????????????????????????????????
 
-export interface RunAutoRCAInput {
+interface RunAutoRCAInput {
   workspaceId: string;
   observationRunId: string;
 }
 
-export interface RunAutoRCAResult {
+interface RunAutoRCAResult {
   anomalies: Anomaly[];
   hypotheses: RcaHypothesis[];
   error?: string;
@@ -40,7 +40,7 @@ export async function runAutoRCA(input: RunAutoRCAInput): Promise<RunAutoRCAResu
     const { workspaceId, observationRunId } = input;
     const supabase = getSupabaseAdminClient();
 
-    // 이상 탐지
+    // ?댁긽 ?먯?
     const detector = new AnomalyDetector();
     const anomalies = await detector.detect(workspaceId, observationRunId);
 
@@ -48,10 +48,10 @@ export async function runAutoRCA(input: RunAutoRCAInput): Promise<RunAutoRCAResu
       return { anomalies: [], hypotheses: [] };
     }
 
-    // 컨텍스트 수집
+    // 而⑦뀓?ㅽ듃 ?섏쭛
     const context = await _buildRcaContext(workspaceId, supabase);
 
-    // RCA 가설 생성
+    // RCA 媛???앹꽦
     const generator = new RcaGenerator();
     const hypotheses = await generator.generateHypotheses(workspaceId, anomalies, context);
 
@@ -62,11 +62,11 @@ export async function runAutoRCA(input: RunAutoRCAInput): Promise<RunAutoRCAResu
   }
 }
 
-// ─────────────────────────────────────────
-// ④ 패치 승인 → 자동 적용 → 쿨다운 스케줄
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
+// ???⑥튂 ?뱀씤 ???먮룞 ?곸슜 ??荑⑤떎???ㅼ?以?
+// ?????????????????????????????????????????
 
-export interface ApprovePatchInput {
+interface ApprovePatchInput {
   workspaceId: string;
   patchTicket: PatchTicket;
   panelId: string;
@@ -74,7 +74,7 @@ export interface ApprovePatchInput {
   approvedBy: string;
 }
 
-export interface ApprovePatchResult {
+interface ApprovePatchResult {
   success: boolean;
   retestScheduledAt?: string;
   cooldownDays?: number;
@@ -85,14 +85,14 @@ export async function approvePatch(input: ApprovePatchInput): Promise<ApprovePat
   try {
     const { workspaceId, patchTicket, panelId, industry, approvedBy } = input;
 
-    // 승인 처리
+    // ?뱀씤 泥섎━
     const ticket: PatchTicket = {
       ...patchTicket,
       status: 'approved',
       approved_by: approvedBy,
     };
 
-    // 패치 적용
+    // ?⑥튂 ?곸슜
     const executor = new PatchExecutor();
     const result = await executor.execute(workspaceId, ticket);
 
@@ -100,7 +100,7 @@ export async function approvePatch(input: ApprovePatchInput): Promise<ApprovePat
       return { success: false, error: result.error_message };
     }
 
-    // 쿨다운 스케줄 등록
+    // 荑⑤떎???ㅼ?以??깅줉
     const scheduler = new RetestScheduler();
     const industryKey = resolveIndustryKey(industry);
     const schedule = await scheduler.schedule(
@@ -123,15 +123,15 @@ export async function approvePatch(input: ApprovePatchInput): Promise<ApprovePat
   }
 }
 
-// ─────────────────────────────────────────
-// ⑦ 리테스트 실행
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
+// ??由ы뀒?ㅽ듃 ?ㅽ뻾
+// ?????????????????????????????????????????
 
-export interface ExecuteRetestInput {
+interface ExecuteRetestInput {
   workspaceId: string;
 }
 
-export interface ExecuteRetestResult {
+interface ExecuteRetestResult {
   executed: number;
   observationRunIds: string[];
   errors: string[];
@@ -152,11 +152,11 @@ export async function executeRetest(input: ExecuteRetestInput): Promise<ExecuteR
       const runId = await scheduler.executeRetest(schedule);
       observationRunIds.push(runId);
 
-      // 회귀 탐지
+      // ?뚭? ?먯?
       const regressionAlerts = await guard.checkRegression(workspaceId, runId);
       if (regressionAlerts.length > 0) {
         console.warn(
-          `[executeRetest] 회귀 탐지: ${regressionAlerts.length}개 경고 (runId: ${runId})`,
+          `[executeRetest] ?뚭? ?먯?: ${regressionAlerts.length}媛?寃쎄퀬 (runId: ${runId})`,
           regressionAlerts,
         );
       }
@@ -172,21 +172,21 @@ export async function executeRetest(input: ExecuteRetestInput): Promise<ExecuteR
   };
 }
 
-// ─────────────────────────────────────────
-// ⑨ 회귀 탐지
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
+// ???뚭? ?먯?
+// ?????????????????????????????????????????
 
 export async function checkRegression(workspaceId: string, newSnapshotId: string) {
   const guard = new RegressionGuard();
   return guard.checkRegression(workspaceId, newSnapshotId);
 }
 
-// ─────────────────────────────────────────
-// Helper: RCA 컨텍스트 빌드
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
+// Helper: RCA 而⑦뀓?ㅽ듃 鍮뚮뱶
+// ?????????????????????????????????????????
 
 async function _buildRcaContext(workspaceId: string, supabase: any): Promise<RcaContext> {
-  // SSoT 로드
+  // SSoT 濡쒕뱶
   const { data: truths } = await supabase
     .from('brand_operational_truths')
     .select('claim, risk_level')
@@ -194,7 +194,7 @@ async function _buildRcaContext(workspaceId: string, supabase: any): Promise<Rca
     .order('created_at', { ascending: false })
     .limit(10);
 
-  // 최근 에이전트 실행 이력 (변경 이력 대용)
+  // 理쒓렐 ?먯씠?꾪듃 ?ㅽ뻾 ?대젰 (蹂寃??대젰 ???
   const { data: recentRuns } = await supabase
     .from('agent_runs')
     .select('agent_name, created_at, status')
@@ -202,7 +202,7 @@ async function _buildRcaContext(workspaceId: string, supabase: any): Promise<Rca
     .order('created_at', { ascending: false })
     .limit(5);
 
-  // 과거 RCA 케이스 (agent_runs에서 fix_it 관련)
+  // 怨쇨굅 RCA 耳?댁뒪 (agent_runs?먯꽌 fix_it 愿??
   const { data: pastRca } = await supabase
     .from('agent_runs')
     .select('output_payload, created_at')
@@ -219,7 +219,7 @@ async function _buildRcaContext(workspaceId: string, supabase: any): Promise<Rca
     recent_changes: (recentRuns ?? []).map((r: any) => ({
       date: r.created_at?.slice(0, 10) ?? 'unknown',
       change_type: r.agent_name,
-      description: `상태: ${r.status}`,
+      description: `?곹깭: ${r.status}`,
     })),
     past_rca_summaries: (pastRca ?? [])
       .map((r: any) => {

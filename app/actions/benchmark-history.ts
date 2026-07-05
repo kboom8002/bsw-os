@@ -11,32 +11,8 @@ import { BENCHMARK_DOMAINS } from '../../lib/benchmark/domain-config';
 const SNAPSHOTS_TABLE = 'industry_benchmark_snapshots';
 const RUNS_TABLE = 'benchmark_measurement_runs';
 
-export interface MeasurementRun {
-  id: string;
-  domain_slug: string;
-  domain_name: string;
-  run_label: string | null;
-  measured_at: string;
-  brand_count: number;
-  question_count: number;
-  engine: string;
-  status: string;
-}
-
-export interface MeasurementRunDetail extends MeasurementRun {
-  leaderboard: {
-    rank: number;
-    brand_slug: string;
-    brand_name: string;
-    aas: number;
-    ocr: number;
-    bsf: number | null;
-    bair: number | null;
-    bdr: number | null;
-    cwr: number | null;
-    color: string;
-  }[];
-}
+export type { MeasurementRun, MeasurementRunDetail } from './benchmark-history-types';
+import type { MeasurementRun, MeasurementRunDetail } from './benchmark-history-types';
 
 /**
  * 모든 도메인의 측정 이력 목록을 가져옵니다.

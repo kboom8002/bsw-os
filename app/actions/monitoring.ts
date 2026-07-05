@@ -3,12 +3,12 @@
 /**
  * app/actions/monitoring.ts
  *
- * 3-Tier 측정 체계 Server Actions.
+ * 3-Tier 痢≪젙 泥닿퀎 Server Actions.
  *
- * - runHeartbeat:      Tier 1 일간 경량 측정 실행
- * - runWeeklyScan:     Tier 2 주간 표준 측정 실행
- * - runEscalationCheck: 스케줄 기반 에스컬레이션 자동 결정
- * - runProxyValidation: Tier 교차 검증
+ * - runHeartbeat:      Tier 1 ?쇨컙 寃쎈웾 痢≪젙 ?ㅽ뻾
+ * - runWeeklyScan:     Tier 2 二쇨컙 ?쒖? 痢≪젙 ?ㅽ뻾
+ * - runEscalationCheck: ?ㅼ?以?湲곕컲 ?먯뒪而щ젅?댁뀡 ?먮룞 寃곗젙
+ * - runProxyValidation: Tier 援먯감 寃利?
  */
 
 import { HeartbeatPulse } from '../../lib/experiments/heartbeat-pulse';
@@ -19,11 +19,11 @@ import { RepeatedRunner } from '../../lib/experiments/repeated-runner';
 import type { HeartbeatResult, WeeklyScanResult, EscalationResult, ProxyValidation } from '../../lib/experiments/types';
 import { getSupabaseAdminClient } from '../../lib/supabase';
 
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
 // Tier 1: Heartbeat Pulse
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
 
-export interface RunHeartbeatInput {
+interface RunHeartbeatInput {
   workspaceId: string;
   panelId: string;
   engineName?: string;
@@ -31,7 +31,7 @@ export interface RunHeartbeatInput {
   competitorKeywords?: string[];
 }
 
-export interface RunHeartbeatResult {
+interface RunHeartbeatResult {
   heartbeat?: HeartbeatResult;
   escalation?: EscalationResult;
   error?: string;
@@ -41,7 +41,7 @@ export async function runHeartbeat(input: RunHeartbeatInput): Promise<RunHeartbe
   try {
     const { workspaceId, panelId, engineName, brandKeywords = [], competitorKeywords = [] } = input;
 
-    // 이전 Heartbeat 결과 조회 (변동 탐지용)
+    // ?댁쟾 Heartbeat 寃곌낵 議고쉶 (蹂???먯???
     const { previousAas, previousBsf } = await _fetchPreviousHeartbeatMetrics(workspaceId);
 
     const pulse = new HeartbeatPulse();
@@ -55,7 +55,7 @@ export async function runHeartbeat(input: RunHeartbeatInput): Promise<RunHeartbe
       previousBsf,
     );
 
-    // 에스컬레이션 결정
+    // ?먯뒪而щ젅?댁뀡 寃곗젙
     const escalationEngine = new EscalationEngine();
     const escalation = escalationEngine.fromHeartbeat(heartbeat);
 
@@ -68,17 +68,17 @@ export async function runHeartbeat(input: RunHeartbeatInput): Promise<RunHeartbe
   }
 }
 
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
 // Tier 2: Weekly Scan
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
 
-export interface RunWeeklyScanInput {
+interface RunWeeklyScanInput {
   workspaceId: string;
   panelId: string;
   engines?: [string, string];
 }
 
-export interface RunWeeklyScanResult {
+interface RunWeeklyScanResult {
   scan?: WeeklyScanResult;
   escalation?: EscalationResult;
   error?: string;
@@ -95,15 +95,15 @@ export async function runWeeklyScan(input: RunWeeklyScanInput): Promise<RunWeekl
     const scanner = new WeeklyScan();
     const scan = await scanner.run(workspaceId, panelId, engines as [string, string]);
 
-    // 에스컬레이션 결정
+    // ?먯뒪而щ젅?댁뀡 寃곗젙
     const escalationEngine = new EscalationEngine();
     const escalation = escalationEngine.fromWeeklyScan(scan);
 
     console.info(`[runWeeklyScan] ${escalationEngine.format(escalation)}`);
 
-    // Tier 3 즉시 실행 권고 시 → Tier 3 자동 실행
+    // Tier 3 利됱떆 ?ㅽ뻾 沅뚭퀬 ????Tier 3 ?먮룞 ?ㅽ뻾
     if (escalation.execute_immediately && escalation.decision.tier === 3) {
-      console.info('[runWeeklyScan] Tier 3 Full Run 자동 에스컬레이션 실행...');
+      console.info('[runWeeklyScan] Tier 3 Full Run ?먮룞 ?먯뒪而щ젅?댁뀡 ?ㅽ뻾...');
       const runner = new RepeatedRunner();
       await runner.run(workspaceId, panelId, 1, 'baseline', {
         engines: escalation.recommended_engines ?? [],
@@ -117,16 +117,16 @@ export async function runWeeklyScan(input: RunWeeklyScanInput): Promise<RunWeekl
   }
 }
 
-// ─────────────────────────────────────────
-// 스케줄 기반 에스컬레이션 자동 결정
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
+// ?ㅼ?以?湲곕컲 ?먯뒪而щ젅?댁뀡 ?먮룞 寃곗젙
+// ?????????????????????????????????????????
 
-export interface RunEscalationCheckInput {
+interface RunEscalationCheckInput {
   workspaceId: string;
   panelId: string;
 }
 
-export interface RunEscalationCheckResult {
+interface RunEscalationCheckResult {
   escalation?: EscalationResult;
   triggered_tier?: number;
   error?: string;
@@ -139,7 +139,7 @@ export async function runEscalationCheck(
     const { workspaceId, panelId } = input;
     const supabase = getSupabaseAdminClient();
 
-    // 마지막 각 Tier 실행 시각 조회
+    // 留덉?留?媛?Tier ?ㅽ뻾 ?쒓컖 議고쉶
     const { data: runs } = await supabase
       .from('ai_observation_runs')
       .select('run_metadata, created_at')
@@ -170,7 +170,7 @@ export async function runEscalationCheck(
       triggered_tier = escalation.decision.tier;
 
       if (escalation.decision.tier === 1) {
-        // Heartbeat 실행
+        // Heartbeat ?ㅽ뻾
         const pulse = new HeartbeatPulse();
         await pulse.run(workspaceId, panelId);
       } else if (escalation.decision.tier === 2) {
@@ -193,11 +193,11 @@ export async function runEscalationCheck(
   }
 }
 
-// ─────────────────────────────────────────
-// Proxy 교차 검증
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
+// Proxy 援먯감 寃利?
+// ?????????????????????????????????????????
 
-export interface RunProxyValidationInput {
+interface RunProxyValidationInput {
   workspaceId: string;
   panelId: string;
   tier1RunIds: string[];
@@ -225,9 +225,9 @@ export async function runProxyValidation(
   }
 }
 
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
 // Helper
-// ─────────────────────────────────────────
+// ?????????????????????????????????????????
 
 async function _fetchPreviousHeartbeatMetrics(
   workspaceId: string,

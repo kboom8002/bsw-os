@@ -45,41 +45,9 @@ export async function resumeBenchmarkSession(sessionId: string) {
 
 const TABLE = 'industry_benchmark_snapshots';
 
-// ─── 타입 ──────────────────────────────────────────────────────
-export interface BenchmarkLeaderboardEntry {
-  rank: number;
-  brand_slug: string;
-  brand_name: string;
-  aas: number;
-  ocr: number;
-  bsf: number | null;
-  bair: number | null;
-  bdr: number | null;
-  cwr: number | null;
-  iri: number | null;
-  opp: number | null;
-  top3: number | null;
-  top5: number | null;
-  freshness: number | null;
-  aas_trend: number;   // 이전 대비 변화 (+/-/0)
-  color: string;
-}
-
-export interface BenchmarkHistoryPoint {
-  date: string;        // 'YYYY-MM-DD'
-  brand_slug: string;
-  brand_name: string;
-  aas: number;
-  ocr: number;
-}
-
-export interface DomainLeaderboardResult {
-  domain_slug: string;
-  domain_name: string;
-  measured_at: string;
-  leaderboard: BenchmarkLeaderboardEntry[];
-  history: BenchmarkHistoryPoint[];
-}
+// ─── 타입 (별도 파일에서 re-export) ──────────────────────────────
+export type { BenchmarkLeaderboardEntry, BenchmarkHistoryPoint, DomainLeaderboardResult } from './benchmark-types';
+import type { BenchmarkLeaderboardEntry, BenchmarkHistoryPoint, DomainLeaderboardResult } from './benchmark-types';
 
 // ─── 측정 실행 ─────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   X, ExternalLink, Activity, Globe, Shield,
   TrendingUp, TrendingDown, Minus, BarChart3,
-  Target, Eye, Search, Zap, FileText, MessageSquare, Link2, ChevronDown, ChevronUp
+  Target, Eye, Search, Zap, FileText, MessageSquare, Link2, ChevronDown, ChevronUp, Clock, Award
 } from "lucide-react";
 import type { BenchmarkLeaderboardEntry, BenchmarkHistoryPoint } from "../../app/actions/benchmark";
 import type { QuestionDetail } from "../../lib/benchmark/lightweight-metric-runner";
@@ -253,11 +253,14 @@ export default function BrandDetailDrawer({
           </div>
 
           {/* Metric Rings */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
             <MetricRing value={brand.aas} label="AAS" color={brand.color} icon={Search} />
             <MetricRing value={brand.ocr} label="OCR" color="#06b6d4" icon={Globe} />
             <MetricRing value={brand.bsf} label="BSF" color="#10b981" icon={Shield} />
             <MetricRing value={brand.bair} label="BAIR" color="#f59e0b" icon={Target} />
+            <MetricRing value={brand.top3} label="Top-3" color="#22d3ee" icon={Award} />
+            <MetricRing value={brand.top5} label="Top-5" color="#14b8a6" icon={Award} />
+            <MetricRing value={brand.freshness} label="Fresh" color="#10b981" icon={Clock} />
           </div>
 
           {/* Sparkline */}
@@ -300,6 +303,18 @@ export default function BrandDetailDrawer({
                 value={brand.bair}
                 color="#f59e0b"
                 description="AAS × BSF/100. AI가 '잘' 추천해 주는 정도의 복합 지수."
+              />
+              <MetricExplainer
+                label="Top-3 / Top-5 Presence Rate"
+                value={brand.top3}
+                color="#22d3ee"
+                description={`경쟁형 질문(L2)의 AI 답변 내 언급 순위 중 Top-3 진입 비율: ${brand.top3 ?? 0}%, Top-5 진입 비율: ${brand.top5 ?? 0}%.`}
+              />
+              <MetricExplainer
+                label="Freshness (정보 최신성)"
+                value={brand.freshness}
+                color="#10b981"
+                description="AI 응답에서 감지된 최신 시간 정보 강도 및 관련 최신성 점수."
               />
             </div>
           </div>

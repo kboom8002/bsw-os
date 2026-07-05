@@ -3,10 +3,10 @@
 /**
  * app/actions/industry-benchmark.ts
  *
- * 업종별 벤치마크 역설계 시스템 Server Actions
- * - 배치 감사 실행 (BatchAuditRunner)
- * - 벤치마크 프로필 / Blueprint 저장 & 조회 (BenchmarkAggregator)
- * - 레퍼런스 사이트 관리
+ * ?낆쥌蹂?踰ㅼ튂留덊겕 ??꽕怨??쒖뒪??Server Actions
+ * - 諛곗튂 媛먯궗 ?ㅽ뻾 (BatchAuditRunner)
+ * - 踰ㅼ튂留덊겕 ?꾨줈??/ Blueprint ???& 議고쉶 (BenchmarkAggregator)
+ * - ?덊띁?곗뒪 ?ъ씠??愿由?
  */
 
 import { BatchAuditRunner, SiteAuditSnapshot, BatchAuditOptions } from '../../lib/industry/batch-audit-runner';
@@ -25,11 +25,11 @@ import type { TechInfraAuditResult } from '../../lib/surface/tech-infra-auditor'
 import type { SchemaQualityAuditResult } from '../../lib/surface/schema-quality-auditor';
 import type { ContentSemanticResult } from '../../lib/surface/content-semantic-analyzer';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 배치 감사 실행
-// ─────────────────────────────────────────────────────────────────────────────
+// ?????????????????????????????????????????????????????????????????????????????
+// 諛곗튂 媛먯궗 ?ㅽ뻾
+// ?????????????????????????????????????????????????????????????????????????????
 
-export interface BatchAuditResult {
+interface BatchAuditResult {
   snapshots: SiteAuditSnapshot[];
   profile: IndustryBenchmarkProfile;
   blueprint: IndustryBlueprint;
@@ -37,10 +37,10 @@ export interface BatchAuditResult {
 }
 
 /**
- * 업종 전체 레퍼런스 사이트 배치 감사 → 집계 → DB 저장
+ * ?낆쥌 ?꾩껜 ?덊띁?곗뒪 ?ъ씠??諛곗튂 媛먯궗 ??吏묎퀎 ??DB ???
  *
- * @param subIndustryKey  세부 업종 키 (e.g. 'skincare')
- * @param workspaceId     감사 워크스페이스 ID
+ * @param subIndustryKey  ?몃? ?낆쥌 ??(e.g. 'skincare')
+ * @param workspaceId     媛먯궗 ?뚰겕?ㅽ럹?댁뒪 ID
  * @param mode            'quick' | 'full'
  */
 export async function runBatchAudit(
@@ -48,22 +48,22 @@ export async function runBatchAudit(
   workspaceId: string,
   mode: 'quick' | 'full'
 ): Promise<BatchAuditResult> {
-  // 1. 레퍼런스 사이트 조회
+  // 1. ?덊띁?곗뒪 ?ъ씠??議고쉶
   const sites: ReferenceSite[] = getReferenceSitesBySubIndustry(subIndustryKey);
   if (sites.length === 0) {
     throw new Error(`No reference sites found for sub-industry: ${subIndustryKey}`);
   }
 
-  // 2. 업종 메타 조회
+  // 2. ?낆쥌 硫뷀? 議고쉶
   const subIndustry = findSubIndustry(subIndustryKey);
   const displayNameKo = subIndustry?.displayNameKo ?? subIndustryKey;
 
-  // 3. 배치 감사 실행
+  // 3. 諛곗튂 媛먯궗 ?ㅽ뻾
   const options: BatchAuditOptions = { mode, maxPagesPerSite: 5, skipOnError: true };
   const runner = new BatchAuditRunner();
   const snapshots = await runner.runBatch(sites, workspaceId, options);
 
-  // 4. 개별 감사 결과를 DB에 저장 (테이블 없을 경우 graceful fallback)
+  // 4. 媛쒕퀎 媛먯궗 寃곌낵瑜?DB?????(?뚯씠釉??놁쓣 寃쎌슦 graceful fallback)
   try {
     const supabase = getSupabaseAdminClient();
     const rows = snapshots.map((snapshot) => ({
@@ -80,11 +80,11 @@ export async function runBatchAudit(
     console.warn('[industry-benchmark] DB save for audit results skipped:', err instanceof Error ? err.message : String(err));
   }
 
-  // 5. 집계 실행 (유효한 스냅샷이 없으면 예외 발생 — 호출자에서 처리)
+  // 5. 吏묎퀎 ?ㅽ뻾 (?좏슚???ㅻ깄?룹씠 ?놁쑝硫??덉쇅 諛쒖깮 ???몄텧?먯뿉??泥섎━)
   const aggregator = new BenchmarkAggregator();
   const { profile, blueprint } = aggregator.aggregate(snapshots, subIndustryKey, displayNameKo);
 
-  // 6. IndustryBenchmarkProfile DB 저장 (upsert on sub_industry_key)
+  // 6. IndustryBenchmarkProfile DB ???(upsert on sub_industry_key)
   try {
     const supabase = getSupabaseAdminClient();
     const profileRow = {
@@ -107,7 +107,7 @@ export async function runBatchAudit(
     console.warn('[industry-benchmark] DB save for benchmark profile skipped:', err instanceof Error ? err.message : String(err));
   }
 
-  // 7. IndustryBlueprint DB 저장 (upsert on sub_industry_key)
+  // 7. IndustryBlueprint DB ???(upsert on sub_industry_key)
   try {
     const supabase = getSupabaseAdminClient();
     const blueprintRow = {
@@ -134,13 +134,13 @@ export async function runBatchAudit(
   return { snapshots, profile, blueprint, subIndustryKey };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 클라이언트 주도 오케스트레이션 (Pause / Resume 지원)
-// ─────────────────────────────────────────────────────────────────────────────
+// ?????????????????????????????????????????????????????????????????????????????
+// ?대씪?댁뼵??二쇰룄 ?ㅼ??ㅽ듃?덉씠??(Pause / Resume 吏??
+// ?????????????????????????????????????????????????????????????????????????????
 
 /**
- * 단일 레퍼런스 사이트 감사 — 클라이언트가 1개씩 순차 호출하는 방식.
- * 각 호출은 Vercel 타임아웃(최대 5분) 내에 독립적으로 완료됩니다.
+ * ?⑥씪 ?덊띁?곗뒪 ?ъ씠??媛먯궗 ???대씪?댁뼵?멸? 1媛쒖뵫 ?쒖감 ?몄텧?섎뒗 諛⑹떇.
+ * 媛??몄텧? Vercel ??꾩븘??理쒕? 5遺? ?댁뿉 ?낅┰?곸쑝濡??꾨즺?⑸땲??
  */
 export async function auditSingleSite(
   site: ReferenceSite,
@@ -230,13 +230,13 @@ export async function auditSingleSite(
       auditedAt: new Date().toISOString(),
     };
 
-    console.log(`[auditSingleSite] ✓ ${site.brandName}: L1=${snapshot.techInfraScore} L2=${snapshot.schemaQualityScore} L3=${snapshot.contentSemanticScore}`);
+    console.log(`[auditSingleSite] ??${site.brandName}: L1=${snapshot.techInfraScore} L2=${snapshot.schemaQualityScore} L3=${snapshot.contentSemanticScore}`);
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[auditSingleSite] ✗ Failed ${site.url}: ${msg}`);
+    console.error(`[auditSingleSite] ??Failed ${site.url}: ${msg}`);
 
-    // 실패 시 빈 스냅샷 반환 (중단 방지)
+    // ?ㅽ뙣 ??鍮??ㅻ깄??諛섑솚 (以묐떒 諛⑹?)
     snapshot = {
       siteId: site.id, siteUrl: site.url, brandName: site.brandName,
       tier: site.tier, subIndustryKey,
@@ -260,7 +260,7 @@ export async function auditSingleSite(
     };
   }
 
-  // 단일 결과를 DB에 즉시 저장 (중간 저장 — 재개 시 활용 가능)
+  // ?⑥씪 寃곌낵瑜?DB??利됱떆 ???(以묎컙 ??????ш컻 ???쒖슜 媛??
   try {
     const supabase = getSupabaseAdminClient();
     await supabase.from('benchmark_audit_results').insert({
@@ -270,27 +270,27 @@ export async function auditSingleSite(
       audited_at: snapshot.auditedAt,
     });
   } catch {
-    // graceful fallback — DB가 없어도 진행
+    // graceful fallback ??DB媛 ?놁뼱??吏꾪뻾
   }
 
   return snapshot;
 }
 
-export interface AggregateBatchAuditResult {
+interface AggregateBatchAuditResult {
   profile: IndustryBenchmarkProfile;
   blueprint: IndustryBlueprint;
 }
 
 /**
- * 수집된 스냅샷 배열로 집계 → Blueprint 생성 → DB 저장.
- * 클라이언트 루프가 완료되거나 일시정지 후 재개 완료 시 호출합니다.
+ * ?섏쭛???ㅻ깄??諛곗뿴濡?吏묎퀎 ??Blueprint ?앹꽦 ??DB ???
+ * ?대씪?댁뼵??猷⑦봽媛 ?꾨즺?섍굅???쇱떆?뺤? ???ш컻 ?꾨즺 ???몄텧?⑸땲??
  */
 export async function aggregateBatchAudit(
   snapshots: SiteAuditSnapshot[],
   subIndustryKey: string
 ): Promise<AggregateBatchAuditResult> {
   if (snapshots.length === 0) {
-    throw new Error('aggregateBatchAudit: 스냅샷이 없습니다.');
+    throw new Error('aggregateBatchAudit: ?ㅻ깄?룹씠 ?놁뒿?덈떎.');
   }
 
   const subIndustry = findSubIndustry(subIndustryKey);
@@ -299,7 +299,7 @@ export async function aggregateBatchAudit(
   const aggregator = new BenchmarkAggregator();
   const { profile, blueprint } = aggregator.aggregate(snapshots, subIndustryKey, displayNameKo);
 
-  // IndustryBenchmarkProfile 저장
+  // IndustryBenchmarkProfile ???
   try {
     const supabase = getSupabaseAdminClient();
     await supabase.from('industry_benchmark_profiles').upsert({
@@ -316,7 +316,7 @@ export async function aggregateBatchAudit(
     // graceful fallback
   }
 
-  // IndustryBlueprint 저장
+  // IndustryBlueprint ???
   try {
     const supabase = getSupabaseAdminClient();
     await supabase.from('industry_blueprints').upsert({
@@ -337,12 +337,12 @@ export async function aggregateBatchAudit(
   return { profile, blueprint };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 조회 — 프로필 / Blueprint / 감사 이력
-// ─────────────────────────────────────────────────────────────────────────────
+// ?????????????????????????????????????????????????????????????????????????????
+// 議고쉶 ???꾨줈??/ Blueprint / 媛먯궗 ?대젰
+// ?????????????????????????????????????????????????????????????????????????????
 
 /**
- * 업종 벤치마크 프로필 조회
+ * ?낆쥌 踰ㅼ튂留덊겕 ?꾨줈??議고쉶
  */
 export async function getBenchmarkProfile(
   subIndustryKey: string
@@ -357,7 +357,7 @@ export async function getBenchmarkProfile(
 
     if (error || !data) return null;
 
-    // DB 컬럼 → IndustryBenchmarkProfile 형태로 변환
+    // DB 而щ읆 ??IndustryBenchmarkProfile ?뺥깭濡?蹂??
     const profile: IndustryBenchmarkProfile = {
       subIndustryKey: data.sub_industry_key,
       displayNameKo: data.display_name,
@@ -377,7 +377,7 @@ export async function getBenchmarkProfile(
 }
 
 /**
- * 업종 표준 설계안(Blueprint) 조회
+ * ?낆쥌 ?쒖? ?ㅺ퀎??Blueprint) 議고쉶
  */
 export async function getIndustryBlueprint(
   subIndustryKey: string
@@ -392,7 +392,7 @@ export async function getIndustryBlueprint(
 
     if (error || !data) return null;
 
-    // DB 컬럼 → IndustryBlueprint 형태로 변환
+    // DB 而щ읆 ??IndustryBlueprint ?뺥깭濡?蹂??
     const blueprint: IndustryBlueprint = {
       subIndustryKey: data.sub_industry_key,
       displayNameKo: data.display_name,
@@ -413,7 +413,7 @@ export async function getIndustryBlueprint(
 }
 
 /**
- * 업종 감사 이력 조회 (최근 50건)
+ * ?낆쥌 媛먯궗 ?대젰 議고쉶 (理쒓렐 50嫄?
  */
 export async function getBenchmarkAuditHistory(
   subIndustryKey: string
@@ -429,7 +429,7 @@ export async function getBenchmarkAuditHistory(
 
     if (error || !data) return [];
 
-    // metrics 컬럼이 SiteAuditSnapshot 형태로 저장됨
+    // metrics 而щ읆??SiteAuditSnapshot ?뺥깭濡???λ맖
     return data.map((row) => row.metrics as SiteAuditSnapshot);
   } catch (err: unknown) {
     console.warn('[industry-benchmark] getBenchmarkAuditHistory failed:', err instanceof Error ? err.message : String(err));
@@ -437,23 +437,23 @@ export async function getBenchmarkAuditHistory(
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 레퍼런스 사이트 관리 — reference-sites-registry.ts에서 re-export
-// ─────────────────────────────────────────────────────────────────────────────
+// ?????????????????????????????????????????????????????????????????????????????
+// ?덊띁?곗뒪 ?ъ씠??愿由???reference-sites-registry.ts?먯꽌 re-export
+// ?????????????????????????????????????????????????????????????????????????????
 
 
 
-/** 레퍼런스 사이트 추가 (Server Action wrapper) */
+/** ?덊띁?곗뒪 ?ъ씠??異붽? (Server Action wrapper) */
 export async function addReferenceSite(site: NewReferenceSite): Promise<{ id: string }> {
   return _addReferenceSite(site);
 }
 
-/** 레퍼런스 사이트 삭제 (Server Action wrapper) */
+/** ?덊띁?곗뒪 ?ъ씠????젣 (Server Action wrapper) */
 export async function deleteReferenceSite(id: string): Promise<boolean> {
   return _deleteReferenceSite(id);
 }
 
-/** DB에서 사용자 추가 사이트 조회 (Server Action wrapper) */
+/** DB?먯꽌 ?ъ슜??異붽? ?ъ씠??議고쉶 (Server Action wrapper) */
 export async function getDbReferenceSites(subIndustryKey: string): Promise<ReferenceSite[]> {
   return _getDbReferenceSites(subIndustryKey);
 }
