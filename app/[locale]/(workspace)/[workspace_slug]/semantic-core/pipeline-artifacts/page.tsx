@@ -52,7 +52,7 @@ export default function PipelineArtifactsPage() {
   const searchParams = useSearchParams();
   const rawSlug = params?.workspace_slug as string;
   const workspaceSlug = rawSlug && rawSlug !== "undefined" ? rawSlug : "demo-brand-semantic-lab";
-  const domainFromUrl = searchParams.get('domain') || "jeju_smb";
+  const domainFromUrl = searchParams.get('domain') || Object.keys(BENCHMARK_DOMAINS)[0];
 
   const [activeTab, setActiveTab] = useState<TabKey>("signals");
   const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);

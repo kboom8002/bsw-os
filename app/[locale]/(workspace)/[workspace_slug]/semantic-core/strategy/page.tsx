@@ -14,7 +14,7 @@ export default function StrategyPage() {
   const searchParams = useSearchParams();
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
-  const domainFromUrl = searchParams.get('domain') || 'skincare';
+  const domainFromUrl = searchParams.get('domain') || Object.keys(BENCHMARK_DOMAINS)[0];
   const { t } = useTranslation();
 
   const [wsId, setWsId] = useState<string>("");

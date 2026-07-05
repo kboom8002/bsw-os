@@ -84,11 +84,12 @@ export default function OrchestrationPage() {
   const locale = (params?.locale as string) || "ko";
   const rawSlug = params?.workspace_slug as string;
   const workspaceSlug = (rawSlug && rawSlug !== 'undefined') ? rawSlug : "demo-brand-semantic-lab";
-  const domainFromUrl = searchParams.get('domain') || 'skincare';
+  const domainFromUrl = searchParams.get('domain') || Object.keys(BENCHMARK_DOMAINS)[0];
+  const brandFromUrl = searchParams.get('brand') || 'all';
   const [workspaceId, setWorkspaceId] = useState<string>('');
 
   const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);
-  const [selectedBrand, setSelectedBrand] = useState('all');
+  const [selectedBrand, setSelectedBrand] = useState(brandFromUrl);
 
   const [loading, setLoading] = useState(true);
   const [runningPipeline, setRunningPipeline] = useState(false);
@@ -451,7 +452,7 @@ export default function OrchestrationPage() {
       <div className="p-5 rounded-2xl border border-white/5 bg-slate-950/40 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-slate-400">도메인 / 업종 선택</label>
-          <select value={selectedDomain} onChange={e => { setSelectedDomain(e.target.value); setSignals([]); setSignalGroups([]); }}
+          <select value={selectedDomain} onChange={e => { setSelectedDomain(e.target.value); setSelectedBrand('all'); setSignals([]); setSignalGroups([]); }}
             className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900 text-slate-100 text-sm font-semibold focus:outline-none focus:border-cyan-500">
             {Object.keys(BENCHMARK_DOMAINS).map(key => (
               <option key={key} value={key}>{BENCHMARK_DOMAINS[key].name} ({key})</option>

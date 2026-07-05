@@ -38,7 +38,7 @@ export default function PipelineConfigPage() {
   const rawSlug = params?.workspace_slug as string;
   const workspaceSlug = rawSlug && rawSlug !== "undefined" ? rawSlug : "demo-brand-semantic-lab";
   const locale = (params?.locale as string) || "ko";
-  const domainFromUrl = searchParams.get('domain') || "jeju_smb";
+  const domainFromUrl = searchParams.get('domain') || Object.keys(BENCHMARK_DOMAINS)[0];
 
   const [wsId, setWsId] = useState("");
   const [selectedDomain, setSelectedDomain] = useState(domainFromUrl);
