@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('question_signals')
-    .select('id, query, intent, source, status, cps_score, volume, created_at, updated_at, industry_key')
+    .select('id, query, intent, source, status, cps_score, volume, created_at, updated_at, domain_id')
     .eq('workspace_id', workspaceId)
     .order('cps_score', { ascending: false })
     .limit(limit);
@@ -34,9 +34,9 @@ export async function GET(req: NextRequest) {
     query = query.eq('status', status);
   }
 
-  // domainKey/industryKey 필터 (선택적) — industry_key가 null인 시그널도 포함
+  // domainKey 필터 (선택적) — domain_id가 null인 시그널도 포함
   if (domainKey) {
-    query = query.or(`industry_key.eq.${domainKey},industry_key.is.null`);
+    query = query.or(`domain_id.eq.${domainKey},domain_id.is.null`);
   }
 
   const { data: signals, error } = await query;
