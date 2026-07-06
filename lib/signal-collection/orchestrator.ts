@@ -354,7 +354,13 @@ export class SignalOrchestrator {
           filteredOut++;
         } else {
           evalErrors++;
-          console.error('[S-OGDE Phase E] Signal evaluation failed:', (r as PromiseRejectedResult).reason);
+          const reason = (r as PromiseRejectedResult).reason;
+          const errMsg = reason instanceof Error ? reason.message : String(reason);
+          console.error('[S-OGDE Phase E] Signal evaluation failed:', errMsg);
+          // 첫 번째 오류만 phaseWarnings에 기록 (중복 방지)
+          if (evalErrors === 1) {
+            phaseWarnings.push(`Phase E 평가오류 상세: ${errMsg.slice(0, 200)}`);
+          }
         }
       }
     }
