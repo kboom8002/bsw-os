@@ -565,9 +565,9 @@ export async function runE2EPipeline(
 
       if (activeRun) {
         const runningFor = Date.now() - new Date(activeRun.started_at).getTime();
-        // 5분 이상된 running 상태는 stale로 간주하고 계속 진행
-        if (runningFor < 5 * 60 * 1000) {
-          throw new Error(`Pipeline is already running (started ${Math.round(runningFor / 1000)}s ago). Please wait for it to complete.`);
+        // 3분 이상된 running 상태는 stale로 간주하고 계속 진행 (Vercel 타임아웃 대비)
+        if (runningFor < 3 * 60 * 1000) {
+          throw new Error(`Pipeline is already running (started ${Math.round(runningFor / 1000)}s ago). Please wait for it to complete or check logs.`);
         }
         await supabase.from('pipeline_runs').update({ status: 'stale' }).eq('id', activeRun.id);
       }
@@ -1153,16 +1153,21 @@ export async function runE2EPipeline(
         .eq('workspace_id', workspaceId)
         .in('id', selectedSignalIds);
 
-      for (const sig of (userSelected || [])) {
-        try {
-          const promoteResult = await autoPromoteSignalToCQ(
-            workspaceId, sig.id, { autoCreateQisScene: true, industryKey }
-          );
-          result.phase3_promotions.promotedCount++;
-          if (promoteResult.canonicalQuestionId) result.phase3_promotions.cqCreated++;
-        } catch (err: any) {
-          console.warn(`[E2E] Signal ${sig.id} promotion failed:`, err.message);
-        }
+      const batchSize = 20;
+      for (let i = 0; i < (userSelected || []).length; i += batchSize) {
+        const batch = (userSelected || []).slice(i, i + batchSize);
+        await Promise.all(batch.map(async (sig) => {
+          try {
+            const promoteResult = await autoPromoteSignalToCQ(
+              workspaceId, sig.id, { autoCreateQisScene: true, industryKey }
+            );
+            // JS is single-threaded, so ++ on an object property is safe from race conditions here
+            result.phase3_promotions.promotedCount++;
+            if (promoteResult.canonicalQuestionId) result.phase3_promotions.cqCreated++;
+          } catch (err: any) {
+            console.warn(`[E2E] Signal ${sig.id} promotion failed:`, err.message);
+          }
+        }));
       }
     } else {
       // MMR 자동 선택 (기본 모드)
@@ -1211,16 +1216,20 @@ export async function runE2EPipeline(
         }
 
         // 연쇄적 Claim/Lineage 자동 연계 (승격 수행)
-        for (const sig of selected) {
-          try {
-            const promoteResult = await autoPromoteSignalToCQ(
-              workspaceId, sig.id, { autoCreateQisScene: true, industryKey }
-            );
-            result.phase3_promotions.promotedCount++;
-            if (promoteResult.canonicalQuestionId) result.phase3_promotions.cqCreated++;
-          } catch (err: any) {
-            console.warn(`[E2E] Signal ${sig.id} promotion failed:`, err.message);
-          }
+        const batchSize = 20;
+        for (let i = 0; i < selected.length; i += batchSize) {
+          const batch = selected.slice(i, i + batchSize);
+          await Promise.all(batch.map(async (sig) => {
+            try {
+              const promoteResult = await autoPromoteSignalToCQ(
+                workspaceId, sig.id, { autoCreateQisScene: true, industryKey }
+              );
+              result.phase3_promotions.promotedCount++;
+              if (promoteResult.canonicalQuestionId) result.phase3_promotions.cqCreated++;
+            } catch (err: any) {
+              console.warn(`[E2E] Signal ${sig.id} promotion failed:`, err.message);
+            }
+          }));
         }
       }
     }

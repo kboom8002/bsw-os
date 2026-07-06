@@ -153,7 +153,7 @@ export default function OrchestrationPage() {
         }
       } catch {}
     }, 3000);
-  }, []);
+  }, [currentRunId]);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
   useEffect(() => { initPage(); }, [workspaceSlug, selectedDomain]);
