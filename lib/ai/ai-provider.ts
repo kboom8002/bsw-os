@@ -328,6 +328,7 @@ class OpenAIProvider implements AIProvider {
     if (!this.apiKey) {
       return new MockProvider().generateStructuredOutput<T>(prompt, schema, options);
     }
+    const jsonPrompt = `${prompt}\n\nRespond ONLY with valid JSON matching this schema: ${JSON.stringify(schema)}`;
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -338,7 +339,7 @@ class OpenAIProvider implements AIProvider {
         body: JSON.stringify({
           model: this.modelName,
           messages: [
-            { role: 'user', content: prompt }
+            { role: 'user', content: jsonPrompt }
           ],
           temperature: options?.temperature ?? 0.1,
           response_format: { type: 'json_object' },
