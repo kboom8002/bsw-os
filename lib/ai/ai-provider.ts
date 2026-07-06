@@ -349,13 +349,25 @@ export function getAIProvider(): AIProvider {
     return new MockProvider();
   }
 
-  const mode = process.env.AI_PROVIDER_MODE || 'mock';
+  const mode = process.env.AI_PROVIDER_MODE || '';
   if (mode === 'gemini') {
     return new GeminiProvider();
   } else if (mode === 'openai') {
     return new OpenAIProvider();
   } else if (mode === 'claude') {
     return new MockProvider(); // Claude provider (placeholder)
+  } else if (mode === 'mock') {
+    return new MockProvider();
   }
+
+  // Auto-detect: API 키가 있으면 해당 provider 사용
+  if (process.env.GEMINI_API_KEY) {
+    return new GeminiProvider();
+  }
+  if (process.env.OPENAI_API_KEY) {
+    return new OpenAIProvider();
+  }
+
+  console.warn('[AIProvider] No AI_PROVIDER_MODE set and no API keys found. Using MockProvider.');
   return new MockProvider();
 }
