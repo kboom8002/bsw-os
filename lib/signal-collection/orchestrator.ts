@@ -212,11 +212,12 @@ export class SignalOrchestrator {
 
     let totalGenerated = allCandidates.length;
 
-    // ─── Fallback: LLM 생성 실패 시 패널 데이터에서 시그널 보충 ────────
-    if (totalGenerated === 0 && options.industryKey) {
-      log(`Phase G/D/R LLM 생성 실패. Fallback: 패널 데이터에서 시그널 주입 시작...`);
+    // ─── Fallback: LLM 생성이 부족하면 패널 데이터에서 시그널 보충 ────────
+    if (totalGenerated < 10 && options.industryKey) {
+      const needed = 15 - totalGenerated;
+      log(`LLM 생성 ${totalGenerated}개 (부족). Fallback: 패널 데이터에서 ${needed}개 보충 시작...`);
       const panelQuestions = INDUSTRY_PANELS_DATA[options.industryKey as keyof typeof INDUSTRY_PANELS_DATA]?.questions || [];
-      const fallbackQuestions = panelQuestions.slice(0, 15); // 최대 15개 주입
+      const fallbackQuestions = panelQuestions.slice(0, needed);
 
       for (const pq of fallbackQuestions) {
         allCandidates.push({
@@ -347,7 +348,8 @@ export class SignalOrchestrator {
         })
       );
 
-      for (const r of results) {
+      for (let idx = 0; idx < results.length; idx++) {
+        const r = results[idx];
         if (r.status === 'fulfilled' && r.value.saved) {
           evaluatedSignals.push(r.value);
         } else if (r.status === 'fulfilled' && !r.value.saved) {
@@ -357,9 +359,30 @@ export class SignalOrchestrator {
           const reason = (r as PromiseRejectedResult).reason;
           const errMsg = reason instanceof Error ? reason.message : String(reason);
           console.error('[S-OGDE Phase E] Signal evaluation failed:', errMsg);
-          // 첫 번째 오류만 phaseWarnings에 기록 (중복 방지)
           if (evalErrors === 1) {
             phaseWarnings.push(`Phase E 평가오류 상세: ${errMsg.slice(0, 200)}`);
+          }
+          // 평가 실패해도 기본 점수로 시그널 저장 (버리지 않음)
+          const candidate = batch[idx];
+          if (candidate) {
+            evaluatedSignals.push({
+              saved: true,
+              query: candidate.query,
+              volume: 50, // fallback 중간값
+              intent: 'informational',
+              isYmyl: false,
+              gateStatus: 'Watch' as const,
+              confidence: 'low' as const,
+              qvsTotal: 50,
+              qvsDimensions: {
+                relevance: 5, specificity: 5, urgency: 5, opportunity: 5,
+                conversion: 5, snippet_fitness: 5, entity_clarity: 5,
+                multi_engine_consistency: 5, reasoning: 'Fallback: evaluation failed'
+              },
+              kgCoverage: 0,
+              tcoMatchScore: 0,
+              panelLayer: 'L1_universal'
+            });
           }
         }
       }
