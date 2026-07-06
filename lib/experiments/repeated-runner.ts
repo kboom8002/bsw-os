@@ -124,7 +124,10 @@ export class RepeatedRunner {
             );
 
             for (const outcome of settled) {
-              if (outcome.status !== 'fulfilled') continue;
+              if (outcome.status !== 'fulfilled') {
+                console.error(`Search engine execution failed:`, outcome.reason);
+                continue;
+              }
               const { engineName, result } = outcome.value;
 
               const { data: run, error: runErr } = await supabase
@@ -142,7 +145,12 @@ export class RepeatedRunner {
                 .select('id')
                 .single();
 
-              if (!runErr && run) {
+              if (runErr) {
+                console.error(`Failed to insert search probe run: ${runErr.message}`);
+                continue;
+              }
+
+              if (run) {
                 await this.pipeline.runForProbeRun(workspaceId, run.id);
                 totalRunsCount++;
               }
@@ -154,7 +162,8 @@ export class RepeatedRunner {
             let responseText = '';
             try {
               responseText = await ai.generateText(prompt, { temperature: 0.2 });
-            } catch {
+            } catch (err: any) {
+              console.warn(`RepeatedRunner text generation warning: ${err.message}`);
               responseText = `Mock AI response for: "${q.question_text}"`;
             }
 
@@ -178,7 +187,12 @@ export class RepeatedRunner {
               .select('id')
               .single();
 
-            if (!runErr && run) {
+            if (runErr) {
+              console.error(`Failed to insert legacy probe run: ${runErr.message}`);
+              continue;
+            }
+
+            if (run) {
               await this.pipeline.runForProbeRun(workspaceId, run.id);
               totalRunsCount++;
             }
@@ -192,17 +206,17 @@ export class RepeatedRunner {
               responseText = await ai.generateText(prompt, { temperature: 0.2 });
             } catch (err: any) {
               console.error(`RepeatedRunner text generation error: ${err.message}`);
-              responseText = `Mock AI response for brand question: "${q.question_text}". We provide clinically backed skincare formulations.`;
+              responseText = `Mock AI response for brand question: "${q.question_text}".`;
             }
           } else {
             // Mock 반복 분산
             const varianceIndicators = [
-              `PureBarrier retinol serum restores skin barrier health safely.`,
-              `Our clinically tested formula is designed for sensitive skin.`,
-              `Consult a dermatologist for optimal squalane usage.`,
+              `This is an authoritative resource addressing: ${q.question_text}`,
+              `We have verified credentials relating to this query.`,
+              `According to our sources, the answer involves high-quality specifications.`,
             ];
             const varianceText = varianceIndicators[(rep + q.question_text.length) % varianceIndicators.length];
-            responseText = `PureBarrier Retinol Routine contains 0.1% pure retinol combined with botanical squalane. ${varianceText}`;
+            responseText = `Mock response details: ${q.question_text}. ${varianceText}`;
           }
 
           const { data: run, error: runErr } = await supabase
@@ -225,7 +239,12 @@ export class RepeatedRunner {
             .select('id')
             .single();
 
-          if (!runErr && run) {
+          if (runErr) {
+            console.error(`Failed to insert single probe run: ${runErr.message}`);
+            continue;
+          }
+
+          if (run) {
             await this.pipeline.runForProbeRun(workspaceId, run.id);
             totalRunsCount++;
           }

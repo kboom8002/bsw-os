@@ -125,6 +125,10 @@ export class StatisticalProber {
       await Promise.allSettled(batch.map(t => t()));
     }
 
+    if (rawResponses.length === 0 && tasks.length > 0) {
+      throw new Error(`[StatisticalProber] All probe LLM calls failed to generate responses.`);
+    }
+
     // Calculate distributions
     const distributions = this.calculateDistributions(rawResponses.map(r => r.response.parameters));
     const consistency = this.calculateOverallConsistency(distributions);

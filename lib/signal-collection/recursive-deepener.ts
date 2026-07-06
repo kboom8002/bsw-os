@@ -77,6 +77,14 @@ export class RecursiveDeepener {
 
       const results = await Promise.allSettled(personaTasks);
 
+      const allFailed = results.every((r) => r.status === 'rejected');
+      if (allFailed && results.length > 0) {
+        const reasons = results
+          .map((r: any) => r.reason?.message || String(r.reason))
+          .join(', ');
+        throw new Error(`All personas failed to generate recursive follow-up questions: [${reasons}]`);
+      }
+
       for (let i = 0; i < results.length; i++) {
         if (results[i].status === 'fulfilled') {
           const followUps = (results[i] as PromiseFulfilledResult<string[]>).value;

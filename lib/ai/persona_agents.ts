@@ -1,11 +1,13 @@
 import { getSupabaseAdminClient } from '../supabase';
 import { 
-  createPersonaSpec, 
-  createVibeSpec, 
-  createVibeRatingEvent,
   checkDarkPatternFlags,
   detectAuthorityOverreach
 } from '../../app/actions/persona';
+import { 
+  createPersonaSpecCore,
+  createVibeSpecCore,
+  createVibeRatingEventCore
+} from '../db/persona-db';
 import { getAIProvider } from './ai-provider';
 
 
@@ -46,7 +48,7 @@ export async function runPersonaSpecAgent(workspaceId: string, inputStatements: 
 
     const slug = personaName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-    const spec = await createPersonaSpec(workspaceId, {
+    const spec = await createPersonaSpecCore(workspaceId, {
       persona_name: personaName,
       slug,
       governance_layer: {
@@ -120,7 +122,7 @@ export async function runVibeSpecAgent(workspaceId: string, inputVibeSpecs: stri
 
     const slug = vibeName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-    const spec = await createVibeSpec(workspaceId, {
+    const spec = await createVibeSpecCore(workspaceId, {
       vibe_name: vibeName,
       slug,
       target_vector: { clinical, warm, luxury }
@@ -213,7 +215,7 @@ export async function runVibeRatingAgent(
     const { clinical, warm, luxury } = parsedResponse;
 
     // 4. Record Vibe Rating Event: strictly passes evidenceItemId to satisfy "No evidence, no vibe score"
-    const rating = await createVibeRatingEvent(workspaceId, {
+    const rating = await createVibeRatingEventCore(workspaceId, {
       vibe_spec_id: vibeSpecId,
       target_id: pageId,
       target_type: "page",

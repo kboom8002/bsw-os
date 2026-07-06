@@ -403,29 +403,8 @@ export async function createPersonaSpec(workspaceId: string, data: any) {
     throw new Error("UNAUTHORIZED: Insufficient permissions to create brand persona specifications.");
   }
 
-  validatePersonaSpec(data);
-  const parsed = personaSpecSchema.parse({ ...data, workspace_id: workspaceId });
-  const supabase = getSupabaseAdminClient();
-
-  const { data: result, error } = await supabase
-    .from("persona_specs")
-    .insert({
-      workspace_id: parsed.workspace_id,
-      persona_name: parsed.persona_name,
-      slug: parsed.slug,
-      governance_layer: parsed.governance_layer,
-      authority_scope: parsed.authority_scope,
-      legal_guardrails: parsed.legal_guardrails,
-      allowed_modes: parsed.allowed_modes,
-      current_mode: parsed.current_mode,
-      prompt_text: parsed.prompt_text,
-      version: parsed.version
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(`DB Error: ${error.message}`);
-  return result;
+  const { createPersonaSpecCore } = await import("../../lib/db/persona-db");
+  return createPersonaSpecCore(workspaceId, data);
 }
 
 /**
@@ -636,24 +615,8 @@ export async function createVibeSpec(workspaceId: string, data: any) {
     throw new Error("UNAUTHORIZED: Insufficient permissions to create vibe specs.");
   }
 
-  validateVibeSpec(data);
-  const parsed = vibeSpecSchema.parse({ ...data, workspace_id: workspaceId });
-  const supabase = getSupabaseAdminClient();
-
-  const { data: result, error } = await supabase
-    .from("vibe_specs")
-    .insert({
-      workspace_id: parsed.workspace_id,
-      vibe_name: parsed.vibe_name,
-      slug: parsed.slug,
-      target_vector: parsed.target_vector,
-      anti_vibe_keywords: parsed.anti_vibe_keywords
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(`DB Error: ${error.message}`);
-  return result;
+  const { createVibeSpecCore } = await import("../../lib/db/persona-db");
+  return createVibeSpecCore(workspaceId, data);
 }
 
 /**
@@ -747,75 +710,8 @@ export async function createVibeRatingEvent(workspaceId: string, data: any) {
     throw new Error("UNAUTHORIZED: Insufficient permissions to log brand vibe rating scores.");
   }
 
-  // 1. Evidence Presence & Verification Check
-  if (!data.evidence_item_id) {
-    throw new Error("No evidence, no vibe score. The vibe rating event lacks a clinical evidence reference link.");
-  }
-
-  const supabase = getSupabaseAdminClient();
-  
-  const { data: evidence, error: evError } = await supabase
-    .from("evidence_items")
-    .select("is_verified")
-    .eq("id", data.evidence_item_id)
-    .single();
-
-  if (evError || !evidence) {
-    throw new Error("No evidence, no vibe score. The provided evidence_item_id does not reference an existing clinical evidence record.");
-  }
-  if (!evidence.is_verified) {
-    throw new Error("No evidence, no vibe score. The linked evidence item must be actively VERIFIED first.");
-  }
-
-  // 2. Parse & Insert Rating
-  const parsed = vibeRatingEventSchema.parse({ ...data, workspace_id: workspaceId });
-
-  const { data: rating, error } = await supabase
-    .from("vibe_rating_events")
-    .insert({
-      workspace_id: parsed.workspace_id,
-      vibe_spec_id: parsed.vibe_spec_id,
-      target_id: parsed.target_id,
-      target_type: parsed.target_type,
-      rating_scores: parsed.rating_scores,
-      evidence_item_id: parsed.evidence_item_id
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(`DB Error: ${error.message}`);
-
-  // 3. Update active Vibe Profile aggregated vectors
-  const { data: ratings } = await supabase
-    .from("vibe_rating_events")
-    .select("rating_scores")
-    .eq("target_id", parsed.target_id)
-    .eq("target_type", parsed.target_type);
-
-  const allRatings = ratings || [];
-  let cSum = 0, wSum = 0, lSum = 0;
-  for (const r of allRatings) {
-    cSum += Number(r.rating_scores?.clinical || 0);
-    wSum += Number(r.rating_scores?.warm || 0);
-    lSum += Number(r.rating_scores?.luxury || 0);
-  }
-  const count = allRatings.length;
-  const aggregated_vector = {
-    clinical: count > 0 ? Number((cSum / count).toFixed(2)) : 0,
-    warm: count > 0 ? Number((wSum / count).toFixed(2)) : 0,
-    luxury: count > 0 ? Number((lSum / count).toFixed(2)) : 0
-  };
-
-  await supabase
-    .from("vibe_profiles")
-    .upsert({
-      workspace_id: workspaceId,
-      target_id: parsed.target_id,
-      target_type: parsed.target_type,
-      aggregated_vector
-    }, { onConflict: "workspace_id,target_id,target_type" });
-
-  return rating;
+  const { createVibeRatingEventCore } = await import("../../lib/db/persona-db");
+  return createVibeRatingEventCore(workspaceId, data);
 }
 
 /**

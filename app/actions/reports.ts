@@ -426,24 +426,8 @@ export async function addReportSection(workspaceId: string, data: any) {
     throw new Error("UNAUTHORIZED: Insufficient permissions.");
   }
 
-  const parsed = reportSectionSchema.parse({ ...data, workspace_id: workspaceId });
-  const supabase = getSupabaseAdminClient();
-
-  const { data: result, error } = await supabase
-    .from("report_sections")
-    .insert({
-      workspace_id: parsed.workspace_id,
-      benchmark_report_id: parsed.benchmark_report_id,
-      section_title: parsed.section_title,
-      section_body: parsed.section_body,
-      section_type: parsed.section_type,
-      status: parsed.status
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(`DB Error: ${error.message}`);
-  return result;
+  const { addReportSectionCore } = await import("../../lib/db/reports-db");
+  return addReportSectionCore(workspaceId, data);
 }
 
 /**
@@ -492,36 +476,8 @@ export async function generateReportDraft(workspaceId: string, reportId: string)
     throw new Error("UNAUTHORIZED: Insufficient permissions.");
   }
 
-  const supabase = getSupabaseAdminClient();
-
-  // Create Executive Summary Draft Candidate
-  const execSec = await addReportSection(workspaceId, {
-    benchmark_report_id: reportId,
-    section_title: "Executive Summary Draft",
-    section_body: "AI Draft: Based on proxy crawls, the website shows high answer shares but lacks robust official links.",
-    section_type: "executive_summary",
-    status: "candidate" // candidate by default!
-  });
-
-  // Create Competitive Landscape Draft Candidate
-  const compSec = await addReportSection(workspaceId, {
-    benchmark_report_id: reportId,
-    section_title: "Competitive Landscape Analysis",
-    section_body: "AI Draft: CompetitorA Retinol outperforms on raw answer visibility, but BSW offers higher semantic fidelity.",
-    section_type: "competitive_landscape",
-    status: "candidate" // candidate by default!
-  });
-
-  // Write AI candidate transaction record into agent_runs
-  await supabase.from("agent_runs").insert({
-    workspace_id: workspaceId,
-    agent_name: "report-draft-generator-agent",
-    input_payload: { report_id: reportId },
-    output_payload: { generated_sections_count: 2 },
-    status: "candidate"
-  });
-
-  return [execSec, compSec];
+  const { generateReportDraftCore } = await import("../../lib/db/reports-db");
+  return generateReportDraftCore(workspaceId, reportId);
 }
 
 /**

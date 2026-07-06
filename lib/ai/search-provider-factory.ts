@@ -93,6 +93,14 @@ export class SearchProviderFactory {
       }
     }
 
+    if (Object.keys(results).length === 0) {
+      const errorSummaries = settled
+        .filter((o) => o.status === 'rejected')
+        .map((o: any) => o.reason?.message || String(o.reason))
+        .join(', ');
+      throw new Error(`[SearchProviderFactory] All search engines failed to execute: [${errorSummaries}]`);
+    }
+
     const divergence = SearchProviderFactory._calcDivergence(results);
     return { results, divergence };
   }

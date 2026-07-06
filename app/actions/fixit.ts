@@ -233,25 +233,8 @@ export async function createRcaCase(workspaceId: string, data: any) {
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");
 
-  const parsed = rcaCaseSchema.parse({ ...data, workspace_id: workspaceId });
-  const supabase = getSupabaseAdminClient();
-
-  const { data: result, error } = await supabase
-    .from("rca_cases")
-    .insert({
-      workspace_id: parsed.workspace_id,
-      source_metric_snapshot_id: parsed.source_metric_snapshot_id,
-      metric_name: parsed.metric_name,
-      metric_value: parsed.metric_value,
-      cause_hypothesis: parsed.cause_hypothesis,
-      status: parsed.status,
-      justification_notes: parsed.justification_notes
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(`DB Error: ${error.message}`);
-  return result;
+  const { createRcaCaseCore } = await import("../../lib/db/fixit-db");
+  return createRcaCaseCore(workspaceId, data);
 }
 
 /**
@@ -323,23 +306,8 @@ export async function createPatchTicket(workspaceId: string, data: any) {
   ]);
   if (!isAuthorized) throw new Error("UNAUTHORIZED");
 
-  const parsed = patchTicketSchema.parse({ ...data, workspace_id: workspaceId });
-  const supabase = getSupabaseAdminClient();
-
-  const { data: result, error } = await supabase
-    .from("patch_tickets")
-    .insert({
-      workspace_id: parsed.workspace_id,
-      rca_case_id: parsed.rca_case_id,
-      patch_name: parsed.patch_name,
-      patch_hypothesis: parsed.patch_hypothesis,
-      status: parsed.status
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(`DB Error: ${error.message}`);
-  return result;
+  const { createPatchTicketCore } = await import("../../lib/db/fixit-db");
+  return createPatchTicketCore(workspaceId, data);
 }
 
 /**

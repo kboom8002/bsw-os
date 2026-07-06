@@ -1,11 +1,11 @@
 import { getSupabaseAdminClient } from '../supabase';
 import { 
-  createQuestionSignal, 
-  createQisScene, 
-  createTcoConcept,
-  createOntologyNode,
-  createOntologyEdge
-} from '../../app/actions/semantic';
+  createQuestionSignalCore, 
+  createQisSceneCore, 
+  createTcoConceptCore,
+  createOntologyNodeCore,
+  createOntologyEdgeCore
+} from '../db/semantic-db';
 
 /**
  * 1. Question Signal Mining Agent
@@ -36,7 +36,7 @@ export async function runSignalMiningAgent(workspaceId: string, keywordSeed: str
 
     const savedSignals = [];
     for (const q of minedQueries) {
-      const sig = await createQuestionSignal(workspaceId, {
+      const sig = await createQuestionSignalCore(workspaceId, {
         query: q,
         volume: 2400,
         intent: "informational",
@@ -94,7 +94,7 @@ export async function runQisGenAgent(workspaceId: string, canonicalQuestionId: s
       risk_level: "high" as const
     };
 
-    const scene = await createQisScene(workspaceId, sceneData);
+    const scene = await createQisSceneCore(workspaceId, sceneData);
 
     await supabase
       .from("agent_runs")
@@ -138,7 +138,7 @@ export async function runTcoKgAgent(workspaceId: string, conceptName: string, cl
   try {
     // 1. Create first-class concept dictionary entity (TCO Concept)
     const slug = conceptName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const concept = await createTcoConcept(workspaceId, {
+    const concept = await createTcoConceptCore(workspaceId, {
       concept_name: conceptName,
       slug,
       definition: `AI semantic concept representing our brand parameter: ${conceptName}`,
@@ -146,20 +146,20 @@ export async function runTcoKgAgent(workspaceId: string, conceptName: string, cl
     });
 
     // 2. Map Ontology nodes
-    const nodeA = await createOntologyNode(workspaceId, {
+    const nodeA = await createOntologyNodeCore(workspaceId, {
       node_name: conceptName,
       node_type: "concept",
       reference_id: concept.id
     });
 
-    const nodeB = await createOntologyNode(workspaceId, {
+    const nodeB = await createOntologyNodeCore(workspaceId, {
       node_name: "Associated Claim Node",
       node_type: "claim",
       reference_id: claimId
     });
 
     // 3. Connect Ontology edges
-    const edge = await createOntologyEdge(workspaceId, {
+    const edge = await createOntologyEdgeCore(workspaceId, {
       source_node_id: nodeA.id,
       target_node_id: nodeB.id,
       relation_type: "defines_concept"

@@ -1,9 +1,11 @@
 import { getSupabaseAdminClient } from '../supabase';
 import { 
-  createRcaCase,
-  createPatchTicket,
   completeRetestRun
 } from '../../app/actions/fixit';
+import { 
+  createRcaCaseCore,
+  createPatchTicketCore
+} from '../db/fixit-db';
 
 /**
  * 1. RCA Suggestion Agent
@@ -30,7 +32,7 @@ export async function runRcaSuggestionAgent(workspaceId: string, runId: string, 
     const hypothesis = `AI Proposed Hypothesis: The observed metric ${metricName} fell to ${metricValue}%. ` +
       `Our residential crawlers trace this degradation to high latency in representation surfaces and unlinked brand clinical trials.`;
 
-    const rca = await createRcaCase(workspaceId, {
+    const rca = await createRcaCaseCore(workspaceId, {
       metric_name: metricName,
       metric_value: metricValue,
       cause_hypothesis: hypothesis,
@@ -81,7 +83,7 @@ export async function runPatchSuggestionAgent(workspaceId: string, rcaId: string
     const hypothesis = `AI Proposed Hypothesis: Applying this surface adjustment will resolve unlinked clinical credentials, ` +
       `improving generative search citation coverage by >15% without regressing core brand semantic fidelity.`;
 
-    const patch = await createPatchTicket(workspaceId, {
+    const patch = await createPatchTicketCore(workspaceId, {
       rca_case_id: rcaId,
       patch_name: patchName,
       patch_hypothesis: hypothesis,

@@ -1,8 +1,8 @@
 import { getSupabaseAdminClient } from '../supabase';
 import { 
-  createRepresentationObject, 
-  composeSemanticPage 
-} from '../../app/actions/objects';
+  createRepresentationObjectCore, 
+  composeSemanticPageCore 
+} from '../db/objects-db';
 
 /**
  * 1. Representation Object Agent
@@ -33,7 +33,7 @@ export async function runRepresentationObjectAgent(workspaceId: string, qisScene
     
     // 2. Create the Representation Object
     const slug = objectName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const repObj = await createRepresentationObject(workspaceId, {
+    const repObj = await createRepresentationObjectCore(workspaceId, {
       object_name: objectName,
       slug,
       object_type: "ingredient",
@@ -88,7 +88,7 @@ export async function runSurfacePageComposerAgent(workspaceId: string, contractI
   try {
     // 1. Compose the page based on the valid surface contract specifications
     const slug = "products/" + pageTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const page = await composeSemanticPage(workspaceId, contractId, {
+    const page = await composeSemanticPageCore(workspaceId, contractId, {
       page_title: pageTitle,
       slug,
       meta_description: `AI-structured visible pages matching the specifications of contract: ${contractId}`

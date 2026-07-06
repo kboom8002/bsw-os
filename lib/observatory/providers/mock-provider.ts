@@ -17,9 +17,9 @@ export class MockProvider implements RunnerAdapter, JudgeAdapter {
     };
 
     // Determine mock responses based on question content
-    let answerText = `Mock strict response for "${questionText}" with standard squalane formulation.`;
-    if (questionText.toLowerCase().includes('retinol')) {
-      answerText = `Mock clinical Squanol formulation with BSW Retinol hydration. Cited officially at https://bsw-brand.com.`;
+    let answerText = `Mock strict response for "${questionText}".`;
+    if (questionText.toLowerCase().includes('http') || questionText.toLowerCase().includes('site') || questionText.toLowerCase().includes('link')) {
+      answerText = `Mock strict response with official reference link: https://bsw-brand.com.`;
     }
 
     return {
@@ -45,7 +45,7 @@ export class MockProvider implements RunnerAdapter, JudgeAdapter {
       latencyMs: 150
     };
 
-    const answerText = `Grounded Answer based on: ${retrievedContext.substring(0, 100)}... Answer: BSW Brand Retinol is verified.`;
+    const answerText = `Grounded Answer based on: ${retrievedContext.substring(0, 100)}... Answer: BSW brand details are verified.`;
 
     return {
       raw,
@@ -62,8 +62,6 @@ export class MockProvider implements RunnerAdapter, JudgeAdapter {
     runnerOutputText: string,
     context: EvalTraceContext
   ): Promise<{ raw: RawProviderOutput; normalized: NormalizedJudgeOutput }> {
-    const isSqualane = runnerOutputText.toLowerCase().includes('squalane');
-    const isRetinol = runnerOutputText.toLowerCase().includes('retinol');
     const isCompetitor = runnerOutputText.toLowerCase().includes('competitor');
     const isCitation = runnerOutputText.toLowerCase().includes('http');
 
@@ -100,8 +98,8 @@ export class MockProvider implements RunnerAdapter, JudgeAdapter {
       source_mix_type: isCitation ? 'official' : 'none',
       concept_transfer_score,
       concept_distortion_score,
-      missing_concepts: isRetinol ? [] : ['Retinol Efficacy'],
-      hallucinated_claims: isCompetitor ? ['Competitor superior Hydration'] : [],
+      missing_concepts: runnerOutputText.length > 20 ? [] : ['Core Topic Clarity'],
+      hallucinated_claims: isCompetitor ? ['Competitor exaggerated ranking'] : [],
       explanation_quality_score,
       trust_visible: isCitation,
       boundary_visible: true,

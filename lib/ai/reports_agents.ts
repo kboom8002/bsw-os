@@ -1,8 +1,8 @@
 import { getSupabaseAdminClient } from '../supabase';
 import { 
-  generateReportDraft,
-  addReportSection
-} from '../../app/actions/reports';
+  generateReportDraftCore,
+  addReportSectionCore
+} from '../db/reports-db';
 import { getAIProvider } from './ai-provider';
 
 
@@ -29,7 +29,7 @@ export async function runReportDraftingAgent(workspaceId: string, reportId: stri
 
   try {
     // Generate draft sections (all candidates by default)
-    const sections = await generateReportDraft(workspaceId, reportId);
+    const sections = await generateReportDraftCore(workspaceId, reportId);
 
     // Mark run as draft
     await supabase
@@ -91,7 +91,7 @@ export async function runReportInsightAgent(workspaceId: string, reportId: strin
 
     const body = await ai.generateText(prompt);
 
-    const section = await addReportSection(workspaceId, {
+    const section = await addReportSectionCore(workspaceId, {
       benchmark_report_id: reportId,
       section_title: "AI Observation Insights Pass",
       section_body: body,
