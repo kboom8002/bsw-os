@@ -774,7 +774,7 @@ export async function runE2EPipeline(
 
         const savedConfig = configRecord?.config as any || {};
         const selectedSlugs: string[] = savedConfig.selected_brands || [];
-        const costLimit = savedConfig.daily_cost_limit || 10.0; // 일일 비용 제한 $10
+        const costLimit = savedConfig.daily_cost_limit || 100.0; // 일일 비용 제한 $100 (테스트용 상향)
 
         let targetBrands = domainCfg.brands.filter(b => selectedSlugs.includes(b.slug));
 
