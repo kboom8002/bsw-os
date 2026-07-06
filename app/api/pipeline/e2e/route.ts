@@ -25,6 +25,7 @@ const RequestSchema = z.object({
     brandUSP: z.string().max(1000).optional(),
     industryKey: z.string().optional(),
     resumeFromPhase: z.string().optional(),
+    rotationBrandSlugs: z.array(z.string()).optional(),
   }).optional(),
 });
 

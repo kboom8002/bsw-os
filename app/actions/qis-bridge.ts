@@ -469,6 +469,8 @@ export async function runE2EPipeline(
     enabledPhases?: string[];
     /** phaseGroup='promote'일 때 승격할 시그널 ID 목록 */
     selectedSignalIds?: string[];
+    /** Phase 1-B 브랜드 순회 대상 slug 목록 (UI에서 선택) */
+    rotationBrandSlugs?: string[];
   }
 ): Promise<E2EPipelineResult> {
   await requireAuthOrDemo();
@@ -734,6 +736,7 @@ export async function runE2EPipeline(
     }
     addPhaseError('phase0_5_external', err);
   }
+  result.phase0_5_signals = phase0_5_result;
 
   // ── Phase 0.6: AI Hub 역방향 피드백 수집 (AI Hub → BSW) ──
   if (shouldRunPhase('phase0_6_hubFeedback')) try {
@@ -813,7 +816,12 @@ export async function runE2EPipeline(
         const costLimit = savedConfig.daily_cost_limit || 10.0; // 일일 비용 제한 $10
 
         let targetBrands = domainCfg.brands.filter(b => selectedSlugs.includes(b.slug));
-        if (targetBrands.length === 0) {
+
+        // UI에서 선택된 브랜드가 있으면 우선 사용
+        const uiSlugs = options?.rotationBrandSlugs;
+        if (uiSlugs && uiSlugs.length > 0) {
+          targetBrands = domainCfg.brands.filter(b => uiSlugs.includes(b.slug));
+        } else if (targetBrands.length === 0) {
           // 백업: 점수 하위 5개 순회
           const { data: brandRankings } = await supabase
             .from('industry_benchmark_snapshots')

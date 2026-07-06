@@ -108,6 +108,8 @@ export default function OrchestrationPage() {
   const [enabledPhases, setEnabledPhases] = useState<Record<string, boolean>>(
     Object.fromEntries(COLLECT_PHASES.map(p => [p.key, true]))
   );
+  // 브랜드 순회 선택 (Phase 1-B)
+  const [rotationBrands, setRotationBrands] = useState<Set<string>>(new Set());
 
   // 시그널 선택
   const [signals, setSignals] = useState<Signal[]>([]);
@@ -243,19 +245,33 @@ export default function OrchestrationPage() {
     const enabled = COLLECT_PHASES.filter(p => enabledPhases[p.key]).map(p => p.key);
     setPipelineLogs(['[Step 2] 시그널 수집 시작...', `활성 Phase: ${enabled.length}개`]);
     try {
-      const result = await callPipelineApi('collect', { enabledPhases: enabled });
+      const result = await callPipelineApi('collect', {
+        enabledPhases: enabled,
+        options: {
+          mode: selectedBrand === 'all' ? 'hub' : 'standalone',
+          rotationBrandSlugs: rotationBrands.size > 0 ? Array.from(rotationBrands) : undefined,
+        },
+      });
       const collected = result.phase1_signals?.count ?? 0;
       const external = result.phase0_5_signals?.collected ?? 0;
+      const hasErrors = result.phaseErrors?.length > 0;
       setStepResults(prev => ({ ...prev, collect: result }));
-      setPipelineLogs(prev => [
-        ...prev,
-        `✅ 수집 완료`,
-        `  · 외부 시그널: ${external}건`,
-        `  · S-OGDE 시그널: ${collected}건`,
-        result.phase1b_brandSignals ? `  · 브랜드 순회: ${result.phase1b_brandSignals.totalSignals}건` : '',
-        result.phase1_5_deepDive ? `  · 딥다이브: ${result.phase1_5_deepDive.targetsFound}개 타겟` : '',
-        ...(result.phaseErrors?.length > 0 ? result.phaseErrors.map((e: any) => `  ⚠️ ${e.phase}: ${e.message}`) : []),
-      ].filter(Boolean));
+
+      const logs: string[] = [];
+      logs.push(hasErrors ? `⚠️ 수집 완료 (일부 Phase 오류 발생)` : `✅ 수집 완료`);
+      logs.push(`  · 외부 시그널: ${external}건${external === 0 && enabled.includes('phase0_5_external') ? ' ⚠️ (수집 실패 또는 소스 없음)' : ''}`);
+      logs.push(`  · S-OGDE 시그널: ${collected}건${collected === 0 && enabled.includes('phase1_signals') ? ' ⚠️ (생성 실패)' : ''}`);
+      if (result.phase1b_brandSignals) logs.push(`  · 브랜드 순회: ${result.phase1b_brandSignals.totalSignals}건 (${result.phase1b_brandSignals.brandsProcessed}개 브랜드)`);
+      if (result.phase1_5_deepDive) logs.push(`  · 딥다이브: ${result.phase1_5_deepDive.targetsFound}개 타겟`);
+      if (result.phase0_6_hubFeedback) logs.push(`  · Hub 피드백: ${result.phase0_6_hubFeedback.newSignals}건`);
+      if (hasErrors) {
+        logs.push('');
+        logs.push('── Phase 오류 상세 ──');
+        result.phaseErrors.forEach((e: any) => logs.push(`  ❌ ${e.phase}: ${e.message}`));
+      }
+      logs.push(`  📊 상태: ${result.status || 'unknown'} | 소요: ${((result.totalDuration || 0) / 1000).toFixed(1)}초`);
+
+      setPipelineLogs(prev => [...prev, ...logs]);
       if (result.runId) { setCurrentRunId(result.runId); }
       const updatedReadiness = await getPipelineReadiness(workspaceId, selectedDomain);
       setReadiness(updatedReadiness);
@@ -575,6 +591,39 @@ export default function OrchestrationPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* 브랜드 순회 선택 (Phase 1-B 활성 시) */}
+                {enabledPhases['phase1b_brandSignals'] && brands.length > 0 && (
+                  <div className="space-y-2 p-3 rounded-xl border border-white/5 bg-slate-900/40">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">🔄 브랜드 순회 대상 선택</span>
+                      <div className="flex gap-1">
+                        <button onClick={() => setRotationBrands(new Set(brands.map(b => b.slug)))}
+                          className="text-[9px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white transition-all">전체</button>
+                        <button onClick={() => setRotationBrands(new Set())}
+                          className="text-[9px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white transition-all">해제</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {brands.map(b => (
+                        <label key={b.slug} className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all text-[11px] ${
+                          rotationBrands.has(b.slug) ? 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-300' : 'border border-white/5 text-slate-500 hover:text-slate-300'}`}>
+                          <input type="checkbox" checked={rotationBrands.has(b.slug)}
+                            onChange={() => setRotationBrands(prev => {
+                              const next = new Set(prev);
+                              next.has(b.slug) ? next.delete(b.slug) : next.add(b.slug);
+                              return next;
+                            })}
+                            className="w-3 h-3 accent-cyan-500 shrink-0" />
+                          <span className="truncate">{b.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {rotationBrands.size === 0 && (
+                      <p className="text-[10px] text-amber-400/70">⚠️ 미선택 시 자동으로 하위 5개 브랜드가 순회됩니다</p>
+                    )}
+                  </div>
+                )}
 
                 {/* 수집된 시그널 테이블 */}
                 {signals.length > 0 && (
