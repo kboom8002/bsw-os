@@ -121,6 +121,7 @@ export class SignalOrchestrator {
         }
       }
       log(`Phase G 완료: ${sources.meta}개 메타 시그널 생성`);
+      if (sources.meta === 0) phaseWarnings.push('Phase G: API 호출 성공했으나 메타 시그널 0개 생성됨');
     } catch (err) {
       phaseWarnings.push(`Phase G: ${(err as Error).message}`);
       log(`Phase G 실패 (계속 진행): ${(err as Error).message}`);
@@ -151,6 +152,7 @@ export class SignalOrchestrator {
         }
       }
       log(`Phase D1 완료: ${sources.chain}개 체인 시그널 (그라운딩 ${groundedCount}/${chainSteps.length})`);
+      if (sources.chain === 0) phaseWarnings.push('Phase D1: 탐색 체인 0개 시그널 생성됨');
     } catch (err) {
       phaseWarnings.push(`Phase D1: ${(err as Error).message}`);
       log(`Phase D1 실패 (계속 진행): ${(err as Error).message}`);
@@ -178,6 +180,7 @@ export class SignalOrchestrator {
       };
       flatten(tree);
       log(`Phase D2 완료: ${sources.recursive}개 재귀 시그널`);
+      if (sources.recursive === 0) phaseWarnings.push('Phase D2: 재귀 심화 0개 시그널 생성됨');
     } catch (err) {
       phaseWarnings.push(`Phase D2: ${(err as Error).message}`);
       log(`Phase D2 실패 (계속 진행): ${(err as Error).message}`);

@@ -193,7 +193,12 @@ export class CollectionStorage {
           .order('created_at', { ascending: true });
 
         if (!error && data) {
-          return data as CollectionSource[];
+          // DB 소스에 INITIAL_SOURCES 중 없는 것을 병합 (업종별 기본 소스 보장)
+          const dbIds = new Set(data.map((s: any) => s.id));
+          const missingSeeds = INITIAL_SOURCES
+            .filter(s => !dbIds.has(s.id))
+            .map(s => ({ ...s, workspace_id: workspaceId }));
+          return [...(data as CollectionSource[]), ...missingSeeds];
         }
         console.warn('[CollectionStorage] Supabase error, falling back to local file:', error?.message);
       } catch (err: any) {
