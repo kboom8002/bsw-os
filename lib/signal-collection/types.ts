@@ -195,6 +195,8 @@ export interface PipelineResultV2 {
   evalErrors?: number;
   /** 전체 파이프라인 실행 시간 (ms) */
   durationMs?: number;
+  /** 각 Phase에서 발생한 경고 메시지 (에러 삼킴 방지) */
+  phaseWarnings?: string[];
 }
 
 

@@ -117,6 +117,43 @@ const INITIAL_SOURCES: CollectionSource[] = [
     identifier: "DERMATOLOGY_RSS",
     enabled: true,
     industry: "beauty"
+  },
+  // ── 제주 소상공인 (jeju_smb) 소스 ──
+  {
+    id: "cs-jeju-1",
+    name: "네이버 뉴스 (제주 맛집/카페/소상공인)",
+    url: "https://openapi.naver.com/v1/search/news.json",
+    source_type: "api",
+    identifier: "NAVER_NEWS",
+    enabled: true,
+    industry: "jeju_smb"
+  },
+  {
+    id: "cs-jeju-2",
+    name: "네이버 DataLab (제주 여행/맛집 트렌드)",
+    url: "https://openapi.naver.com/v1/datalab/search",
+    source_type: "api",
+    identifier: "NAVER_DATALAB",
+    enabled: true,
+    industry: "jeju_smb"
+  },
+  {
+    id: "cs-jeju-3",
+    name: "제주특별자치도 공식블로그 RSS",
+    url: "https://blog.naver.com/PostListByTagName.naver?blogId=happyjejudo&tagName=제주맛집",
+    source_type: "rss",
+    identifier: "JEJU_GOV_BLOG",
+    enabled: true,
+    industry: "jeju_smb"
+  },
+  {
+    id: "cs-jeju-4",
+    name: "네이버 카페 검색 (제주 카페)",
+    url: "https://openapi.naver.com/v1/search/blog.json",
+    source_type: "api",
+    identifier: "NAVER_NEWS",
+    enabled: true,
+    industry: "jeju_smb"
   }
 ];
 

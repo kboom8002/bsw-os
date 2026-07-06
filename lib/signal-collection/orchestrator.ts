@@ -43,6 +43,7 @@ export class SignalOrchestrator {
     let savedSignals = 0;
     const sources: Record<string, number> = { meta: 0, chain: 0, recursive: 0, reverse: 0 };
     const allCandidates: RawSignalCandidate[] = [];
+    const phaseWarnings: string[] = [];
 
     const supabase = getSupabaseAdminClient();
 
@@ -121,6 +122,7 @@ export class SignalOrchestrator {
       }
       log(`Phase G 완료: ${sources.meta}개 메타 시그널 생성`);
     } catch (err) {
+      phaseWarnings.push(`Phase G: ${(err as Error).message}`);
       log(`Phase G 실패 (계속 진행): ${(err as Error).message}`);
     }
 
@@ -150,6 +152,7 @@ export class SignalOrchestrator {
       }
       log(`Phase D1 완료: ${sources.chain}개 체인 시그널 (그라운딩 ${groundedCount}/${chainSteps.length})`);
     } catch (err) {
+      phaseWarnings.push(`Phase D1: ${(err as Error).message}`);
       log(`Phase D1 실패 (계속 진행): ${(err as Error).message}`);
     }
 
@@ -176,6 +179,7 @@ export class SignalOrchestrator {
       flatten(tree);
       log(`Phase D2 완료: ${sources.recursive}개 재귀 시그널`);
     } catch (err) {
+      phaseWarnings.push(`Phase D2: ${(err as Error).message}`);
       log(`Phase D2 실패 (계속 진행): ${(err as Error).message}`);
     }
 
@@ -198,6 +202,7 @@ export class SignalOrchestrator {
         }
         log(`Phase R 완료: ${sources.reverse}개 역추적 시그널`);
       } catch (err) {
+        phaseWarnings.push(`Phase R: ${(err as Error).message}`);
         log(`Phase R 실패 (계속 진행): ${(err as Error).message}`);
       }
     }
@@ -234,6 +239,7 @@ export class SignalOrchestrator {
       dedupedCandidates = clusters.map(c => c.representative);
       log(`Phase DD 완료: ${totalGenerated}개 → ${dedupedCandidates.length}개`);
     } catch (err) {
+      phaseWarnings.push(`Phase DD: ${(err as Error).message}`);
       log(`Phase DD 실패 (Fallback 사용): ${(err as Error).message}`);
       const uniqueQueries = new Set<string>();
       dedupedCandidates = allCandidates.filter(c => {
@@ -401,6 +407,7 @@ export class SignalOrchestrator {
       clusters,
       filteredOut,
       evalErrors,
+      phaseWarnings,
       durationMs: Date.now() - pipelineStart
     };
   }

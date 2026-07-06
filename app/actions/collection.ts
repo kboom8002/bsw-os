@@ -161,7 +161,18 @@ export async function triggerAllCollectionsAction(workspaceId: string, customKey
   }
 
   const sources = await CollectionStorage.getCollectionSources(workspaceId);
-  const enabledSources = sources.filter(s => s.enabled);
+  // 업종 필터: industryKey에 매칭되는 소스만 사용 (beauty ↔ skincare 호환)
+  const INDUSTRY_ALIASES: Record<string, string[]> = {
+    skincare: ['beauty', 'skincare'],
+    jeju_smb: ['jeju_smb', 'jeju'],
+  };
+  const matchIndustries = industryKey ? (INDUSTRY_ALIASES[industryKey] || [industryKey]) : [];
+  const enabledSources = sources.filter(s => {
+    if (!s.enabled) return false;
+    // industryKey가 없으면 전체 소스 사용 (하위 호환)
+    if (matchIndustries.length === 0) return true;
+    return matchIndustries.includes(s.industry);
+  });
   const keywords = resolveKeywords(industryKey, customKeywords);
 
   let totalFetched = 0;

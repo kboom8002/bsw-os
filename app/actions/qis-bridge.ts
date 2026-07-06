@@ -786,6 +786,10 @@ export async function runE2EPipeline(
           tcoConceptSeeds: tcoSeeds || [], kgNodes: kgNodes || [], repeatEval: 1 }
       );
       result.phase1_signals.count = pipelineResult.savedSignals || 0;
+      // Propagate orchestrator warnings to pipeline-level errors
+      if (pipelineResult.phaseWarnings && pipelineResult.phaseWarnings.length > 0) {
+        pipelineResult.phaseWarnings.forEach((w: string) => addPhaseError('phase1_signals', new Error(w)));
+      }
       return { count: pipelineResult.savedSignals || 0 };
     });
   } catch (err: any) {
@@ -839,6 +843,26 @@ export async function runE2EPipeline(
         const perBrand: Record<string, number> = {};
         let totalBrandSignals = 0;
         let costLimitReached = false;
+
+        // Auto-generate brand_identity for brands that don't have one
+        const { getAIProvider } = await import('../../lib/ai/ai-provider');
+        for (const brand of targetBrands) {
+          if (!brand.brand_identity) {
+            try {
+              const ai = getAIProvider();
+              const identity = await ai.generateText(
+                `당신은 브랜드 분석 전문가입니다. 다음 브랜드의 핵심 아이덴티티를 한 문장으로 설명하세요.\n\n업종: ${domainCfg.name}\n브랜드명: ${brand.name}\n\n형식: "[핵심 포지셔닝/차별화 요소] + [주요 제품/서비스 특징]" (50자 이내)`,
+                { temperature: 0.3, maxOutputTokens: 100 }
+              );
+              (brand as any).brand_identity = identity.trim();
+              console.log(`[Phase 1-B] Auto-generated brand_identity for ${brand.name}: ${identity.trim().slice(0, 50)}`);
+            } catch (e: any) {
+              // AI 실패 시 간단한 폴백
+              (brand as any).brand_identity = `${domainCfg.name} 업종의 ${brand.name} 브랜드`;
+              console.warn(`[Phase 1-B] brand_identity auto-gen failed for ${brand.name}: ${e.message}`);
+            }
+          }
+        }
 
         for (const brand of targetBrands) {
           // 일일 허용 비용 초과 여부 체크
@@ -1330,10 +1354,13 @@ export async function runE2EPipeline(
   // ── 최종 상태 결정 ───────────────────────────────────────────
   const hasAnyOutput = (
     result.phase1_signals.count > 0 ||
+    (result.phase0_5_signals?.collected ?? 0) > 0 ||
     result.phase3_promotions.promotedCount > 0
   );
-  if (phaseErrors.length === 0) {
+  if (phaseErrors.length === 0 && hasAnyOutput) {
     result.status = 'success';
+  } else if (phaseErrors.length === 0 && !hasAnyOutput) {
+    result.status = 'empty_success';
   } else if (hasAnyOutput) {
     result.status = 'partial_success';
   } else {

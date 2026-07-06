@@ -19,10 +19,10 @@ class GeminiProvider implements AIProvider {
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.warn("WARNING: GEMINI_API_KEY environment variable is not defined. Falling back to mock-like behavior.");
+      throw new Error('GEMINI_API_KEY is not configured. Set it in Vercel Environment Variables to enable AI signal generation.');
     }
     // Initialize Google GenAI SDK
-    this.ai = new GoogleGenAI({ apiKey: apiKey || '' });
+    this.ai = new GoogleGenAI({ apiKey });
     this.modelName = 'gemini-2.5-flash';
   }
 
