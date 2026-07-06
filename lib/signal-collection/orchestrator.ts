@@ -399,7 +399,13 @@ export class SignalOrchestrator {
       }
     }
 
-    log(`Phase E 완료: ${savedSignals}개 저장, ${filteredOut}개 필터링`);
+    log(`Phase E 완료: ${savedSignals}개 저장, ${filteredOut}개 필터링, ${evalErrors}개 평가오류`);
+    if (savedSignals === 0 && (filteredOut > 0 || evalErrors > 0)) {
+      phaseWarnings.push(`Phase E: ${dedupedCandidates.length}개 후보 중 ${filteredOut}개 필터링(No-Go/unfit), ${evalErrors}개 평가오류 → 저장 0개`);
+    }
+    if (evalErrors > 0) {
+      phaseWarnings.push(`Phase E: ${evalErrors}개 시그널 평가 중 API/DB 오류 발생`);
+    }
     log(`파이프라인 완료! 총 ${Date.now() - pipelineStart}ms 소요.`);
 
     return {
