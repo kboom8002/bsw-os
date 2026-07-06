@@ -276,6 +276,7 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
   const [totalSteps, setTotalSteps] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
   const [hasSavedSession, setHasSavedSession] = useState(false);
+  const [precision, setPrecision] = useState<'1'|'2'|'3'>('1');
   
   const [opportunities, setOpportunities] = useState<BrandOpportunityReport | null>(null);
   const [questionDetails, setQuestionDetails] = useState<QuestionDetail[]>([]);
@@ -374,7 +375,7 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
       if (!config) {
         setProgressMsg('도메인 설정 및 API 키 로딩 중...');
         try {
-          const configRes = await fetch(`/api/benchmark/config?domain=${activeTab}`);
+          const configRes = await fetch(`/api/benchmark/config?domain=${activeTab}&precision=${precision}`);
           if (!configRes.ok) throw new Error(`설정 로드 실패`);
           config = await configRes.json();
         } catch (e: any) {
@@ -715,6 +716,16 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
               <History className="h-3 w-3" />
               이력 {activeHistoryRun ? `— ${new Date(activeHistoryRun.measured_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}` : ''}
             </button>
+            <select
+              value={precision}
+              onChange={(e) => setPrecision(e.target.value as any)}
+              disabled={isRunning || hasSavedSession}
+              className="px-2 py-1.5 rounded-lg text-xs font-bold border bg-slate-800/60 border-slate-700 text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50"
+            >
+              <option value="1">빠른 실측 (Lv.1)</option>
+              <option value="2">표준 실측 (Lv.2)</option>
+              <option value="3">전체 문항 (Lv.3)</option>
+            </select>
             <button
               onClick={() => handleRunMeasurement(false)}
               disabled={isRunning && !isPaused}
@@ -805,7 +816,7 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5 mb-8">
           {/* AAS */}
           <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl shadow-xl shadow-slate-950/40">
             <div className="absolute top-0 right-0 p-6 opacity-10">
@@ -851,29 +862,26 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
           </div>
 
           {/* Top Brand */}
-          <div className="relative overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 to-slate-950 p-6 backdrop-blur-xl shadow-xl">
-            <div className="absolute top-0 right-0 p-6 opacity-20">
-              <Award className="h-20 w-20 text-indigo-400 animate-pulse" />
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl shadow-xl shadow-slate-950/40">
+            <div className="absolute top-0 right-0 p-6 opacity-10">
+              <Award className="h-20 w-20 text-rose-500" />
             </div>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 1위 브랜드
               </span>
-              <Award className="h-4 w-4 text-indigo-400" />
+              <Award className="h-4 w-4 text-rose-400" />
             </div>
             {topBrand ? (
               <>
                 <div className="flex items-center gap-2 mb-2">
-                  <div
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: topBrand.color }}
-                  />
-                  <span className="text-lg font-black text-slate-100">{topBrand.brand_name}</span>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: topBrand.color }} />
+                  <span className="text-2xl font-bold text-slate-200 truncate">{topBrand.brand_name}</span>
                 </div>
-                <div className="flex gap-4">
-                  <MetricBadge value={topBrand.aas} label="AAS" color={topBrand.color} />
-                  <MetricBadge value={topBrand.ocr} label="OCR" color={topBrand.color} />
-                  <MetricBadge value={topBrand.bair} label="BAIR" color={topBrand.color} />
+                <div className="flex gap-4 text-xs font-bold mt-2">
+                  <span className="text-slate-400">AAS <span className="text-rose-400 ml-1">{topBrand.aas}%</span></span>
+                  <span className="text-slate-400">OCR <span className="text-rose-400 ml-1">{topBrand.ocr}%</span></span>
+                  <span className="text-slate-400">BAIR <span className="text-rose-400 ml-1">{topBrand.bair}%</span></span>
                 </div>
               </>
             ) : (
@@ -898,19 +906,40 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
               </span>
               <span className="text-xs font-bold text-slate-500">%</span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-              <span>기회 지수 (OPP)</span>
-              <span className="font-bold text-slate-300">{industryOPP}%</span>
-            </div>
-            <div className="w-full bg-slate-800 rounded-full h-1 mt-1">
+            <div className="w-full bg-slate-800 rounded-full h-1 mt-3">
               <div className="bg-rose-400 h-1 rounded-full" style={{ width: `${industryOPP}%` }} />
             </div>
             <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
-              제네릭 질문 방어율(IRI)과 아무도 노출되지 않은 레드오션 기회(OPP) 지표
+              제네릭 질문 방어율(IRI)과 아무도 노출되지 않은 기회(OPP) 지표
             </p>
           </div>
 
-          {/* Freshness & Top-3 */}
+          {/* Top-3 */}
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl shadow-xl shadow-slate-950/40">
+            <div className="absolute top-0 right-0 p-6 opacity-10">
+              <TrendingUp className="h-20 w-20 text-cyan-500" />
+            </div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">
+                평균 Top-3 진입률
+              </span>
+              <TrendingUp className="h-4 w-4 text-cyan-400" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                {avgTop3}
+              </span>
+              <span className="text-xs font-bold text-slate-500">%</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-1 mt-3">
+              <div className="bg-cyan-400 h-1 rounded-full" style={{ width: `${avgTop3}%` }} />
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+              경쟁 질문에서 상위 3위 이내로 노출되는 비율
+            </p>
+          </div>
+
+          {/* Freshness */}
           <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-xl shadow-xl shadow-slate-950/40">
             <div className="absolute top-0 right-0 p-6 opacity-10">
               <Clock className="h-20 w-20 text-teal-500" />
@@ -927,15 +956,11 @@ export default function BenchmarkDashboard({ summaries, measurementHistory = [] 
               </span>
               <span className="text-xs font-bold text-slate-500">%</span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-              <span>평균 Top-3 진입률</span>
-              <span className="font-bold text-slate-300">{avgTop3}%</span>
-            </div>
-            <div className="w-full bg-slate-800 rounded-full h-1 mt-1">
-              <div className="bg-cyan-400 h-1 rounded-full" style={{ width: `${avgTop3}%` }} />
+            <div className="w-full bg-slate-800 rounded-full h-1 mt-3">
+              <div className="bg-teal-400 h-1 rounded-full" style={{ width: `${avgFreshness}%` }} />
             </div>
             <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
-              정보가 최신 시그널을 담고 있는 강도 및 경쟁 질문에서의 Top-3 노출 비율
+              정보가 최신 시그널 및 사실 관계를 반영하고 있는 강도
             </p>
           </div>
         </div>

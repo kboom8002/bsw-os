@@ -100,7 +100,8 @@ export async function getUserWorkspaces(): Promise<
   const workspaces = (data ?? [])
     .filter((row: { role: string; workspaces: unknown }) => row.workspaces != null)
     .map((row: { role: string; workspaces: unknown }) => {
-      const ws = row.workspaces as { id: string; name: string; slug: string };
+      const wsArray = Array.isArray(row.workspaces) ? row.workspaces : [row.workspaces];
+      const ws = wsArray[0] as { id: string; name: string; slug: string };
       return {
         id: ws.id,
         name: ws.name,

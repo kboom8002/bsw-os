@@ -27,7 +27,15 @@ export async function GET(request: NextRequest) {
   }
 
   const allQuestions = panelData.questions;
-  const sampleCount = domainConfig.sampleQuestionsForLight;
+  const precision = request.nextUrl.searchParams.get('precision') || '1';
+  
+  let sampleCount = domainConfig.sampleQuestionsForLight;
+  if (precision === '2') {
+    sampleCount = Math.floor(sampleCount * 2.5);
+  } else if (precision === '3') {
+    sampleCount = allQuestions.length;
+  }
+  
   const brands = domainConfig.brands;
   
   const isPlaceBrand = domain.startsWith('seoul_district');

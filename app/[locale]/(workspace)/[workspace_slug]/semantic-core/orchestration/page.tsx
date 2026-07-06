@@ -19,7 +19,7 @@ import {
   Layers, Play, Pause, SkipForward, RotateCcw, CheckCircle, Database,
   BarChart2, Activity, GitFork, ArrowRight, Trash2, ChevronDown,
   AlertCircle, XCircle, ToggleLeft, ToggleRight, CheckSquare, Square,
-  ChevronRight, Zap, Filter, ListFilter, Eye, ArrowUpCircle,
+  ChevronRight, Zap, Filter, ListFilter, Eye, ArrowUpCircle, Download,
 } from "lucide-react";
 
 // ── 타입 ─────────────────────────────────────────────────────────────
@@ -309,6 +309,53 @@ export default function OrchestrationPage() {
     } catch (err: any) {
       setPipelineLogs(prev => [...prev, `❌ 승격 실패: ${err.message}`]);
     } finally { setRunningPipeline(false); }
+  };
+
+  // ── 데이터 수동 내보내기 ──────────────────────────────────────────
+  const handleExport = async (format: 'json' | 'csv') => {
+    try {
+      const { getSupabaseClient } = await import('@/lib/supabase');
+      const supabase = getSupabaseClient();
+      const { data: cqs } = await supabase
+        .from('canonical_questions')
+        .select('*')
+        .eq('workspace_id', workspaceId);
+        
+      if (!cqs || cqs.length === 0) {
+        alert('내보낼 CQ 데이터가 없습니다.');
+        return;
+      }
+
+      let content = '';
+      let mimeType = '';
+      let filename = `cq_export_${selectedDomain}_${Date.now()}`;
+
+      if (format === 'json') {
+        content = JSON.stringify(cqs, null, 2);
+        mimeType = 'application/json';
+        filename += '.json';
+      } else {
+        const header = ['id', 'normalized_question', 'primary_intent', 'risk_level', 'cps_score'].join(',');
+        const rows = cqs.map((q: any) => 
+          [q.id, `"${(q.normalized_question||'').replace(/"/g, '""')}"`, q.primary_intent, q.risk_level, q.cps_score].join(',')
+        );
+        content = [header, ...rows].join('\n');
+        mimeType = 'text/csv';
+        filename += '.csv';
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(`내보내기 실패: ${err.message}`);
+    }
   };
 
   // ── Step 4: Hub Push + Saturation ──────────────────────────────
@@ -758,13 +805,23 @@ export default function OrchestrationPage() {
                     <span className="text-sm font-bold text-slate-200">Step 4: Hub Push & 포화도 분석</span>
                     {stepDone('finalize') && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono">완료</span>}
                   </div>
-                  <button onClick={runFinalize} disabled={runningPipeline || !workspaceId}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold hover:bg-amber-500/30 transition-all disabled:opacity-40">
-                    {runningPipeline && currentStep === 'finalize' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                    완료
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleExport('json')} disabled={!workspaceId}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition-all disabled:opacity-40">
+                      <Download className="w-3.5 h-3.5" /> JSON
+                    </button>
+                    <button onClick={() => handleExport('csv')} disabled={!workspaceId}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition-all disabled:opacity-40">
+                      <Download className="w-3.5 h-3.5" /> CSV
+                    </button>
+                    <button onClick={runFinalize} disabled={runningPipeline || !workspaceId}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold hover:bg-amber-500/30 transition-all disabled:opacity-40">
+                      {runningPipeline && currentStep === 'finalize' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      자동 완료 (Push)
+                    </button>
+                  </div>
                 </div>
-                <div className="text-[11px] text-slate-500">CQ와 QIS Scene을 AI Hub에 Push하고 커버리지 포화도를 분석합니다.</div>
+                <div className="text-[11px] text-slate-500">CQ와 QIS Scene을 AI Hub에 Push하거나, 로컬(JSON/CSV)로 저장해 수동 탑재합니다.</div>
                 {stepDone('finalize') && (
                   <div className="flex gap-4 text-xs font-mono">
                     {stepResults.finalize?.phase4_hubPush?.pushed && (
