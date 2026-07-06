@@ -11,7 +11,7 @@ import { SemanticDedup } from './semantic-dedup';
 import { SignalEvaluator } from './signal-evaluator';
 import { VolumeEstimator } from './volume-estimator';
 import { ReverseQuestionEngine } from './reverse-question-engine';
-import { createQuestionSignal } from '../../app/actions/semantic';
+// DB 저장은 supabase admin client로 직접 수행 (Server Action 인증 우회)
 import { getSupabaseAdminClient } from '../supabase';
 import { INDUSTRY_PANELS_DATA } from '../../db/seed/industry-panels/questions-data';
 import { TcoKgMapper } from '../knowledge-graph/tco-kg-mapper';
@@ -362,28 +362,6 @@ export class SignalOrchestrator {
           if (evalErrors === 1) {
             phaseWarnings.push(`Phase E 평가오류 상세: ${errMsg.slice(0, 200)}`);
           }
-          // 평가 실패해도 기본 점수로 시그널 저장 (버리지 않음)
-          const candidate = batch[idx];
-          if (candidate) {
-            evaluatedSignals.push({
-              saved: true,
-              query: candidate.query,
-              volume: 50, // fallback 중간값
-              intent: 'informational',
-              isYmyl: false,
-              gateStatus: 'Watch' as const,
-              confidence: 'low' as const,
-              qvsTotal: 50,
-              qvsDimensions: {
-                relevance: 5, specificity: 5, urgency: 5, opportunity: 5,
-                conversion: 5, snippet_fitness: 5, entity_clarity: 5,
-                multi_engine_consistency: 5, reasoning: 'Fallback: evaluation failed'
-              },
-              kgCoverage: 0,
-              tcoMatchScore: 0,
-              panelLayer: 'L1_universal'
-            });
-          }
         }
       }
     }
@@ -406,25 +384,34 @@ export class SignalOrchestrator {
           (0.10 * ymylWeight)
         ).toFixed(4));
 
-        await createQuestionSignal(workspaceId, {
-          query: sig.query,
-          volume: sig.volume,
-          intent: sig.intent,
-          status: sig.gateStatus === 'Go' ? 'promoted' : 'mined',
-          // 확장 컬럼 바인딩
-          qvs_total: sig.qvsTotal,
-          qvs_dimensions: sig.qvsDimensions,
-          cps_score: cpsScore,
-          is_ymyl: sig.isYmyl,
-          gate_status: sig.gateStatus,
-          eval_confidence: sig.confidence,
-          panel_layer: sig.panelLayer
-        } as any);
+        const { error: insertError } = await supabase
+          .from('question_signals')
+          .insert({
+            workspace_id: workspaceId,
+            query: sig.query,
+            volume: sig.volume,
+            intent: sig.intent,
+            status: sig.gateStatus === 'Go' ? 'promoted' : 'mined',
+            qvs_total: sig.qvsTotal,
+            qvs_dimensions: sig.qvsDimensions,
+            cps_score: cpsScore,
+            is_ymyl: sig.isYmyl,
+            gate_status: sig.gateStatus,
+            eval_confidence: sig.confidence,
+            panel_layer: sig.panelLayer
+          });
+
+        if (insertError) {
+          throw new Error(`DB Insert: ${insertError.message}`);
+        }
 
         savedSignals++;
       } catch (err: any) {
         evalErrors++;
         console.error('[S-OGDE Save] DB write error:', err.message);
+        if (evalErrors === 1) {
+          phaseWarnings.push(`Phase E DB저장 오류: ${err.message.slice(0, 200)}`);
+        }
       }
     }
 
