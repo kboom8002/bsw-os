@@ -150,16 +150,20 @@ export async function autoPromoteSignalToCQ(
       .insert({
         workspace_id: workspaceId,
         canonical_question_id: canonicalQuestionId,
-        scene_type: 'factoid',
-        answer_text: `${signal.query}에 대한 전문적인 답변이 필요합니다.`,
-        must_include: signal.metadata?.auto_must_include || [],
+        scene_name: `${signal.query} 대응 시나리오`,
+        query_template: signal.query,
+        intent_model: signal.intent || 'informational',
+        scenario_context: `${signal.query}에 대한 전문적인 답변이 필요합니다.`,
+        must_do: signal.metadata?.auto_must_include || [],
         must_not_do: signal.metadata?.auto_must_not_do || [],
-        confidence_score: 0.5,
+        readiness_score: 50,
       })
       .select('id')
       .single();
 
-    if (!sceneErr && scene) {
+    if (sceneErr) {
+      console.warn(`[autoPromoteSignalToCQ] QIS Scene insert error for CQ ${canonicalQuestionId}:`, sceneErr.message);
+    } else if (scene) {
       qisSceneId = scene.id;
     }
   }
