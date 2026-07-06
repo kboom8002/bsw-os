@@ -289,7 +289,7 @@ export class PipelineStateManager {
    * Bootstrap(TCO/KG) 상태를 조회.
    * 가장 최근 완료된 run의 phase_results에서 캐시 확인 → 없으면 DB 카운트 쿼리.
    */
-  static async getBootstrapStatus(workspaceId: string): Promise<BootstrapStatus> {
+  static async getBootstrapStatus(workspaceId: string, domainKey: string): Promise<BootstrapStatus> {
     const supabase = getSupabaseAdminClient();
 
     // 1. 최근 성공 run에서 캐시된 Bootstrap 결과 확인
@@ -297,6 +297,7 @@ export class PipelineStateManager {
       .from('pipeline_runs')
       .select('phase_results')
       .eq('workspace_id', workspaceId)
+      .eq('domain_key', domainKey)
       .in('status', ['completed', 'paused', 'partial_success'])
       .order('completed_at', { ascending: false })
       .limit(1)
@@ -315,7 +316,7 @@ export class PipelineStateManager {
 
     // 2. 캐시 없음 — 실제 DB 카운트 쿼리
     const [tcoRes, kgRes] = await Promise.all([
-      supabase.from('tco_concepts').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
+      supabase.from('tco_concepts').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).like('slug', `${domainKey}-%`),
       supabase.from('brand_ontology_nodes').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
     ]);
 
@@ -393,7 +394,7 @@ export class PipelineStateManager {
 
     // Phase 1 이후부터 시작하려면 Bootstrap 완료 필요
     if (phaseIndex >= PIPELINE_PHASES.indexOf('phase1_signals')) {
-      const bootstrap = await PipelineStateManager.getBootstrapStatus(workspaceId);
+      const bootstrap = await PipelineStateManager.getBootstrapStatus(workspaceId, domainKey);
       if (!bootstrap.isComplete) {
         missingDeps.push('TCO/KG Bootstrap (Phase 0 미완료)');
       }

@@ -294,10 +294,9 @@ export async function getPipelineProgressAction(runId: string) {
 export async function getBootstrapStatusAction(workspaceSlug: string, domainKey: string) {
   try {
     const workspaceId = await resolveWorkspaceId(workspaceSlug);
-    const status = await PipelineStateManager.getBootstrapStatus(workspaceId);
+    const status = await PipelineStateManager.getBootstrapStatus(workspaceId, domainKey);
     return { ok: true, status };
   } catch (err: any) {
     return { ok: false, status: null, message: err.message };
   }
 }
-

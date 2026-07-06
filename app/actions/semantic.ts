@@ -1243,7 +1243,8 @@ Return JSON: { "concepts": [{ "concept_name": "...", "definition": "...", "is_st
   const created: Array<{ id: string; concept_name: string; definition: string }> = [];
 
   for (const c of (result.concepts || [])) {
-    const slug = c.concept_name.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60);
+    const rawSlug = c.concept_name.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60);
+    const slug = industryKey ? `${industryKey}-${rawSlug}`.substring(0, 100) : rawSlug;
 
     // 중복 방지
     const { data: existing } = await supabase

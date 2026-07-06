@@ -602,7 +602,7 @@ export async function runE2EPipeline(
   if (shouldRunPhase('phase0_bootstrap')) try {
     await executePhase('phase0_bootstrap', async () => {
       // PipelineStateManager로 캐시 확인 (DB 카운트 쿼리 최소화)
-      const bootstrapStatus = await PipelineStateManager.getBootstrapStatus(workspaceId);
+      const bootstrapStatus = await PipelineStateManager.getBootstrapStatus(workspaceId, industryKey);
 
       if (bootstrapStatus.isComplete) {
         // 이미 완료 — 스킵 (캐시 기반)
@@ -628,8 +628,8 @@ export async function runE2EPipeline(
         if (tcoRes.created === 0) {
           console.log('[E2E Pipeline] TCO fallback triggered. Inserting 2 seed concepts.');
           const seedConcepts = [
-            { workspace_id: workspaceId, concept_name: '핵심 서비스', slug: 'core-service', definition: `${domainName}의 기본 제공 서비스 및 상품성`, is_strategic: true },
-            { workspace_id: workspaceId, concept_name: '고객 경험', slug: 'customer-experience', definition: `사용자가 체감하는 ${domainName}의 전반적인 서비스 품질과 혜택`, is_strategic: true }
+            { workspace_id: workspaceId, concept_name: '핵심 서비스', slug: `${industryKey}-core-service`.substring(0,100), definition: `${domainName}의 기본 제공 서비스 및 상품성`, is_strategic: true },
+            { workspace_id: workspaceId, concept_name: '고객 경험', slug: `${industryKey}-customer-experience`.substring(0,100), definition: `사용자가 체감하는 ${domainName}의 전반적인 서비스 품질과 혜택`, is_strategic: true }
           ];
           const { data: insertedTco, error: seedErr } = await supabase.from('tco_concepts').upsert(seedConcepts, { onConflict: 'workspace_id,slug' }).select();
           if (seedErr) console.warn('[E2E Pipeline] TCO fallback insert error:', seedErr.message);
@@ -733,7 +733,8 @@ export async function runE2EPipeline(
     await executePhase('phase1_signals', async () => {
       const { data: tcoSeeds } = await supabase
         .from('tco_concepts').select('concept_name, definition')
-        .eq('workspace_id', workspaceId).eq('is_strategic', true);
+        .eq('workspace_id', workspaceId).eq('is_strategic', true)
+        .like('slug', `${industryKey}-%`);
       const { data: kgNodes } = await supabase
         .from('brand_ontology_nodes').select('id, node_name, node_type')
         .eq('workspace_id', workspaceId);
