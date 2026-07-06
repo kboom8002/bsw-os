@@ -25,6 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_benchmark_runs_workspace_domain
 -- RLS
 ALTER TABLE benchmark_measurement_runs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "workspace members can read benchmark runs" ON benchmark_measurement_runs;
 CREATE POLICY "workspace members can read benchmark runs"
   ON benchmark_measurement_runs FOR SELECT
   USING (
@@ -33,20 +34,22 @@ CREATE POLICY "workspace members can read benchmark runs"
     )
   );
 
+DROP POLICY IF EXISTS "workspace owners and admins can insert benchmark runs" ON benchmark_measurement_runs;
 CREATE POLICY "workspace owners and admins can insert benchmark runs"
   ON benchmark_measurement_runs FOR INSERT
   WITH CHECK (
     workspace_id IN (
       SELECT workspace_id FROM workspace_memberships
-        WHERE user_id = auth.uid() AND role IN ('owner', 'admin', 'semantic_architect')
+      WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
     )
   );
 
+DROP POLICY IF EXISTS "workspace owners and admins can update benchmark runs" ON benchmark_measurement_runs;
 CREATE POLICY "workspace owners and admins can update benchmark runs"
   ON benchmark_measurement_runs FOR UPDATE
   USING (
     workspace_id IN (
       SELECT workspace_id FROM workspace_memberships
-        WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
+      WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
     )
   );

@@ -1,6 +1,8 @@
 -- Migration 0028_qpa_os_schema_expansion.sql
 -- Module: QPA-OS Database Schema Expansion
 
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+
 -- 1. question_signals 테이블 확장
 ALTER TABLE question_signals
   ADD COLUMN IF NOT EXISTS domain_id text,
@@ -28,7 +30,7 @@ CREATE TABLE IF NOT EXISTS question_clusters (
   cluster_label text,
   representative_question text,
   signal_count integer DEFAULT 0,
-  embedding vector(768),
+  embedding public.vector(768),
   dominant_intents jsonb DEFAULT '[]'::jsonb,
   dominant_entities jsonb DEFAULT '[]'::jsonb,
   status text DEFAULT 'draft',
