@@ -2,9 +2,11 @@ import { getSupabaseAdminClient } from '../supabase';
 import { 
   createMockProbeRunResult,
   computeMetricSnapshot,
-  computeDomainIndexSnapshot,
-  createResponseJudgment
 } from '../../app/actions/observatory';
+import { 
+  createResponseJudgmentCore,
+  computeDomainIndexSnapshotCore
+} from '../db/observatory-db';
 import { getObservationProvider } from './observation-provider';
 
 
@@ -82,10 +84,11 @@ export async function runAIResponseProbeAgent(workspaceId: string, runId: string
           
           // Auto-insert Response Judgment as candidate
           const text = obs.rawResponseText.toLowerCase();
+          const targetKeyword = q.target_keyword || "";
           const isCitation = text.includes("http") || text.includes("cite");
-          const fidelity = text.includes("efficacy") || text.includes("clinical") ? 90.00 : 50.00;
-          const covered = text.includes(q.target_keyword.toLowerCase());
-          const concept = text.includes("squalane") || text.includes("retinol");
+          const fidelity = text.includes("efficacy") || text.includes("clinical") || (targetKeyword && text.includes(targetKeyword.toLowerCase())) ? 90.00 : 50.00;
+          const covered = targetKeyword ? text.includes(targetKeyword.toLowerCase()) : false;
+          const concept = text.includes("squalane") || text.includes("retinol") || (targetKeyword && text.includes(targetKeyword.toLowerCase()));
 
           await supabase
             .from("response_judgments")
@@ -145,25 +148,26 @@ export async function runResponseJudgmentAgent(workspaceId: string, probeRunId: 
   if (auditErr || !agentRun) throw new Error("Agent audit log failed.");
 
   try {
-    // 1. Fetch raw response text
+    // 1. Fetch raw response text and target keyword
     const { data: run } = await supabase
       .from("probe_runs")
-      .select("raw_response_text")
+      .select("raw_response_text, probe_questions(target_keyword)")
       .eq("id", probeRunId)
       .single();
 
     if (!run) throw new Error(`Probe run not found: ${probeRunId}`);
 
     const text = run.raw_response_text.toLowerCase();
+    const targetKeyword = (run as any)?.probe_questions?.target_keyword || "";
 
     // 2. Deterministic AI judgment criteria mapping
     const isCitation = text.includes("http") || text.includes("cite");
-    const fidelity = text.includes("clinical") ? 90.00 : 50.00;
-    const covered = text.includes("hydration") || text.includes("efficacy");
-    const concept = text.includes("squalane") || text.includes("retinol");
+    const fidelity = text.includes("clinical") || (targetKeyword && text.includes(targetKeyword.toLowerCase())) ? 90.00 : 50.00;
+    const covered = text.includes("hydration") || text.includes("efficacy") || (targetKeyword && text.includes(targetKeyword.toLowerCase()));
+    const concept = text.includes("squalane") || text.includes("retinol") || (targetKeyword && text.includes(targetKeyword.toLowerCase()));
 
-    // 3. Create or Update Response Judgment
-    const judgment = await createResponseJudgment(workspaceId, {
+    // 3. Create or Update Response Judgment using Core DB helper
+    const judgment = await createResponseJudgmentCore(workspaceId, {
       probe_run_id: probeRunId,
       is_citation_found: isCitation,
       brand_semantic_fidelity_score: fidelity,
@@ -218,8 +222,8 @@ export async function runMetricAggregationAgent(workspaceId: string, runId: stri
     // 1. Calculate snapshots
     const snapshots = await computeMetricSnapshot(workspaceId, runId);
 
-    // 2. Compute index snapshots
-    const indexSnapshot = await computeDomainIndexSnapshot(workspaceId, definitionId, runId);
+    // 2. Compute index snapshots using Core DB helper
+    const indexSnapshot = await computeDomainIndexSnapshotCore(workspaceId, definitionId, runId);
 
     // Mark run as draft
     await supabase

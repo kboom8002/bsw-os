@@ -1,6 +1,6 @@
 import { getSupabaseAdminClient } from '../supabase';
-import { createIndustryStandardPanel } from '../../app/actions/probe-panel-factory';
-import { syncTenantContent } from '../../app/actions/sync';
+import { createIndustryStandardPanelCore } from '../db/probe-panel-db';
+import { syncTenantContentCore } from '../db/sync-db';
 import { IndustryType } from '../../db/seed/industry-panels/questions-data';
 
 export type SyncEvent =
@@ -44,7 +44,7 @@ export class SyncEventHub {
 
           // 2. Proactively deploy industry standard Probe Panel with brand keyword
           const brandKeyword = event.tenantSlug.replace(/-/g, ' ');
-          const panelMeta = await createIndustryStandardPanel(
+          const panelMeta = await createIndustryStandardPanelCore(
             event.workspaceId,
             event.industry,
             brandKeyword,
@@ -84,7 +84,7 @@ export class SyncEventHub {
           }
 
           // 1. Execute sync action
-          const syncSummary = await syncTenantContent(bridge.id);
+          const syncSummary = await syncTenantContentCore(bridge.id);
 
           // 2. Schedule retest observation run
           const { data: panel } = await supabase
@@ -130,7 +130,7 @@ export class SyncEventHub {
             return { status: 'ignored', details: 'No active bridge found for tenant.' };
           }
 
-          const syncSummary = await syncTenantContent(bridge.id);
+          const syncSummary = await syncTenantContentCore(bridge.id);
 
           return {
             status: 'dispatched',

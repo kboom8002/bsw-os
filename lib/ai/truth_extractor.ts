@@ -1,5 +1,5 @@
 import { getSupabaseAdminClient } from '../supabase';
-import { createObservedTruth } from '../../app/actions/truth';
+
 import { getAIProvider } from './ai-provider';
 
 
@@ -67,13 +67,22 @@ export async function runBrandTruthExtractor(workspaceId: string, input: Extract
     // 2. Insert extracted results into brand_observed_truths (candidate default status)
     const savedObservedTruths = [];
     for (const claim of extractedClaims) {
-      const observed = await createObservedTruth(workspaceId, {
-        observed_claim: claim,
-        source_domain: input.sourceDomain,
-        confidence_score: 91.50,
-        is_aligned_with_operational: true,
-        raw_payload: { agent_run_id: agentRun.id, precision: 'high' }
-      });
+      const { data: observed, error: insertError } = await supabase
+        .from('brand_observed_truths')
+        .insert({
+          workspace_id: workspaceId,
+          observed_claim: claim,
+          source_domain: input.sourceDomain,
+          confidence_score: 91.50,
+          is_aligned_with_operational: true,
+          raw_payload: { agent_run_id: agentRun.id, precision: 'high' }
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw new Error(`DB Insert: ${insertError.message}`);
+      }
       savedObservedTruths.push(observed);
     }
 

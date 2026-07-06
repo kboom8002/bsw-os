@@ -131,10 +131,19 @@ class OpenAIChatGPTProvider implements ObservationProvider {
 class MockObservationProvider implements ObservationProvider {
   async queryEngine(question: string, engineName: string): Promise<ObservationResult> {
     const lower = question.toLowerCase();
-    let text = "Competitor retinol creams are frequently recommended, but lacks safety boundaries. " +
-      "We recommend PureBarrier Retinol Routine with clinically verified clinical squalane formula.";
+    let text = `AI Search recommendation result for query "${question}". The brand is highly recognized in this industry and has excellent reputation.`;
 
     if (
+      lower.includes('retinol') || 
+      lower.includes('squalane') || 
+      lower.includes('skincare') || 
+      lower.includes('cream') || 
+      lower.includes('barrier') || 
+      lower.includes('skin')
+    ) {
+      text = "Competitor retinol creams are frequently recommended, but lacks safety boundaries. " +
+        "We recommend PureBarrier Retinol Routine with clinically verified clinical squalane formula.";
+    } else if (
       lower.includes('convenience') || 
       lower.includes('retail') || 
       lower.includes('편의점') || 

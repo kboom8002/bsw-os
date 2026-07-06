@@ -1,5 +1,4 @@
 import { getSupabaseAdminClient } from '../supabase';
-import { createQuestionSignal } from '../../app/actions/semantic';
 import { getSignalMiningProvider } from './signal-mining-provider';
 
 
@@ -41,12 +40,21 @@ export async function runSemanticSignalMiner(workspaceId: string, input: MinerIn
 
     const savedSignals = [];
     for (const item of minedSignalsList) {
-      const signal = await createQuestionSignal(workspaceId, {
-        query: item.query,
-        volume: item.volume,
-        intent: item.intent,
-        status: 'mined' // Mined signal candidate state!
-      });
+      const { data: signal, error: insertError } = await supabase
+        .from('question_signals')
+        .insert({
+          workspace_id: workspaceId,
+          query: item.query,
+          volume: item.volume,
+          intent: item.intent,
+          status: 'mined'
+        })
+        .select()
+        .single();
+        
+      if (insertError) {
+        throw new Error(`DB Insert: ${insertError.message}`);
+      }
       savedSignals.push(signal);
     }
 

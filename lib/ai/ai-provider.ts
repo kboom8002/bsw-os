@@ -94,56 +94,61 @@ class MockProvider implements AIProvider {
   async generateStructuredOutput<T>(prompt: string, schema: any, options?: AIProviderOptions): Promise<T> {
     const lower = prompt.toLowerCase();
 
-    // Truth extraction mock mapping
-    if (lower.includes('niacinamide') || lower.includes('skincare')) {
-      return {
-        claims: [
-          'Active compound contains 10% clinical Niacinamide formula.',
-          'Restores skin barrier health in under 7 days of routine.'
-        ]
-      } as any;
-    }
-
-    if (
-      lower.includes('convenience') || 
-      lower.includes('retail') || 
-      lower.includes('편의점') || 
-      lower.includes('도시락')
-    ) {
-      if (lower.includes('cu') || lower.includes('씨유')) {
+    // 1. Keep existing mock mappings as fallbacks if schema expects 'claims' (for test compatibility)
+    if (schema?.properties?.claims) {
+      if (lower.includes('niacinamide') || lower.includes('skincare')) {
         return {
           claims: [
-            'CU 편의점 도시락은 백종원 협업으로 뛰어난 가성비를 제공한다.',
-            'HACCP 인증 제조 공장 위생 관리로 안심 품질을 유지한다.'
+            'Active compound contains 10% clinical Niacinamide formula.',
+            'Restores skin barrier health in under 7 days of routine.'
           ]
         } as any;
       }
-      if (lower.includes('gs25') || lower.includes('지에스')) {
+      if (
+        lower.includes('convenience') || 
+        lower.includes('retail') || 
+        lower.includes('편의점') || 
+        lower.includes('도시락')
+      ) {
+        if (lower.includes('cu') || lower.includes('씨유')) {
+          return {
+            claims: [
+              'CU 편의점 도시락은 백종원 협업으로 뛰어난 가성비를 제공한다.',
+              'HACCP 인증 제조 공장 위생 관리로 안심 품질을 유지한다.'
+            ]
+          } as any;
+        }
+        if (lower.includes('gs25') || lower.includes('지에스')) {
+          return {
+            claims: [
+              'GS25 편의점 도시락은 혜자 브랜드로 구성이 매우 푸짐하다.',
+              '일부 신제품에서 다소 높은 나트륨 함량이 우려된다.'
+            ]
+          } as any;
+        }
         return {
           claims: [
-            'GS25 편의점 도시락은 혜자 브랜드로 구성이 매우 푸짐하다.',
-            '일부 신제품에서 다소 높은 나트륨 함량이 우려된다.'
+            'Store offers 24/7 self-checkout actions across city venues.',
+            'Weekly fresh menu sandwiches are priced at 2-for-1 discount.'
+          ]
+        } as any;
+      }
+      if (lower.includes('wedding') || lower.includes('hall')) {
+        return {
+          claims: [
+            'Grand Wedding Hall booking includes premium studio makeup specs.'
           ]
         } as any;
       }
       return {
         claims: [
-          'Store offers 24/7 self-checkout actions across city venues.',
-          'Weekly fresh menu sandwiches are priced at 2-for-1 discount.'
+          'AI Extracted Claim: Active factual statement identified inside crawled source.'
         ]
       } as any;
     }
 
-    if (lower.includes('wedding') || lower.includes('hall')) {
-      return {
-        claims: [
-          'Grand Wedding Hall booking includes premium studio makeup specs.'
-        ]
-      } as any;
-    }
-
-    // Vibe rating mock mapping
-    if (lower.includes('vibe') || lower.includes('clinical') || lower.includes('luxury')) {
+    // 2. Keep vibe rating fallback
+    if (schema?.properties?.clinical && (lower.includes('vibe') || lower.includes('clinical') || lower.includes('luxury'))) {
       return {
         clinical: 60,
         warm: 20,
@@ -151,12 +156,35 @@ class MockProvider implements AIProvider {
       } as any;
     }
 
-    // Default fallback claims mapping to ensure truth extractor loop executes
-    return {
-      claims: [
-        'AI Extracted Claim: Active factual statement identified inside crawled source.'
-      ]
-    } as any;
+    // 3. Generic recursive schema fallback to guarantee 100% schema compliance for any new domain
+    const buildMockFromSchema = (s: any): any => {
+      if (!s) return null;
+      if (s.type === 'object') {
+        const obj: any = {};
+        const props = s.properties || {};
+        for (const k of Object.keys(props)) {
+          obj[k] = buildMockFromSchema(props[k]);
+        }
+        return obj;
+      }
+      if (s.type === 'array') {
+        const itemsSchema = s.items || {};
+        return [buildMockFromSchema(itemsSchema)];
+      }
+      if (s.type === 'string') {
+        if (s.enum && s.enum.length > 0) return s.enum[0];
+        return "Mock string value";
+      }
+      if (s.type === 'number' || s.type === 'integer') {
+        return 5;
+      }
+      if (s.type === 'boolean') {
+        return true;
+      }
+      return null;
+    };
+
+    return buildMockFromSchema(schema) as T;
   }
 
   async generateEmbeddings(texts: string[]): Promise<number[][]> {

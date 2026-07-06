@@ -1,6 +1,6 @@
 import { getSupabaseAdminClient } from '../supabase';
 import { HubFeedbackPayload, FeedbackProcessResult } from './types';
-import { feedBenchmarkOpportunitiesToSignals } from '../../app/actions/qis-bridge';
+import { feedBenchmarkOpportunitiesToSignalsCore } from '../db/signals-db';
 
 export class FeedbackProcessor {
   /**
@@ -29,7 +29,7 @@ export class FeedbackProcessor {
         }));
 
       if (candidates.length > 0) {
-        const feedResult = await feedBenchmarkOpportunitiesToSignals(workspaceId, candidates);
+        const feedResult = await feedBenchmarkOpportunitiesToSignalsCore(workspaceId, candidates);
         result.newSignals = feedResult.fedCount;
         if (feedResult.errors.length > 0) {
           result.errors.push(...feedResult.errors);
