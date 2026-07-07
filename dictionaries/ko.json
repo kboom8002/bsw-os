@@ -51,7 +51,11 @@
     "aihompy_pack": "AI홈피 Pack",
     "sales_automation": "세일즈 자동화",
     "regional_report": "지자체/협회 리포트",
-    "group_products": "진단 상품"
+    "group_products": "진단 상품",
+    "group_admin": "플랫폼 어드민",
+    "brands": "브랜드 워크스페이스 관리",
+    "settings": "워크스페이스 설정",
+    "team": "팀원 관리"
   },
 
   "dashboard": {

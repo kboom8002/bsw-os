@@ -51,7 +51,11 @@
     "aihompy_pack": "AIHompy Pack",
     "sales_automation": "Sales Automation",
     "regional_report": "Regional Report",
-    "group_products": "Diagnosis Products"
+    "group_products": "Diagnosis Products",
+    "group_admin": "Platform Admin",
+    "brands": "Manage Brands",
+    "settings": "Workspace Settings",
+    "team": "Manage Team"
   },
 
   "dashboard": {

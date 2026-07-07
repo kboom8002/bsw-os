@@ -3,8 +3,9 @@ import { WorkspaceRole } from './schema';
 import { createClient } from './supabase/server';
 import { env } from './env';
 
-// Super Admin 이메일 — 모든 워크스페이스에 무조건 접근 가능
-const SUPER_ADMIN_EMAILS = ['kboom8002@gmail.com'];
+// ────────────────────────────────────────────────────────────────
+// Super Admin checks query the `platform_admins` database table.
+// ────────────────────────────────────────────────────────────────
 
 /**
  * Ensures the user is authenticated and returns their UUID.
@@ -21,19 +22,25 @@ export async function requireAuth(): Promise<string> {
 
 /**
  * 현재 로그인한 유저가 Super Admin인지 확인합니다.
- * userId로 Supabase Auth에서 이메일을 조회합니다.
+ * database의 platform_admins 테이블을 조회합니다.
  */
 async function isSuperAdmin(userId: string): Promise<boolean> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && SUPER_ADMIN_EMAILS.includes(user.email || '')) {
-      return true;
+    const adminClient = getSupabaseAdminClient();
+    const { data, error } = await adminClient
+      .from('platform_admins')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+      
+    if (error || !data) {
+      return false;
     }
-  } catch {
-    // 세션 없을 수 있음 — 무시
+    return true;
+  } catch (err) {
+    console.error('isSuperAdmin check failed:', err);
+    return false;
   }
-  return false;
 }
 
 /**
@@ -85,29 +92,19 @@ export async function checkWorkspacePermission(
 }
 
 /**
- * Demo-mode auth bypass.
- * Returns a synthetic demo user UUID when DEMO_MODE is enabled,
- * otherwise delegates to the standard requireAuth() flow.
+ * RequireAuthOrDemo now delegates directly to requireAuth.
  */
 export async function requireAuthOrDemo(): Promise<string> {
-  if (process.env.DEMO_MODE === 'true' || env.DEMO_MODE === 'true') {
-    return 'demo-user-00000000-0000-4000-a000-000000000000';
-  }
   return requireAuth();
 }
 
 /**
- * Demo-mode workspace permission bypass.
- * Returns true unconditionally when DEMO_MODE is enabled,
- * otherwise delegates to the standard checkWorkspacePermission() flow.
+ * CheckWorkspacePermissionOrDemo now delegates directly to checkWorkspacePermission.
  */
 export async function checkWorkspacePermissionOrDemo(
   workspaceId: string,
   userId: string,
   allowedRoles: WorkspaceRole[]
 ): Promise<boolean> {
-  if (env.DEMO_MODE === 'true') {
-    return true;
-  }
   return checkWorkspacePermission(workspaceId, userId, allowedRoles);
 }

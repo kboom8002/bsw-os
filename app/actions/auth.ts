@@ -35,10 +35,19 @@ export async function login(formData: FormData) {
         .eq('user_id', userId)
         .limit(1);
 
+      // platform_admins 테이블에서 권한 확인
+      const { data: adminRow } = await adminSupabase
+        .from('platform_admins')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const isSuper = !!adminRow;
+
       if (memberships && memberships.length > 0) {
         const ws = (memberships[0] as any).workspaces;
         redirectPath = `/ko/${ws.slug}`;
-      } else if (email === 'kboom8002@gmail.com') {
+      } else if (isSuper) {
         // Auto-create super admin workspace
         const { data: existingWs } = await adminSupabase
           .from('workspaces')
@@ -52,7 +61,7 @@ export async function login(formData: FormData) {
         if (!existingWs) {
           const { data: newWs } = await adminSupabase
             .from('workspaces')
-            .insert({ name: 'BSW Main Workspace', slug: 'bsw-main' })
+            .insert({ name: 'BSW Main Workspace', slug: 'bsw-main', workspace_type: 'main' })
             .select('id')
             .single();
           wsId = newWs?.id;

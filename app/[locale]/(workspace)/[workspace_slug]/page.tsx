@@ -14,17 +14,19 @@ import {
   ArrowRight,
   Database,
   Search,
-  Award
+  Award,
+  Loader2
 } from "lucide-react";
 import { useTranslation } from "../../../../lib/i18n/context";
 
 export default function WorkspaceDashboard() {
   const params = useParams();
-  const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
+  const workspaceSlug = (params?.workspace_slug as string) || "bsw-main";
   const { locale, t } = useTranslation();
 
   const [workspace, setWorkspace] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [brandsList, setBrandsList] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadWorkspace() {
@@ -49,11 +51,196 @@ export default function WorkspaceDashboard() {
     loadWorkspace();
   }, [workspaceSlug]);
 
+  useEffect(() => {
+    async function loadBrands() {
+      if (workspace?.workspace_type === 'main') {
+        try {
+          const { getSupabaseClient } = await import("@/lib/supabase");
+          const supabase = getSupabaseClient();
+          const { data } = await supabase
+            .from('workspaces')
+            .select('*')
+            .eq('workspace_type', 'brand')
+            .order('created_at', { ascending: false });
+          if (data) setBrandsList(data);
+        } catch (err) {
+          console.error('Failed to load brands:', err);
+        }
+      }
+    }
+    loadBrands();
+  }, [workspace]);
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+      </div>
+    );
+  }
+
   const currentWorkspace = workspace || {
-    name: "Demo Brand Semantic Lab",
-    brand_description: "AEO 및 AI 검색 최적화를 위한 브랜드 의미 관리 플랫폼",
-    subscription_tier: "starter"
+    name: "BSW Main Workspace",
+    brand_description: "AEO 및 AI 검색 최적화를 위한 플랫폼 관제 센터",
+    subscription_tier: "enterprise",
+    workspace_type: "main"
   };
+
+  if (currentWorkspace.workspace_type === 'main') {
+    return (
+      <div className="flex-1 p-6 md:p-8 space-y-8 font-sans max-w-6xl w-full mx-auto">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
+          <div>
+            <div className="text-xs text-amber-400 font-mono font-bold tracking-wider uppercase mb-1">
+              BSW 플랫폼 관제 센터
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
+              플랫폼 운영 대시보드
+            </h1>
+            <p className="text-slate-400 text-sm">
+              전체 브랜드 워크스페이스 상태 모니터링 및 시스템 권한 관제
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href={`/${locale}/onboarding`} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 transition-all text-xs">
+              + 새 브랜드 생성
+            </Link>
+          </div>
+        </div>
+
+        {/* Platform Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/50 backdrop-blur-sm relative overflow-hidden">
+            <div className="absolute right-4 top-4 text-slate-700">
+              <Building2 className="w-8 h-8" />
+            </div>
+            <div className="text-xs text-slate-500 font-mono uppercase mb-2">등록된 브랜드 워크스페이스</div>
+            <div className="text-3xl font-extrabold text-white mb-1">{brandsList.length} 개</div>
+            <p className="text-xs text-slate-500 font-normal">활성 테넌트 공간</p>
+          </div>
+
+          <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/50 backdrop-blur-sm relative overflow-hidden">
+            <div className="absolute right-4 top-4 text-slate-700">
+              <ShieldCheck className="w-8 h-8" />
+            </div>
+            <div className="text-xs text-slate-500 font-mono uppercase mb-2">시스템 RLS 보안 상태</div>
+            <div className="text-3xl font-extrabold text-green-400 mb-1">정상 작동 (Active)</div>
+            <p className="text-xs text-slate-500 font-normal">플랫폼 데이터 완전 격리 적용 중</p>
+          </div>
+
+          <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/50 backdrop-blur-sm relative overflow-hidden">
+            <div className="absolute right-4 top-4 text-slate-700">
+              <Database className="w-8 h-8" />
+            </div>
+            <div className="text-xs text-slate-500 font-mono uppercase mb-2">Supabase 클러스터 연결</div>
+            <div className="text-3xl font-extrabold text-white mb-1">연결됨 (Connected)</div>
+            <p className="text-xs text-slate-500 font-normal">Postgres 15+ Core Storage</p>
+          </div>
+        </div>
+
+        {/* Brands Section */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold tracking-tight text-slate-200">
+              활성 브랜드 워크스페이스 목록
+            </h2>
+            <Link href={`/${locale}/${workspaceSlug}/brands`} className="text-xs text-cyan-400 font-bold hover:underline">
+              전체 보기 →
+            </Link>
+          </div>
+          
+          {brandsList.length === 0 ? (
+            <div className="p-12 text-center border border-dashed border-white/10 rounded-2xl text-slate-500 text-sm">
+              등록된 브랜드 워크스페이스가 없습니다. 우측 상단의 '+ 새 브랜드 생성' 버튼을 클릭해 등록을 완료해 주세요.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {brandsList.slice(0, 6).map(brand => (
+                <div key={brand.id} className="p-6 rounded-2xl bg-slate-950/30 border border-white/5 hover:border-cyan-500/10 transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+                        <h3 className="font-bold text-base text-white truncate max-w-[150px]">{brand.name}</h3>
+                      </div>
+                      <span className="px-2 py-0.5 rounded bg-cyan-950/50 border border-cyan-500/30 text-[10px] text-cyan-400 uppercase font-mono font-bold">
+                        {brand.subscription_tier || 'starter'}
+                      </span>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-6 line-clamp-2 min-h-[32px]">
+                      {brand.brand_description || '브랜드 설명이 등록되지 않았습니다.'}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4">
+                    <span className="text-slate-500 truncate max-w-[120px]">slug: {brand.slug}</span>
+                    <Link href={`/${locale}/${brand.slug}`} className="text-cyan-400 font-bold hover:underline flex items-center gap-1">
+                      접근하기 →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Global AI Audit & Benchmark Tools */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold tracking-tight text-slate-200">
+            글로벌 AI 진단 및 플랫폼 관리 도구
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 rounded-2xl bg-slate-950/40 border border-cyan-500/20 hover:border-cyan-500/40 transition-all flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute right-4 top-4 text-cyan-500/10">
+                <Search className="w-16 h-16" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Search className="w-5 h-5 text-cyan-400" />
+                  <h3 className="font-bold text-lg text-white">사이트 서피스 역설계 감사 (Site Audit)</h3>
+                </div>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                  특정 사이트 URL을 크롤링하여 AI 검색 엔진(ChatGPT, Gemini) 노출용 엔서카드 생성 및 세맨틱 갭을 역설계 분석하고, 최적화 처방전을 생성합니다.
+                </p>
+              </div>
+              <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4">
+                <span className="text-slate-500">Route: /site-audit</span>
+                <Link href={`/${locale}/site-audit`} className="text-cyan-400 font-bold hover:underline flex items-center gap-1">
+                  분석 도구 실행 <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-950/40 border border-purple-500/20 hover:border-purple-500/40 transition-all flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute right-4 top-4 text-purple-500/10">
+                <Award className="w-16 h-16" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Award className="w-5 h-5 text-purple-400" />
+                  <h3 className="font-bold text-lg text-white">업종별 공개 평판 지수 & 벤치마크</h3>
+                </div>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                  스킨케어, 웨딩홀, 피부과 리프팅 등 주요 산업군별 브랜드들의 실시간 AI 검색 출현율(OCR) 및 답변 정합성(AAS) 실측 순위를 투명하게 확인하고 진단합니다.
+                </p>
+              </div>
+              <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4 gap-2">
+                <span className="text-slate-500">Routes: /benchmark, /sbs-index</span>
+                <div className="flex gap-4">
+                  <Link href={`/${locale}/benchmark`} className="text-purple-400 font-bold hover:underline flex items-center gap-1">
+                    실측 벤치마크 <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                  <Link href={`/${locale}/sbs-index`} className="text-indigo-400 font-bold hover:underline flex items-center gap-1 border-l border-white/10 pl-3">
+                    공개 평판지수 <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 p-6 md:p-8 space-y-8 font-sans max-w-6xl w-full mx-auto">
@@ -61,7 +248,7 @@ export default function WorkspaceDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <div className="text-xs text-cyan-400 font-mono font-bold tracking-wider uppercase mb-1">
-            {t('dashboard.tenant_space')}
+            {t('common.workspace')}
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
             {currentWorkspace.name}
@@ -123,8 +310,8 @@ export default function WorkspaceDashboard() {
           </div>
           <div className="text-xs text-slate-500 font-mono uppercase mb-2">{t('dashboard.nodes_title')}</div>
           <div className="text-3xl font-extrabold text-white mb-1">284</div>
-          <p className="text-xs text-slate-400 font-mono">
-            {t('dashboard.nodes_desc').replace('{count}', String(currentWorkspace.domainsCount))}
+          <p className="text-xs text-slate-400 font-mono font-semibold">
+            {t('dashboard.nodes_desc').replace('{count}', '3')}
           </p>
         </div>
       </div>

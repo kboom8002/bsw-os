@@ -56,8 +56,8 @@ export default function WorkspaceLayout({
   const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
 
   // Dynamic workspace list from DB
-  const [workspacesList, setWorkspacesList] = useState<Array<{ id: string; name: string; slug: string; role: string }>>([
-    { id: 'demo-ws', name: 'Demo Brand Semantic Lab', slug: 'demo-brand-semantic-lab', role: 'owner' }
+  const [workspacesList, setWorkspacesList] = useState<Array<{ id: string; name: string; slug: string; role: string; workspace_type?: string }>>([
+    { id: 'demo-ws', name: 'Demo Brand Semantic Lab', slug: 'demo-brand-semantic-lab', role: 'owner', workspace_type: 'brand' }
   ]);
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -99,8 +99,22 @@ export default function WorkspaceLayout({
 
   const activeWorkspace = workspacesList.find(w => w.slug === workspaceSlug) || workspacesList[0];
   const userRole = activeWorkspace && 'role' in activeWorkspace ? (activeWorkspace as any).role : 'owner';
+  const activeWsType = activeWorkspace && 'workspace_type' in activeWorkspace ? (activeWorkspace as any).workspace_type : 'brand';
+  const mainWorkspaces = workspacesList.filter(ws => ws.workspace_type === 'main');
+  const brandWorkspaces = workspacesList.filter(ws => ws.workspace_type === 'brand');
 
   const checkAccess = (item: SidebarItem) => {
+    // BSW 플랫폼 어드민 전용 메뉴는 메인 워크스페이스에서만 보임
+    if (item.module === 'brands' && activeWsType !== 'main') return false;
+    
+    // 메인 워크스페이스에서는 브랜드 실무 관리 메뉴들은 비활성화 (브랜드 WS로 전환하여 작업 권장)
+    const brandOnlyModules = [
+      'truth', 'semantic-core', 'objects', 'surfaces', 'persona', 'website', 
+      'aihompy-pack', 'sales-automation', 'regional-report', 'fixit', 'kculture',
+      'site-audit-history', 'industry-benchmark', 'site-audit-llms', 'site-audit-settings'
+    ];
+    if (brandOnlyModules.includes(item.module) && activeWsType === 'main') return false;
+
     if (userRole === 'owner' || userRole === 'admin') return true;
     const isRequired = item.requiredRoles?.includes(userRole);
     const isReadOnly = item.readOnlyRoles?.includes(userRole);
@@ -116,6 +130,9 @@ export default function WorkspaceLayout({
   const navigation: SidebarItem[] = [
     // ─ Dashboard ─
     { name: "common.workspace", href: `/${locale}/${workspaceSlug}`, icon: LayoutDashboard, module: "dashboard", scope: 'brand' },
+
+    // ─ BSW Platform Admin (메인 WS 전용) ─
+    { name: "nav.brands", href: `/${locale}/${workspaceSlug}/brands`, icon: Building2, module: "brands", scope: 'brand', requiredRoles: ['owner', 'admin'] },
 
     // ─ AI Visibility (공개 대시보드) ─
     { 
@@ -188,6 +205,7 @@ export default function WorkspaceLayout({
 
   const navGroups = [
     { label: null, items: ["dashboard"], scope: 'brand' },
+    { label: "nav.group_admin", items: ["brands"], scope: 'brand' },
     { label: "nav.group_ai_visibility", items: ["benchmark", "sbs-index", "industry-report", "site-audit"], scope: 'industry', scopeIndicator: '🌐' },
     { label: "nav.group_site_audit", items: ["site-audit-history", "industry-benchmark", "site-audit-llms", "site-audit-settings"], scope: 'brand' },
     { label: "nav.group_semantic_intel", items: ["truth", "semantic-core"], scope: 'brand' },
@@ -225,7 +243,7 @@ export default function WorkspaceLayout({
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center font-bold text-slate-950 flex-shrink-0">
-              Ω
+              {activeWsType === 'main' ? '★' : 'Ω'}
             </div>
             <div className="min-w-0">
               <div className="text-xs text-slate-400 font-mono leading-none mb-1">{t('common.workspace').toUpperCase()}</div>
@@ -239,22 +257,61 @@ export default function WorkspaceLayout({
 
         {/* Switcher Dropdown */}
         {showWorkspaceMenu && (
-          <div className="absolute left-4 right-4 top-[76px] z-50 rounded-xl border border-white/10 bg-slate-900 p-2.5 shadow-2xl shadow-black/80 space-y-1">
-            <div className="text-[10px] text-slate-500 font-mono px-2 py-1 uppercase tracking-wider">Switch tenant workspace</div>
-            {workspacesList.map((ws) => (
-              <button
-                key={ws.slug}
-                onClick={() => switchWorkspace(ws.slug)}
-                className={`w-full text-left px-2 py-2 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ${
-                  ws.slug === workspaceSlug 
-                    ? "bg-cyan-500/10 text-cyan-400 font-bold" 
-                    : "text-slate-300 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <span>{ws.name}</span>
-                {ws.slug === workspaceSlug && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
-              </button>
-            ))}
+          <div className="absolute left-4 right-4 top-[76px] z-50 rounded-xl border border-white/10 bg-slate-900 p-2.5 shadow-2xl shadow-black/80 space-y-2">
+            {/* Main Workspaces Group */}
+            {mainWorkspaces.length > 0 && (
+              <div>
+                <div className="text-[10px] text-amber-400 font-mono px-2 py-1 uppercase tracking-wider font-bold">BSW 관제 센터</div>
+                {mainWorkspaces.map((ws) => (
+                  <button
+                    key={ws.slug}
+                    onClick={() => switchWorkspace(ws.slug)}
+                    className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ${
+                      ws.slug === workspaceSlug 
+                        ? "bg-amber-500/10 text-amber-400 font-bold" 
+                        : "text-slate-300 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <span>⭐ {ws.name}</span>
+                    {ws.slug === workspaceSlug && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* Brand Workspaces Group */}
+            {brandWorkspaces.length > 0 && (
+              <div>
+                <div className="text-[10px] text-cyan-400 font-mono px-2 py-1 uppercase tracking-wider font-bold">브랜드 워크스페이스</div>
+                {brandWorkspaces.map((ws) => (
+                  <button
+                    key={ws.slug}
+                    onClick={() => switchWorkspace(ws.slug)}
+                    className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ${
+                      ws.slug === workspaceSlug 
+                        ? "bg-cyan-500/10 text-cyan-400 font-bold" 
+                        : "text-slate-300 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <span>🏢 {ws.name}</span>
+                    {ws.slug === workspaceSlug && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Create Brand Workspace Link (Only for Super Admin) */}
+            {mainWorkspaces.length > 0 && (
+              <div className="border-t border-white/5 pt-2 mt-1">
+                <Link
+                  href={`/${locale}/onboarding`}
+                  onClick={() => setShowWorkspaceMenu(false)}
+                  className="w-full text-center block px-2 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
+                >
+                  + 새 브랜드 워크스페이스 생성
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

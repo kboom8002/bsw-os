@@ -6,9 +6,9 @@ import { requireAuthOrDemo, checkWorkspacePermissionOrDemo } from '../../lib/aut
 import { WORKSPACE_ROLES } from '../../lib/schema';
 import { env } from '../../lib/env';
 
-// ────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 // 1. 현재 인증된 사용자 정보 반환
-// ────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 export async function getCurrentUser(): Promise<{ id: string; email: string } | null> {
   const supabase = await createClient();
   const {
@@ -19,52 +19,39 @@ export async function getCurrentUser(): Promise<{ id: string; email: string } | 
     return { id: user.id, email: user.email || '' };
   }
 
-  // 데모 모드일 경우 가상 사용자 반환
-  if (env.DEMO_MODE === 'true') {
-    return {
-      id: 'demo-user-00000000-0000-4000-a000-000000000000',
-      email: 'demo@bsw-os.local',
-    };
-  }
-
   return null;
 }
 
-// ────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 // 2. 사용자가 소속된 워크스페이스 목록 조회
-// ────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 export async function getUserWorkspaces(): Promise<
-  Array<{ id: string; name: string; slug: string; role: string }>
+  Array<{ id: string; name: string; slug: string; role: string; workspace_type: string }>
 > {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 데모 모드 — 인증 없이 데모 워크스페이스 반환
   if (!user) {
-    if (env.DEMO_MODE === 'true') {
-      return [
-        {
-          id: 'demo-ws',
-          name: 'Demo Brand Semantic Lab',
-          slug: 'demo-brand-semantic-lab',
-          role: 'owner',
-        },
-      ];
-    }
     return [];
   }
 
   const userId = user.id;
   const adminClient = getSupabaseAdminClient();
 
-  // Super Admin Auto-membership check
-  const isSuper = user.email === 'kboom8002@gmail.com';
+  // Super Admin Auto-membership check via platform_admins table
+  const { data: adminRow } = await adminClient
+    .from('platform_admins')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const isSuper = !!adminRow;
   if (isSuper) {
     const { data: allWs } = await adminClient
       .from('workspaces')
-      .select('id, name, slug');
+      .select('id, name, slug, workspace_type');
 
     if (allWs && allWs.length > 0) {
       const upsertPayload = allWs.map(ws => ({
@@ -81,14 +68,15 @@ export async function getUserWorkspaces(): Promise<
         id: ws.id,
         name: ws.name,
         slug: ws.slug,
-        role: 'owner'
+        role: 'owner',
+        workspace_type: ws.workspace_type ?? 'brand'
       }));
     }
   }
 
   const { data, error } = await adminClient
     .from('workspace_memberships')
-    .select('role, workspaces(id, name, slug)')
+    .select('role, workspaces(id, name, slug, workspace_type)')
     .eq('user_id', userId);
 
   if (error) {
@@ -101,44 +89,51 @@ export async function getUserWorkspaces(): Promise<
     .filter((row: { role: string; workspaces: unknown }) => row.workspaces != null)
     .map((row: { role: string; workspaces: unknown }) => {
       const wsArray = Array.isArray(row.workspaces) ? row.workspaces : [row.workspaces];
-      const ws = wsArray[0] as { id: string; name: string; slug: string };
+      const ws = wsArray[0] as { id: string; name: string; slug: string; workspace_type?: string };
       return {
         id: ws.id,
         name: ws.name,
         slug: ws.slug,
         role: row.role,
+        workspace_type: ws.workspace_type ?? 'brand'
       };
     });
 
   // 워크스페이스가 없는 경우 슈퍼 관리자 자동 생성 시도
-  if (workspaces.length === 0) {
+  if (workspaces.length === 0 && isSuper) {
     const created = await ensureSuperAdminWorkspace(userId, user.email || '');
     if (created) {
-      return [created];
+      return [{ ...created, workspace_type: 'main' }];
     }
   }
 
   return workspaces;
 }
 
-// ────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 // 3. 슈퍼 관리자 전용 워크스페이스 자동 생성
-// ────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 export async function ensureSuperAdminWorkspace(
   userId: string,
   email: string,
-): Promise<{ id: string; name: string; slug: string; role: string } | null> {
-  // 슈퍼 관리자 이메일이 아니면 무시
-  if (email !== 'kboom8002@gmail.com') {
+): Promise<{ id: string; name: string; slug: string; role: string; workspace_type: string } | null> {
+  const adminClient = getSupabaseAdminClient();
+
+  // platform_admins 테이블에서 권한 확인
+  const { data: adminRow } = await adminClient
+    .from('platform_admins')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!adminRow) {
     return null;
   }
-
-  const adminClient = getSupabaseAdminClient();
 
   // 기존 bsw-main 워크스페이스 존재 확인
   const { data: existing } = await adminClient
     .from('workspaces')
-    .select('id, name, slug')
+    .select('id, name, slug, workspace_type')
     .eq('slug', 'bsw-main')
     .maybeSingle();
 
@@ -150,7 +145,7 @@ export async function ensureSuperAdminWorkspace(
     // 워크스페이스 생성
     const { data: created, error: createError } = await adminClient
       .from('workspaces')
-      .insert({ name: 'BSW Main Workspace', slug: 'bsw-main' })
+      .insert({ name: 'BSW Main Workspace', slug: 'bsw-main', workspace_type: 'main' })
       .select('id')
       .single();
 
@@ -180,6 +175,7 @@ export async function ensureSuperAdminWorkspace(
     name: 'BSW Main Workspace',
     slug: 'bsw-main',
     role: 'owner',
+    workspace_type: 'main'
   };
 }
 
