@@ -11,7 +11,7 @@ import { AnswerAssetSpec, LinkContract } from './answer-asset-generator';
 export interface GraphNode {
   id: string;
   label: string;
-  type: 'question' | 'scene' | 'guide' | 'place' | 'merchant' | 'product' | 'ingredient' | 'expert' | 'evidence';
+  type: 'question' | 'scene' | 'guide' | 'place' | 'merchant' | 'product' | 'ingredient' | 'expert' | 'evidence' | 'event_page';
   url: string;
 }
 
@@ -112,10 +112,11 @@ export class InternalLinkGraphBuilder {
       if (assets) {
         assets.forEach(a => {
           const payload = a.payload || {};
+          const isEventPage = payload.variations?.some((v: any) => v.channel === 'event_page');
           nodes.push({
             id: a.id,
             label: a.title,
-            type: a.tenant_id ? 'merchant' : 'guide',
+            type: isEventPage ? 'event_page' : (a.tenant_id ? 'merchant' : 'guide'),
             url: payload.canonicalRoute || `/answers/${a.id}`
           });
 

@@ -248,7 +248,7 @@ export class AnswerMissionCompiler {
         coreMessage: qisScene.scenario_context
       },
       surfaceContract: {
-        allowedChannels: ['homepage', 'answer_card', 'chatbot', 'cardnews', 'ad', 'sales_script', 'llm_txt'],
+        allowedChannels: ['homepage', 'answer_card', 'chatbot', 'cardnews', 'ad', 'sales_script', 'llm_txt', 'event_page'],
         requiredSections: ['H1', 'direct_answer', 'proof', 'routines', 'cautions', 'references']
       },
       structuredDataContract: {

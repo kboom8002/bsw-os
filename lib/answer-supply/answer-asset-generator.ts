@@ -134,6 +134,7 @@ ${decisionCriteriaStr || '없음'}
    - 'ad': 마케팅 광고 카피용 (소구점 강조, 과장 금지)
    - 'sales_script': 오프라인 상담/전화용 스크립트
    - 'llm_txt': 타 LLM 프롬프트 주입용 메타 요약본
+   - 'event_page': 이벤트 페이지 본문용 (시즌 혜택 요약, 전문가 보증 문구, CTA 명확)
 4. **SEO & Structured Data**: 검색 및 AI 가시성을 위한 Title, Description, Keywords를 설정하세요.
 
 주의: 한국 의료법, 표시광고법 상 금지 표현을 철저히 배제하세요.
@@ -165,7 +166,7 @@ ${decisionCriteriaStr || '없음'}
               items: {
                 type: 'object',
                 properties: {
-                  channel: { type: 'string', enum: ['homepage', 'answer_card', 'chatbot', 'cardnews', 'ad', 'sales_script', 'llm_txt'] },
+                  channel: { type: 'string', enum: ['homepage', 'answer_card', 'chatbot', 'cardnews', 'ad', 'sales_script', 'llm_txt', 'event_page'] },
                   title: { type: 'string' },
                   body: { type: 'string' }
                 },
@@ -207,7 +208,8 @@ ${decisionCriteriaStr || '없음'}
           { channel: 'cardnews', title: '슬라이드 뉴스', body: `1장: 가족을 위한 제주 풀빌라 정보\n2장: 소아 정책 확인 필수\n3장: ${mission.requiredEvidence[0] || ''}` },
           { channel: 'ad', title: '광고 카피', body: `가족 맞춤형 프라이빗 풀빌라! 소아 추가 요금 걱정 없이 투명한 예약 완료!` },
           { channel: 'sales_script', title: '상담용 멘트', body: `고객님, 3인 가족이 이용하시는 경우 소아 연령에 따라 규정이 상이합니다. 기준표에 의하면...` },
-          { channel: 'llm_txt', title: 'LLM Context', body: `Q: ${mission.question.normalizedQuestion}\nA: ${mission.requiredEvidence[0] || ''}` }
+          { channel: 'llm_txt', title: 'LLM Context', body: `Q: ${mission.question.normalizedQuestion}\nA: ${mission.requiredEvidence[0] || ''}` },
+          { channel: 'event_page', title: `특별 프로모션 & 혜택`, body: `질문에 기반한 특별 혜택 및 이벤트 정보입니다. ${mission.requiredEvidence[0] || ''}` }
         ],
         seo: {
           title: `${mission.question.normalizedQuestion} | 정본 가이드`,

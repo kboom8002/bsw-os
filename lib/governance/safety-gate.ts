@@ -15,6 +15,8 @@ export interface SafetyGateInputs {
   hasProhibitedWords: boolean; // e.g. claiming cure for eczema
   weatherAlertLevel: WeatherAlert; // e.g. heavy rain alert in Jeju
   demographicRisk: boolean; // e.g. pregnant, lactating, infant, elderly with high vulnerability
+  isEventPage?: boolean; // Phase 3: 이벤트 페이지 여부
+  eventCommercialRisk?: boolean; // Phase 3: 사행성 또는 과도한 마케팅 리스크 여부
 }
 
 export interface CTAPolicyConfig {
@@ -58,6 +60,10 @@ export class SafetyGate {
     } else if (inputs.ingredientConcentration > 2.0) {
       decision = "REFUSE";
       reasons.push(`Ingredient concentration (${inputs.ingredientConcentration}%) exceeds maximum cosmetic safety guidelines (2.0%)`);
+      blockResponse = true;
+    } else if (inputs.isEventPage && inputs.eventCommercialRisk) {
+      decision = "REFUSE";
+      reasons.push("Event page contains high-risk gambling/speculative content or unauthorized promotional structure.");
       blockResponse = true;
     }
 
@@ -158,7 +164,9 @@ export class SafetyGate {
         break;
 
       case "SAFE_GENERAL":
-        disclaimerText = "본 정보는 원료 및 성분에 대한 일반 정보이며 개별 피부 상태에 따라 반응이 다를 수 있습니다.";
+        disclaimerText = inputs.isEventPage 
+          ? "본 이벤트는 파트너사 책임 하에 진행되며, 혜택 및 유효기간은 사정에 따라 사전 고지 없이 변경될 수 있습니다."
+          : "본 정보는 원료 및 성분에 대한 일반 정보이며 개별 피부 상태에 따라 반응이 다를 수 있습니다.";
         break;
     }
 

@@ -130,6 +130,36 @@ export class JsonLdFactory {
         };
         break;
 
+      case 'Event':
+        payload = {
+          ...payload,
+          "@type": "Event",
+          "name": spec.title,
+          "description": spec.directAnswer,
+          "startDate": spec.structuredData?.payload?.startDate || spec.createdAt,
+          "endDate": spec.structuredData?.payload?.endDate || spec.validUntil || new Date(new Date(spec.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          "eventStatus": "https://schema.org/EventScheduled",
+          "eventAttendanceMode": "https://schema.org/OnlineEventAttendanceMode",
+          "location": {
+            "@type": "VirtualLocation",
+            "url": absoluteUrl
+          },
+          "offers": {
+            "@type": "Offer",
+            "url": absoluteUrl,
+            "price": "0",
+            "priceCurrency": "KRW",
+            "availability": "https://schema.org/InStock",
+            "validFrom": spec.createdAt
+          },
+          "organizer": {
+            "@type": "Organization",
+            "name": spec.tenantId || "BSW Verified Partner",
+            "url": domainUrl
+          }
+        };
+        break;
+
       default:
         // Default fallback to FAQPage
         payload = {
@@ -182,6 +212,13 @@ export class JsonLdFactory {
       const headline = jsonld.headline;
       if (headline !== title) {
         return { matches: false, reason: `Headline mismatch: headline is '${headline}' but title is '${title}'` };
+      }
+    }
+
+    if (jsonld["@type"] === 'Event') {
+      const name = jsonld.name;
+      if (name !== title) {
+        return { matches: false, reason: `Name mismatch: Event name is '${name}' but title is '${title}'` };
       }
     }
 

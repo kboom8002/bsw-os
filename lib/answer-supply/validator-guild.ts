@@ -50,6 +50,11 @@ export class ValidatorGuild {
     await this.validateLanguage(asset, issues);
     await this.validateHumanReviewGate(asset, mission, issues);
 
+    // Run EventPage specific validation if channel is allowed
+    if (mission.surfaceContract?.allowedChannels?.includes('event_page')) {
+      await this.validateEventPageRules(asset, mission, issues);
+    }
+
     const hasErrors = issues.some(issue => issue.type === 'error');
 
     return {
@@ -402,6 +407,63 @@ export class ValidatorGuild {
           details: { riskLevel: mission.question.riskLevel }
         });
       }
+    }
+  }
+
+  /**
+   * EventPage Specific Validation Rules (Phase 3)
+   * 1. Validity Period: validUntil is required and must be in the future.
+   * 2. Benefit Clarity: event variation or benefits payload must contain at least one clear benefit.
+   * 3. CTA Clarity: nextActions must contain a valid call-to-action link.
+   */
+  private async validateEventPageRules(asset: AnswerAssetSpec, mission: AnswerMission, issues: ValidationIssue[]): Promise<void> {
+    // 1. 유효 기간 검증
+    if (!asset.validUntil) {
+      issues.push({
+        validator: 'EventPageRules',
+        type: 'error',
+        message: 'Event pages require a valid expiration date (validUntil).',
+      });
+    } else {
+      const expiry = new Date(asset.validUntil);
+      if (expiry.getTime() < Date.now()) {
+        issues.push({
+          validator: 'EventPageRules',
+          type: 'error',
+          message: `Event has already expired on ${asset.validUntil}.`,
+        });
+      }
+    }
+
+    // 2. 혜택 명확성 검증
+    const eventVariation = asset.variations.find(v => v.channel === 'event_page');
+    const hasBenefitKeyword = eventVariation && (
+      eventVariation.body.includes('혜택') ||
+      eventVariation.body.includes('할인') ||
+      eventVariation.body.includes('서비스') ||
+      eventVariation.body.includes('제공') ||
+      eventVariation.body.includes('쿠폰') ||
+      eventVariation.body.includes('%') ||
+      eventVariation.body.includes('원')
+    );
+    
+    if (!eventVariation || eventVariation.body.trim().length < 20 || !hasBenefitKeyword) {
+      issues.push({
+        validator: 'EventPageRules',
+        type: 'warning',
+        message: 'Event page variation must clearly state promotional benefits (e.g. discount, gifts, coupons).',
+      });
+    }
+
+    // 3. 전환 콜투액션 검증
+    const hasCta = asset.nextActions && asset.nextActions.length > 0;
+    const primaryCta = asset.nextActions?.[0];
+    if (!hasCta || !primaryCta?.url || primaryCta.url.trim() === '') {
+      issues.push({
+        validator: 'EventPageRules',
+        type: 'error',
+        message: 'Event pages must have at least one valid Call-To-Action (CTA) link in nextActions.',
+      });
     }
   }
 }
