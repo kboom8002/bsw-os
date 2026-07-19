@@ -57,13 +57,15 @@ export class TcoAutoDiscoverer {
           frequency: stats.count,
           source_questions: Array.from(stats.questions),
           novelty,
-          confidence: Math.min(100, 50 + stats.count * 10)
+          // 빈도 + 질문 분포를 고려한 가중 신뢰도
+          confidence: Math.min(100, 40 + stats.count * 8 + stats.questions.size * 5)
         });
       }
     }
 
     // 빈도수 내림차순 정렬
-    return candidates.sort((a, b) => b.frequency - a.frequency).slice(0, 5);
+    // 상한 확장: 업종 보캐뷸러리 충분성을 위해 5→30개로 확대
+    return candidates.sort((a, b) => b.frequency - a.frequency).slice(0, 30);
   }
 
   /**

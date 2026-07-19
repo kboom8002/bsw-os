@@ -6,6 +6,8 @@
  * 각 브랜드마다 동일하게 치환하여 질문 세트를 생성합니다.
  */
 
+import { MeasurementProfile, MEASUREMENT_PROFILE_LAYERS } from './domain-config';
+
 export interface FairProbeTemplate {
   template_text: string;
   intent_context: string;
@@ -196,9 +198,11 @@ export function fairProbeSetBuilder(
   k: number = 2,
   isPlaceBrand: boolean = false,
   lang: 'ko' | 'en' = 'ko',
-  isKpop: boolean = false
+  isKpop: boolean = false,
+  measurementProfile: MeasurementProfile = 'full_audit'
 ): any[] {
   const selected: any[] = [];
+  const activeLayers = MEASUREMENT_PROFILE_LAYERS[measurementProfile];
   
   const defenseTemplates = isKpop 
     ? KPOP_BRAND_DEFENSE_TEMPLATES.filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN'))
@@ -211,136 +215,145 @@ export function fairProbeSetBuilder(
       ? PLACE_COMPETITIVE_TEMPLATES.filter(t => lang === 'en' ? t.intent_context.endsWith('_en') || t.intent_context.endsWith('_EN') : !t.intent_context.endsWith('_en') && !t.intent_context.endsWith('_EN')) 
       : COMPETITIVE_TEMPLATES;
 
-  const genericLayers = new Set(['L1_universal', 'L3_ingredient', 'L5_ymyl', 'L6_trend']);
-  const genericQuestions = allQuestions.filter(q => genericLayers.has(q.layer || 'unknown') || !q.layer);
   const hardcodedL7 = allQuestions.filter(q => q.layer === 'L7_brand' || q.layer === 'L4_practical');
   const hardcodedL2 = allQuestions.filter(q => q.layer === 'L2_competitive');
 
-  // 1. L7_brand & L4_practical
-  for (const brand of brands) {
-    const brandL7 = hardcodedL7.filter(q => 
-      (q.target_keyword && q.target_keyword.includes(brand.name)) || 
-      q.question_text.includes(brand.name)
-    );
-    
-    // First, use hardcoded L7 questions (up to k)
-    let usedK = 0;
-    for (const hcQ of brandL7) {
-      if (usedK >= k) break;
-      const cloned = { ...hcQ, target_brand: brand.name };
-      const zwsp = '​'.repeat(usedK);
-      cloned.question_text += zwsp;
-      selected.push(cloned);
-      usedK++;
-    }
-
-    // If still need more to reach k, fallback to templates
-    if (usedK < k) {
-      for (const template of defenseTemplates) {
+  // 1. L7_brand & L4_practical (only if profile activeLayers contains them)
+  if (activeLayers.has('L7_brand') || activeLayers.has('L4_journey')) {
+    for (const brand of brands) {
+      const brandL7 = hardcodedL7.filter(q => 
+        (q.target_keyword && q.target_keyword.includes(brand.name)) || 
+        q.question_text.includes(brand.name)
+      );
+      
+      // First, use hardcoded L7 questions (up to k)
+      let usedK = 0;
+      for (const hcQ of brandL7) {
         if (usedK >= k) break;
-        const cloned = {
-          question_text: template.template_text.replace(/{brand}/g, brand.name),
-          target_keyword: brand.name,
-          must_include: template.must_include_templates.map(t => t.replace(/{brand}/g, brand.name)),
-          should_include: template.should_include_templates.map(t => t.replace(/{brand}/g, brand.name)),
-          must_not_do: template.must_not_do,
-          layer: template.layer,
-          intent_context: template.intent_context,
-          risk_level: template.risk_level,
-          decision_stage: template.decision_stage,
-          question_type: template.question_type,
-          weight: template.weight,
-          target_brand: brand.name
-        };
+        const cloned = { ...hcQ, target_brand: brand.name };
         const zwsp = '​'.repeat(usedK);
         cloned.question_text += zwsp;
         selected.push(cloned);
         usedK++;
       }
+
+      // If still need more to reach k, fallback to templates
+      if (usedK < k) {
+        for (const template of defenseTemplates) {
+          if (usedK >= k) break;
+          // check if template's layer is active in the profile
+          if (template.layer && !activeLayers.has(template.layer === 'L4_practical' ? 'L4_journey' : template.layer)) continue;
+          const cloned = {
+            question_text: template.template_text.replace(/{brand}/g, brand.name),
+            target_keyword: brand.name,
+            must_include: template.must_include_templates.map(t => t.replace(/{brand}/g, brand.name)),
+            should_include: template.should_include_templates.map(t => t.replace(/{brand}/g, brand.name)),
+            must_not_do: template.must_not_do,
+            layer: template.layer,
+            intent_context: template.intent_context,
+            risk_level: template.risk_level,
+            decision_stage: template.decision_stage,
+            question_type: template.question_type,
+            weight: template.weight,
+            target_brand: brand.name
+          };
+          const zwsp = '​'.repeat(usedK);
+          cloned.question_text += zwsp;
+          selected.push(cloned);
+          usedK++;
+        }
+      }
     }
   }
 
-  // 2. L2_competitive
-  for (const brand of brands) {
-    let randomCompetitor = '타 브랜드';
-    if (isPlaceBrand && brand.comparative_pairs && brand.comparative_pairs.length > 0) {
-       const competitorSlug = brand.comparative_pairs[Math.floor(Math.random() * brand.comparative_pairs.length)];
-       const compBrand = brands.find(b => b.slug === competitorSlug);
-       if (compBrand) randomCompetitor = compBrand.name;
-    } else {
-       const competitors = brands.filter(b => b.name !== brand.name);
-       if (competitors.length > 0) {
-         randomCompetitor = competitors[Math.floor(Math.random() * competitors.length)].name;
-       }
-    }
-
-    const brandL2 = hardcodedL2.filter(q => 
-      ((q.target_keyword && q.target_keyword.includes(brand.name)) || q.question_text.includes(brand.name)) &&
-      (q.question_text.includes(randomCompetitor))
-    );
-
-    let usedK = 0;
-    // First, use hardcoded L2 questions matching brand and competitor
-    for (const hcQ of brandL2) {
-      if (usedK >= k) break;
-      const cloned = { ...hcQ, target_brand: brand.name, target_competitor: randomCompetitor };
-      const zwsp = '​'.repeat(usedK);
-      cloned.question_text += zwsp;
-      selected.push(cloned);
-      usedK++;
-    }
-    // If we didn't find enough exact match, try any hardcoded L2 for this brand
-    if (usedK < k) {
-       const brandL2Any = hardcodedL2.filter(q => 
-         !brandL2.includes(q) &&
-         ((q.target_keyword && q.target_keyword.includes(brand.name)) || q.question_text.includes(brand.name))
-       );
-       for (const hcQ of brandL2Any) {
-         if (usedK >= k) break;
-         // Try to extract the other brand from the question text (simple heuristic: any other brand name)
-         let matchedComp = randomCompetitor;
-         for (const otherBrand of brands) {
-            if (otherBrand.name !== brand.name && hcQ.question_text.includes(otherBrand.name)) {
-               matchedComp = otherBrand.name;
-               break;
-            }
+  // 2. L2_competitive (only if profile activeLayers contains L2_competitive)
+  if (activeLayers.has('L2_competitive')) {
+    for (const brand of brands) {
+      let randomCompetitor = '타 브랜드';
+      if (isPlaceBrand && brand.comparative_pairs && brand.comparative_pairs.length > 0) {
+         const competitorSlug = brand.comparative_pairs[Math.floor(Math.random() * brand.comparative_pairs.length)];
+         const compBrand = brands.find(b => b.slug === competitorSlug);
+         if (compBrand) randomCompetitor = compBrand.name;
+      } else {
+         const competitors = brands.filter(b => b.name !== brand.name);
+         if (competitors.length > 0) {
+           randomCompetitor = competitors[Math.floor(Math.random() * competitors.length)].name;
          }
-         const cloned = { ...hcQ, target_brand: brand.name, target_competitor: matchedComp };
-         const zwsp = '​'.repeat(usedK);
-         cloned.question_text += zwsp;
-         selected.push(cloned);
-         usedK++;
-       }
-    }
+      }
 
-    // Fallback to templates
-    if (usedK < k) {
-      for (const template of competitiveTemplates) {
+      const brandL2 = hardcodedL2.filter(q => 
+        ((q.target_keyword && q.target_keyword.includes(brand.name)) || q.question_text.includes(brand.name)) &&
+        (q.question_text.includes(randomCompetitor))
+      );
+
+      let usedK = 0;
+      // First, use hardcoded L2 questions matching brand and competitor
+      for (const hcQ of brandL2) {
         if (usedK >= k) break;
-        const cloned = {
-          question_text: template.template_text.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor),
-          target_keyword: brand.name,
-          must_include: template.must_include_templates.map(t => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor)),
-          should_include: template.should_include_templates.map(t => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor)),
-          must_not_do: template.must_not_do,
-          layer: template.layer,
-          intent_context: template.intent_context,
-          risk_level: template.risk_level,
-          decision_stage: template.decision_stage,
-          question_type: template.question_type,
-          weight: template.weight,
-          target_brand: brand.name,
-          target_competitor: randomCompetitor
-        };
+        const cloned = { ...hcQ, target_brand: brand.name, target_competitor: randomCompetitor };
         const zwsp = '​'.repeat(usedK);
         cloned.question_text += zwsp;
         selected.push(cloned);
         usedK++;
       }
+      // If we didn't find enough exact match, try any hardcoded L2 for this brand
+      if (usedK < k) {
+         const brandL2Any = hardcodedL2.filter(q => 
+           !brandL2.includes(q) &&
+           ((q.target_keyword && q.target_keyword.includes(brand.name)) || q.question_text.includes(brand.name))
+         );
+         for (const hcQ of brandL2Any) {
+           if (usedK >= k) break;
+           // Try to extract the other brand from the question text (simple heuristic: any other brand name)
+           let matchedComp = randomCompetitor;
+           for (const otherBrand of brands) {
+              if (otherBrand.name !== brand.name && hcQ.question_text.includes(otherBrand.name)) {
+                 matchedComp = otherBrand.name;
+                 break;
+              }
+           }
+           const cloned = { ...hcQ, target_brand: brand.name, target_competitor: matchedComp };
+           const zwsp = '​'.repeat(usedK);
+           cloned.question_text += zwsp;
+           selected.push(cloned);
+           usedK++;
+         }
+      }
+
+      // Fallback to templates
+      if (usedK < k) {
+        for (const template of competitiveTemplates) {
+          if (usedK >= k) break;
+          const cloned = {
+            question_text: template.template_text.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor),
+            target_keyword: brand.name,
+            must_include: template.must_include_templates.map(t => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor)),
+            should_include: template.should_include_templates.map(t => t.replace(/{brand}/g, brand.name).replace(/{competitor}/g, randomCompetitor)),
+            must_not_do: template.must_not_do,
+            layer: template.layer,
+            intent_context: template.intent_context,
+            risk_level: template.risk_level,
+            decision_stage: template.decision_stage,
+            question_type: template.question_type,
+            weight: template.weight,
+            target_brand: brand.name,
+            target_competitor: randomCompetitor
+          };
+          const zwsp = '​'.repeat(usedK);
+          cloned.question_text += zwsp;
+          selected.push(cloned);
+          usedK++;
+        }
+      }
     }
   }
 
-  // 3. Generic Questions 
+  // 3. Generic Questions (filtering dynamically based on activeLayers)
+  const genericQuestions = allQuestions.filter(q => {
+    const layer = q.layer || 'L1_universal';
+    return activeLayers.has(layer);
+  });
+
   const shuffledGeneric = [...genericQuestions].sort(() => Math.random() - 0.5);
   for (let i = 0; i < Math.min(genericCount, shuffledGeneric.length); i++) {
     selected.push(shuffledGeneric[i]);

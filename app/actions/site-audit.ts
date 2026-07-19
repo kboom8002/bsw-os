@@ -494,6 +494,7 @@ async function runFullSiteAuditBackground(
 
     // ── Step 10: Entity Reflection (AI API calls — most likely to fail) ──
     let snapshot: EntityReflectionSnapshot | null = quickResult?.snapshot || null;
+    const quickSnapshot = quickResult?.snapshot || null; // Quick 추정값 보존
     let reflectionDetails: any[] = [];
     let rawResponses: string[] = [];
     if (customProbes.length > 0) {
@@ -511,6 +512,21 @@ async function runFullSiteAuditBackground(
         reflectionDetails = reflectionResult.reflectionDetails;
         rawResponses = reflectionResult.rawResponses;
         hasReflection = true;
+
+        // Measured ERR이 0%인 차원에 Quick 추정값을 하한선(floor)으로 적용
+        if (quickSnapshot && snapshot) {
+          const errKeys = ['err_factoid', 'err_procedural', 'err_comparative', 'err_authority', 'err_schema', 'err_topical', 'err_geo'] as const;
+          for (const key of errKeys) {
+            const measured = (snapshot as any)[key] ?? 0;
+            const estimated = (quickSnapshot as any)[key] ?? 0;
+            // Measured가 0이고 Quick 추정값이 있으면, 추정값의 60%를 하한으로 사용
+            if (measured === 0 && estimated > 0) {
+              (snapshot as any)[key] = Math.round(estimated * 0.6);
+            }
+          }
+          console.log(`[Audit] Step 10: ERR floor merge applied from quick estimates`);
+        }
+
         console.log(`[Audit] Step 10 OK: Reflection metrics captured`);
       } catch (e: any) {
         console.warn(`[Audit] Step 10 FAIL (reflection): ${e.message}. Using quick estimates.`);
@@ -523,15 +539,20 @@ async function runFullSiteAuditBackground(
       snapshot.eeat_mod_score = contentSemantic.eeat.overall;
     }
 
-    // ── Step 11: AEPI Score ──
-    if (snapshot && hasReflection) {
+    // ── Step 11: AEPI Score (항상 계산 — Quick 추정치라도 반영) ──
+    if (snapshot) {
       try {
         await updateProgress(sessionId, 11, 14, '종합 AEPI 가시성 지수 산출 중...');
         const aepi = AepiCalculator.calculate(snapshot, detectedIndustry);
         snapshot.aepi_score = aepi;
-        console.log(`[Audit] Step 11 OK: AEPI = ${aepi}`);
+        console.log(`[Audit] Step 11 OK: AEPI = ${aepi} (hasReflection=${hasReflection})`);
       } catch (e: any) {
         console.warn(`[Audit] Step 11 FAIL (AEPI): ${e.message}.`);
+        // 폴백: L1+L2+L3 평균으로 최소 AEPI 보정
+        const l1 = techInfra?.techInfraScore ?? 50;
+        const l2 = schemaQuality?.schemaQualityScore ?? 50;
+        const l3 = contentSemantic?.contentSemanticScore ?? 50;
+        snapshot.aepi_score = Math.round((l1 * 0.3 + l2 * 0.35 + l3 * 0.35) * 0.6);
       }
     }
 

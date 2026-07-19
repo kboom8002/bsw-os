@@ -162,9 +162,8 @@ export async function GET(request: NextRequest) {
           .select('raw_text, industry, hub_axis, place_slug, vortex_slug, geo_context, predicted_impact')
           .order('created_at', { ascending: false })
           .limit(100);
-
         // raw_text 기반으로 가장 가까운 신호 매칭
-        const enrichedQuestions = questions.map(q => {
+        const enrichedQuestions = await Promise.all(questions.map(async q => {
           const matchingSignal = (recentSignals || []).find(
             s => s.raw_text && q.question_text.includes(s.raw_text.slice(0, 20))
           );
@@ -179,7 +178,7 @@ export async function GET(request: NextRequest) {
             detected_at: new Date().toISOString(),
           };
           return enrichPredictionWithAxis(q, syntheticSignal as any);
-        });
+        }));
 
         // 3축 그룹별로 Hub에 Push
         const triAxis = buildTriAxisPayload(enrichedQuestions);

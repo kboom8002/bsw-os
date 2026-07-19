@@ -182,7 +182,7 @@ export default function SignalsPage() {
         source_type: newSourceType,
         identifier: newSourceIdentifier.toUpperCase().trim() || 'CUSTOM',
         enabled: true,
-        industry: keywordSeed === "웨딩" ? "wedding" : "beauty"
+        industry: keywordSeed
       });
       // Reset inputs
       setNewSourceName("");
@@ -219,7 +219,7 @@ export default function SignalsPage() {
     if (!wsId) return;
     setSyncingSourceId(id);
     try {
-      const res = await triggerCollectionAction(wsId, id, [keywordSeed]);
+      const res = await triggerCollectionAction(wsId, id, undefined, keywordSeed);
       alert(`수집 완료! 새로 수집된 시그널: ${res.fetchedCount}건`);
       await Promise.all([
         loadCollectionData(wsId),
@@ -236,7 +236,7 @@ export default function SignalsPage() {
     if (!wsId) return;
     setSyncingAll(true);
     try {
-      const res = await triggerAllCollectionsAction(wsId, [keywordSeed]);
+      const res = await triggerAllCollectionsAction(wsId, undefined, keywordSeed);
       alert(`전체 수집 완료! 총 ${res.totalFetched}건의 새로운 시그널이 적재되었습니다.`);
       await Promise.all([
         loadCollectionData(wsId),
@@ -252,20 +252,20 @@ export default function SignalsPage() {
 
   const handleRunAgent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!wsId || !keywordSeed.trim() || !brandName.trim()) return;
+    if (!wsId || !keywordSeed.trim()) return;
 
     setRunningAgent(true);
     setAgentSuccess(false);
     setAgentLogs([
       "[System] Booting Upstream LLM-Native Pipeline...",
-      `[Phase 1] Meta-Question analysis for ${keywordSeed} and ${brandName}...`,
+      `[Phase 1] Meta-Question analysis for ${keywordSeed}${brandName ? ` and ${brandName}` : ''}...`,
       "[Phase 2] Exploratory chain deepening...",
       "[Phase 3] Recursive tree expansion...",
       "[Phase 4] LLM Automatic Evaluation & Clustering..."
     ]);
 
     try {
-      const result = await runUpstreamPipeline(wsId, keywordSeed, brandName);
+      const result = await runUpstreamPipeline(wsId, keywordSeed, brandName || undefined);
 
       setAgentLogs(prev => [
         ...prev, 
@@ -442,8 +442,7 @@ export default function SignalsPage() {
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-sm font-mono"
-                  placeholder="e.g. DR.O"
-                  required
+                  placeholder="선택 — 비우면 업종 전체 시그널 발굴"
                 />
               </div>
             </div>

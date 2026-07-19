@@ -139,21 +139,112 @@ const INITIAL_SOURCES: CollectionSource[] = [
   },
   {
     id: "cs-jeju-3",
-    name: "제주특별자치도 공식블로그 RSS",
-    url: "https://blog.naver.com/PostListByTagName.naver?blogId=happyjejudo&tagName=제주맛집",
+    name: "제주관광공사 공식 RSS (Visit Jeju)",
+    url: "https://www.visitjeju.net/rss/experience",
     source_type: "rss",
-    identifier: "JEJU_GOV_BLOG",
+    identifier: "JEJU_VISITJEJU_RSS",
     enabled: true,
     industry: "jeju_smb"
   },
   {
     id: "cs-jeju-4",
-    name: "네이버 카페 검색 (제주 카페)",
+    name: "네이버 블로그 검색 (제주 맛집/카페)",
     url: "https://openapi.naver.com/v1/search/blog.json",
     source_type: "api",
-    identifier: "NAVER_NEWS",
+    identifier: "NAVER_BLOG",
     enabled: true,
     industry: "jeju_smb"
+  },
+  {
+    id: "cs-jeju-5",
+    name: "당근마켓 동네생활 (제주)",
+    url: "https://www.daangn.com/region/제주특별자치도",
+    source_type: "crawl",
+    identifier: "DAANGN_JEJU",
+    enabled: true,
+    industry: "jeju_smb"
+  },
+  {
+    id: "cs-jeju-6",
+    name: "디시인사이드 제주도 갤러리",
+    url: "https://gall.dcinside.com/board/lists/?id=jeju",
+    source_type: "crawl",
+    identifier: "DC_JEJU",
+    enabled: true,
+    industry: "jeju_smb"
+  },
+  {
+    id: "cs-beauty-8",
+    name: "올리브영 온라인몰 리뷰",
+    url: "https://www.oliveyoung.co.kr/",
+    source_type: "crawl",
+    identifier: "OLIVEYOUNG",
+    enabled: true,
+    industry: "beauty"
+  },
+  {
+    id: "cs-beauty-9",
+    name: "Reddit r/SkincareAddiction",
+    url: "https://www.reddit.com/r/SkincareAddiction/",
+    source_type: "crawl",
+    identifier: "REDDIT_SKINCARE",
+    enabled: true,
+    industry: "beauty"
+  },
+  // ── 공통 실측 및 VOC 연동 소스 ──
+  {
+    id: "cs-common-gsc",
+    name: "Google Search Console 실측 쿼리",
+    url: "https://www.googleapis.com/webmasters/v3/sites",
+    source_type: "api",
+    identifier: "GOOGLE_SEARCH_CONSOLE",
+    enabled: true,
+    industry: "beauty"
+  },
+  {
+    id: "cs-common-naver-sa",
+    name: "네이버 웹마스터도구 실측 쿼리",
+    url: "https://openapi.naver.com/v1/searchadvisor",
+    source_type: "api",
+    identifier: "NAVER_SEARCH_ADVISOR",
+    enabled: true,
+    industry: "beauty"
+  },
+  {
+    id: "cs-common-voc-search",
+    name: "내부 검색어 로그 VOC",
+    url: null,
+    source_type: "api",
+    identifier: "VOC_SITE_SEARCH",
+    enabled: true,
+    industry: "beauty"
+  },
+  {
+    id: "cs-common-voc-chat",
+    name: "AI 가이드 대화 VOC",
+    url: null,
+    source_type: "api",
+    identifier: "VOC_AI_GUIDE",
+    enabled: true,
+    industry: "beauty"
+  },
+  {
+    id: "cs-common-voc-inquiry",
+    name: "고객 문의 내역 VOC",
+    url: null,
+    source_type: "api",
+    identifier: "VOC_INQUIRY",
+    enabled: true,
+    industry: "beauty"
+  },
+  {
+    id: "cs-common-voc-review",
+    name: "사용자 후기 및 리뷰 VOC",
+    url: null,
+    source_type: "api",
+    identifier: "VOC_REVIEW",
+    enabled: true,
+    industry: "beauty"
   }
 ];
 

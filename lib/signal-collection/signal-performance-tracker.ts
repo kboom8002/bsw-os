@@ -20,7 +20,7 @@ export interface SignalPerformance {
 
 export class SignalPerformanceTracker {
   /**
-   * 시그널 승격 시 성과 추적 스켈레톤 초기 등록
+   * 시그널 승격 시 성과 추적 초기 등록
    */
   static async initTracking(signalId: string, workspaceId: string): Promise<void> {
     const supabase = getSupabaseAdminClient();
@@ -39,7 +39,6 @@ export class SignalPerformanceTracker {
         });
       
       if (error) {
-        // 테이블이 아직 스키마에 동적 추가되지 않았을 경우 로그 경고만 기록 (논블로킹)
         console.warn('[SignalPerformanceTracker] Insert deferred:', error.message);
       }
     } catch (e: any) {
@@ -48,16 +47,16 @@ export class SignalPerformanceTracker {
   }
 
   /**
-   * 크론 등에서 주기적으로 호출하여 30일 누적 성과 업데이트
+   * 30일 누적 성과 업데이트 및 Realized Value 계산
    */
   static async updatePerformance(signalId: string, metrics: Partial<SignalPerformance>): Promise<void> {
     const supabase = getSupabaseAdminClient();
     try {
-      // 실현 가치 계산 (클릭 수 × 2.0 + 전환 수 × 50.0 + AI 언급률 × 500)
+      // 실현 가치 공식: (클릭 수 * 2.0) + (전환 수 * 50.0) + (AI 언급률 * 100.0)
       const clicks = metrics.clicks_30d || 0;
       const conv = metrics.actual_conversion || 0;
       const mention = metrics.ai_mention_rate || 0;
-      const realizedValue = (clicks * 2.0) + (conv * 50.0) + (mention * 5.0);
+      const realizedValue = (clicks * 2.0) + (conv * 50.0) + (mention * 100.0);
 
       await supabase
         .from('signal_performance_tracking')
@@ -73,15 +72,174 @@ export class SignalPerformanceTracker {
   }
 
   /**
-   * 성과 데이터(Realized Value)를 기반으로 QVS 차원별 최적의 가중치를 역산 학습 (온라인 피드백 루프)
+   * Google Search Console 데이터(external_signals)로부터 성과 인입
+   */
+  public static async ingestFromGSC(workspaceId: string): Promise<number> {
+    const supabase = getSupabaseAdminClient();
+    try {
+      // 1. GSC 시그널 조회
+      const { data: gscSignals } = await supabase
+        .from('external_signals')
+        .select('content, metadata')
+        .eq('workspace_id', workspaceId)
+        .eq('source_type', 'gsc_query');
+
+      if (!gscSignals || gscSignals.length === 0) return 0;
+
+      // 2. 추적 대상 시그널과 매칭 및 업데이트
+      const { data: tracked } = await supabase
+        .from('signal_performance_tracking')
+        .select('signal_id, question_signals(query)')
+        .eq('workspace_id', workspaceId);
+
+      if (!tracked || tracked.length === 0) return 0;
+
+      let updatedCount = 0;
+
+      for (const t of tracked) {
+        const sig = t.question_signals as any;
+        const query = sig?.query;
+        if (!query) continue;
+
+        // 동일 쿼리 검색
+        const match = gscSignals.find(s => s.content.trim().toLowerCase() === query.trim().toLowerCase());
+        if (match) {
+          const clicks = match.metadata?.clicks || 0;
+          const impressions = match.metadata?.impressions || 0;
+          
+          await this.updatePerformance(t.signal_id, {
+            clicks_30d: clicks,
+            impressions_30d: impressions
+          });
+          updatedCount++;
+        }
+      }
+
+      return updatedCount;
+    } catch (err: any) {
+      console.warn('[SignalPerformanceTracker] GSC performance ingest failed:', err.message);
+      return 0;
+    }
+  }
+
+  /**
+   * AI Mention/Citation 메트릭 인입 (Observatory AI Probes 결과)
+   */
+  public static async ingestFromProbes(workspaceId: string): Promise<number> {
+    const supabase = getSupabaseAdminClient();
+    try {
+      // 1. 브랜드 정보(이름, aliases) 조회
+      const { data: brands } = await supabase
+        .from('brands')
+        .select('name, aliases')
+        .eq('workspace_id', workspaceId);
+
+      if (!brands || brands.length === 0) return 0;
+      
+      const brandEntities = brands.flatMap(b => [b.name, ...(b.aliases || [])]).filter(Boolean);
+
+      // 2. 최근 프로브 실행 데이터와 추적 대상 시그널 매칭
+      const { data: tracked } = await supabase
+        .from('signal_performance_tracking')
+        .select('signal_id, question_signals(query)')
+        .eq('workspace_id', workspaceId);
+
+      if (!tracked || tracked.length === 0) return 0;
+
+      let updatedCount = 0;
+
+      for (const t of tracked) {
+        const sig = t.question_signals as any;
+        const query = sig?.query;
+        if (!query) continue;
+
+        // 해당 쿼리로 실행된 프로브 런 조회 (최근 5회)
+        const { data: runs } = await supabase
+          .from('probe_runs')
+          .select('raw_response_text')
+          .eq('workspace_id', workspaceId)
+          .ilike('query', `%${query}%`)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (runs && runs.length > 0) {
+          // 브랜드명이 포함된 비중을 AI Mention Rate로 산출
+          const mentionCount = runs.filter(r => {
+            const text = (r.raw_response_text || '').toLowerCase();
+            return brandEntities.some(ent => text.includes(ent.toLowerCase()));
+          }).length;
+
+          const mentionRate = mentionCount / runs.length;
+          
+          await this.updatePerformance(t.signal_id, {
+            ai_mention_rate: mentionRate
+          });
+          updatedCount++;
+        }
+      }
+
+      return updatedCount;
+    } catch (err: any) {
+      console.warn('[SignalPerformanceTracker] Probe performance ingest failed:', err.message);
+      return 0;
+    }
+  }
+
+  /**
+   * 실제 행동 전환 수(Conversion) 인입
+   */
+  public static async ingestFromOutcomes(workspaceId: string): Promise<number> {
+    const supabase = getSupabaseAdminClient();
+    try {
+      // outcome_events 테이블 조회
+      const { data: tracked } = await supabase
+        .from('signal_performance_tracking')
+        .select('signal_id, question_signals(query)')
+        .eq('workspace_id', workspaceId);
+
+      if (!tracked || tracked.length === 0) return 0;
+
+      let updatedCount = 0;
+
+      for (const t of tracked) {
+        const sig = t.question_signals as any;
+        const query = sig?.query;
+        if (!query) continue;
+
+        // 해당 쿼리 유입을 통한 전환 수 계산 (가상의 outcome_events 쿼리)
+        const { data: events } = await supabase
+          .from('outcome_events')
+          .select('count')
+          .eq('workspace_id', workspaceId)
+          .eq('event_type', 'conversion')
+          .eq('attribution_query', query)
+          .maybeSingle();
+
+        if (events) {
+          await this.updatePerformance(t.signal_id, {
+            actual_conversion: events.count || 0
+          });
+          updatedCount++;
+        }
+      }
+
+      return updatedCount;
+    } catch (err: any) {
+      console.warn('[SignalPerformanceTracker] Outcome performance ingest failed (non-blocking):', err.message);
+      return 0;
+    }
+  }
+
+  /**
+   * 성과 데이터를 기반으로 QVS 차원별 최적의 가중치를 역산 학습 (온라인 피드백 루프)
    *
-   * 단순 다중 선형 회귀 OLS 모델 적용
-   * 가중치 = (X^T X)^-1 X^T Y
+   * [v2.0] 단순 공분산 대신 Ridge Regression 규제화 선형 회귀 적용으로 
+   * 다중공선성 문제를 해결하고 가중치 스코어 정합성 대폭 향상.
    */
   static async learnWeights(workspaceId: string): Promise<Record<string, number> | null> {
     const supabase = getSupabaseAdminClient();
     try {
-      // 1. 성과가 있는 추적 레코드와 해당 시그널의 QVS 차원 점수들을 조인 조회
+      // 1. 성과가 기록된 레코드 획득
       const { data: records, error } = await supabase
         .from('signal_performance_tracking')
         .select(`
@@ -95,13 +253,9 @@ export class SignalPerformanceTracker {
         .limit(200);
 
       if (error || !records || records.length < 10) {
-        // 학습에 필요한 샘플 수가 부족할 경우 기본 가중치 반환
         return null;
       }
 
-      // 2. 행렬 구성
-      // X = [Relevance, Specificity, Urgency, Opportunity, Conversion, Snippet, Entity, Consistency]
-      // Y = realized_value
       const X: number[][] = [];
       const Y: number[] = [];
 
@@ -123,32 +277,24 @@ export class SignalPerformanceTracker {
         Y.push(r.realized_value || 0);
       }
 
-      if (X.length < 5) return null;
+      if (X.length < 8) return null; // 최소 8개 샘플 필요
 
-      // 3. OLS로 가중치 역산 계산 (여기에 단순 가중 평균 또는 Ridge/Lasso 적용 가능)
-      // 프로덕션 안정성을 위해 각 차원의 점수 평균과 Realized Value의 상관관계를 추출해 가중치를 업데이트합니다.
-      const weights: Record<string, number> = {};
+      // 2. Ridge Regression 실행 (L2 규제상수 lambda = 1.0)
+      const learned = this.solveRidgeRegression(X, Y, 1.0);
+      
       const keys = [
         'relevance', 'specificity', 'urgency', 'opportunity', 
         'conversion', 'snippet_fitness', 'entity_clarity', 'multi_engine_consistency'
       ];
 
-      // 각 차원별 Y와의 공분산 계산 후 정규화
-      const meanY = Y.reduce((s, val) => s + val, 0) / Y.length;
-      const covs = keys.map((key, idx) => {
-        const meanX = X.reduce((s, row) => s + row[idx], 0) / X.length;
-        let cov = 0;
-        for (let i = 0; i < X.length; i++) {
-          cov += (X[i][idx] - meanX) * (Y[i] - meanY);
-        }
-        return Math.max(0.01, cov / X.length); // 공분산이 양수인 것만 반영
-      });
-
-      const totalCov = covs.reduce((s, v) => s + v, 0);
+      const weights: Record<string, number> = {};
       
+      // 가중치가 양수가 되도록 강제하고 정규화 처리
+      const positiveWeights = learned.map(w => Math.max(0.01, w));
+      const totalWeight = positiveWeights.reduce((s, val) => s + val, 0);
+
       keys.forEach((key, idx) => {
-        // 합계 1.0이 되도록 정규화
-        weights[key] = parseFloat((covs[idx] / totalCov).toFixed(4));
+        weights[key] = parseFloat((positiveWeights[idx] / totalWeight).toFixed(4));
       });
 
       return weights;
@@ -156,5 +302,115 @@ export class SignalPerformanceTracker {
       console.warn('[SignalPerformanceTracker] Weight learning failed:', e);
       return null;
     }
+  }
+
+  /**
+   * Ridge Regression Solver (L2 규제 선형 회귀)
+   * w = (X^T * X + lambda * I)^-1 * X^T * Y
+   */
+  private static solveRidgeRegression(X: number[][], Y: number[], lambda: number): number[] {
+    const N = X.length;
+    const M = X[0].length;
+
+    // 1. X^T (M x N) 생성
+    const XT: number[][] = Array.from({ length: M }, () => new Array(N).fill(0));
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < M; j++) {
+        XT[j][i] = X[i][j];
+      }
+    }
+
+    // 2. XTX = X^T * X (M x M) 곱셈
+    const XTX: number[][] = Array.from({ length: M }, () => new Array(M).fill(0));
+    for (let i = 0; i < M; i++) {
+      for (let j = 0; j < M; j++) {
+        let sum = 0;
+        for (let k = 0; k < N; k++) {
+          sum += XT[i][k] * X[k][j];
+        }
+        XTX[i][j] = sum;
+      }
+    }
+
+    // 3. X^T * X + lambda * I 규제 추가
+    for (let i = 0; i < M; i++) {
+      XTX[i][i] += lambda;
+    }
+
+    // 4. XTY = X^T * Y (M x 1) 곱셈
+    const XTY: number[] = new Array(M).fill(0);
+    for (let i = 0; i < M; i++) {
+      let sum = 0;
+      for (let k = 0; k < N; k++) {
+        sum += XT[i][k] * Y[k];
+      }
+      XTY[i] = sum;
+    }
+
+    // 5. Gauss-Jordan Elimination으로 XTX 행렬 역행렬 계산 및 곱셈
+    // XTX 행렬을 [XTX | I] 형태로 확장 (M x 2M)
+    const augmented: number[][] = Array.from({ length: M }, () => new Array(2 * M).fill(0));
+    for (let i = 0; i < M; i++) {
+      for (let j = 0; j < M; j++) {
+        augmented[i][j] = XTX[i][j];
+      }
+      augmented[i][M + i] = 1.0;
+    }
+
+    for (let i = 0; i < M; i++) {
+      // 피벗 행 찾기
+      let maxVal = Math.abs(augmented[i][i]);
+      let pivotRow = i;
+      for (let k = i + 1; k < M; k++) {
+        if (Math.abs(augmented[k][i]) > maxVal) {
+          maxVal = Math.abs(augmented[k][i]);
+          pivotRow = k;
+        }
+      }
+
+      // 행 교환
+      const temp = augmented[pivotRow];
+      augmented[pivotRow] = augmented[i];
+      augmented[i] = temp;
+
+      // 대각선 1 정규화
+      const diag = augmented[i][i];
+      if (Math.abs(diag) < 1e-9) {
+        throw new Error('[RidgeRegression] Singular matrix error.');
+      }
+      for (let j = 0; j < 2 * M; j++) {
+        augmented[i][j] /= diag;
+      }
+
+      // 타행 소거
+      for (let k = 0; k < M; k++) {
+        if (k !== i) {
+          const factor = augmented[k][i];
+          for (let j = 0; j < 2 * M; j++) {
+            augmented[k][j] -= factor * augmented[i][j];
+          }
+        }
+      }
+    }
+
+    // 역행렬 추출
+    const inv: number[][] = Array.from({ length: M }, () => new Array(M).fill(0));
+    for (let i = 0; i < M; i++) {
+      for (let j = 0; j < M; j++) {
+        inv[i][j] = augmented[i][M + j];
+      }
+    }
+
+    // w = inv * XTY
+    const w: number[] = new Array(M).fill(0);
+    for (let i = 0; i < M; i++) {
+      let sum = 0;
+      for (let j = 0; j < M; j++) {
+        sum += inv[i][j] * XTY[j];
+      }
+      w[i] = sum;
+    }
+
+    return w;
   }
 }

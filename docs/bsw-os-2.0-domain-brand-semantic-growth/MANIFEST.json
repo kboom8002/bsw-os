@@ -1,0 +1,60 @@
+{
+  "package": "BSW-OS 2.0 Domain-Brand Semantic Growth OS",
+  "version": "2.0-rc1",
+  "files": [
+    {
+      "name": "00_INDEX.md",
+      "bytes": 1576,
+      "lines": 38,
+      "sha256": "f262274656e6f2251c254b51bda73e729c2c5c510046164b252e892750e3de5a"
+    },
+    {
+      "name": "01_BSW_OS_2.0_METHODOLOGY.md",
+      "bytes": 9256,
+      "lines": 474,
+      "sha256": "b8e413deab2026f1cd953c969514ea5dd07b0013fa734633bfbcf633c54b2310"
+    },
+    {
+      "name": "02_BSW_OS_2.0_PRD.md",
+      "bytes": 6785,
+      "lines": 365,
+      "sha256": "d1022e5caebf76c344e7cfadd7679569d203c31c2d888cd2f3fe2a278444f955"
+    },
+    {
+      "name": "03_BSW_OS_2.0_SDD.md",
+      "bytes": 10030,
+      "lines": 558,
+      "sha256": "1eedbd1903399826a7d766c5bcf891fc805a5411412654de0fc1ae399080ffa3"
+    },
+    {
+      "name": "04_DOMAIN_PACK_STANDARD.md",
+      "bytes": 2023,
+      "lines": 141,
+      "sha256": "57e36c5b4c7162a363f814c00f07d4865724e987375f689854cb65bfaf8dddd2"
+    },
+    {
+      "name": "05_QUESTION_GRAPH_AND_OPPORTUNITY_ENGINE.md",
+      "bytes": 2650,
+      "lines": 199,
+      "sha256": "9f2bfd8c10c575201444de18d94a462efbd937b2148dedd0838bdb559a613f68"
+    },
+    {
+      "name": "06_AGENT_FAMILY_AND_ARTICLE_WORK_OS_BRIDGE.md",
+      "bytes": 1915,
+      "lines": 117,
+      "sha256": "857ddd1003ddd7364a5b0946b3d85342e6667840fb805a5668a0fc61d8fbce75"
+    },
+    {
+      "name": "07_REFERENCE_PACK_JEJU_SKINCARE.md",
+      "bytes": 2695,
+      "lines": 164,
+      "sha256": "a4ce66bd33f6d85073531b0de024e79becaf5a747301922d4ef750d7c873b77a"
+    },
+    {
+      "name": "08_IMPLEMENTATION_ROADMAP_AND_GATE.md",
+      "bytes": 2809,
+      "lines": 221,
+      "sha256": "510596031c04e35e298094ca6d58f27e9131609cd66cc8061b43c59997a934a5"
+    }
+  ]
+}

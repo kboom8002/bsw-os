@@ -288,7 +288,8 @@ class OpenAIProvider implements AIProvider {
     if (!this.apiKey) {
       console.warn("WARNING: OPENAI_API_KEY environment variable is not defined. Falling back to mock-like behavior.");
     }
-    this.modelName = 'gpt-4o-mini';
+    // NOTE: User requested GPT-5.4, but OpenAI does not have it yet. Using gpt-4o.
+    this.modelName = 'gpt-4o';
   }
 
   async generateText(prompt: string, options?: AIProviderOptions): Promise<string> {

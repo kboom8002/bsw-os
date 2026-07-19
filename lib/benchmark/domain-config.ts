@@ -20,6 +20,17 @@ export interface BrandConfig {
   brand_identity?: string;
 }
 
+export type MeasurementProfile = 'fair_comparison' | 'brand_diagnosis' | 'full_audit';
+
+export const MEASUREMENT_PROFILE_LAYERS: Record<MeasurementProfile, Set<string>> = {
+  fair_comparison: new Set(['L1_universal']),
+  brand_diagnosis: new Set(['L1_universal', 'L3_ingredient', 'L4_journey', 'L7_brand']),
+  full_audit: new Set([
+    'L1_universal', 'L2_competitive', 'L3_ingredient', 
+    'L4_journey', 'L5_ymyl', 'L6_trend', 'L7_brand'
+  ])
+};
+
 export interface DomainConfig {
   slug: string;
   name: string;
@@ -31,6 +42,7 @@ export interface DomainConfig {
   repetitionCount?: number;  // Weekly 전체 측정 시 질문 수
   industryType: string;            // INDUSTRY_PANELS_DATA 키
   deep_dive_enabled?: boolean;     // Client Deep Dive 지원 여부
+  measurementProfile?: MeasurementProfile; // 측정 프로파일: 질문 레이어 필터링 전략
 }
 
 
@@ -112,6 +124,34 @@ export const JEJU_COMPETITOR_BRANDS = [
   { slug: 'sri-lanka', name: '스리랑카', name_en: 'Sri Lanka', domains: ['srilanka.travel'], keywords: ['스리랑카', 'sri lanka', 'srilanka'], color: '#a21caf', comparative_pairs: ['bali', 'da-nang'] },
   { slug: 'da-nang', name: '다낭', name_en: 'Da Nang', domains: ['danangfantasticity.com'], keywords: ['다낭', 'da nang', 'danang'], color: '#be123c', comparative_pairs: ['phuket', 'sri-lanka'] },
   { slug: 'queenstown', name: '퀸스타운', name_en: 'Queenstown', domains: ['queenstownnz.co.nz'], keywords: ['퀸스타운', 'queenstown'], color: '#1e3a8a', comparative_pairs: ['tasmania', 'hokkaido'] }
+];
+
+export const JEJU_ATTRACTION_BRANDS = [
+  { slug: 'hallasan', name: '한라산 국립공원', name_en: 'Hallasan National Park', domains: ['hallasan.go.kr', 'visitjeju.net/ko/detail/CNTS_000000000018494'], keywords: ['한라산', '백록담', 'hallasan'], color: '#15803d', comparative_pairs: ['seongsanilchulbong', 'manjanggul'] },
+  { slug: 'seongsanilchulbong', name: '성산일출봉', name_en: 'Seongsan Ilchulbong', domains: ['visitjeju.net/ko/detail/CNTS_000000000018512'], keywords: ['성산일출봉', '일출봉', 'seongsan ilchulbong'], color: '#ef4444', comparative_pairs: ['hallasan', 'manjanggul'] },
+  { slug: 'manjanggul', name: '만장굴', name_en: 'Manjanggul Cave', domains: ['visitjeju.net/ko/detail/CNTS_000000000018492'], keywords: ['만장굴', 'manjanggul'], color: '#8b5cf6', comparative_pairs: ['seongsanilchulbong', 'bijarim'] },
+  { slug: 'cheonjiyeon', name: '천지연폭포', name_en: 'Cheonjiyeon Falls', domains: ['visitjeju.net/ko/detail/CNTS_000000000018515'], keywords: ['천지연폭포', '천지연', 'cheonjiyeon'], color: '#0ea5e9', comparative_pairs: ['cheonjeyeon', 'jeongbang'] },
+  { slug: 'udo', name: '우도', name_en: 'Udo Island', domains: ['udoudo.com', 'visitjeju.net/ko/detail/CNTS_000000000018501'], keywords: ['우도', 'udo island', '우도면'], color: '#06b6d4', comparative_pairs: ['seongsanilchulbong', 'jeju'] },
+  { slug: 'bijarim', name: '비자림', name_en: 'Bijarim Forest', domains: ['visitjeju.net/ko/detail/CNTS_000000000018513'], keywords: ['비자림', 'bijarim'], color: '#10b981', comparative_pairs: ['manjanggul', 'hallasan'] },
+  { slug: 'osulloc', name: '오설록 티뮤지엄', name_en: 'Osulloc Tea Museum', domains: ['osulloc.com', 'visitjeju.net/ko/detail/CNTS_000000000018495'], keywords: ['오설록', '오설록 티뮤지엄', 'osulloc'], color: '#22c55e', comparative_pairs: ['innisfree-jeju'] },
+  { slug: 'jejupark', name: '제주돌문화공원', name_en: 'Jeju Stone Park', domains: ['jejustonepark.com', 'visitjeju.net/ko/detail/CNTS_000000000018506'], keywords: ['제주돌문화공원', '돌문화공원', 'stone park'], color: '#f59e0b', comparative_pairs: ['haenyeomuseum'] },
+  { slug: 'haenyeomuseum', name: '제주해녀박물관', name_en: 'Jeju Haenyeo Museum', domains: ['haenyeo.go.kr', 'visitjeju.net/ko/detail/CNTS_000000000018498'], keywords: ['해녀박물관', '제주해녀박물관', 'haenyeo museum'], color: '#14b8a6', comparative_pairs: ['jejupark'] },
+  { slug: 'aquaplanet', name: '아쿠아플라넷 제주', name_en: 'Aqua Planet Jeju', domains: ['aquaplanet.co.kr/jeju', 'visitjeju.net/ko/detail/CNTS_000000000018503'], keywords: ['아쿠아플라넷', '아쿠아플라넷 제주', 'aquaplanet jeju'], color: '#3b82f6', comparative_pairs: ['ecoland'] },
+  { slug: 'ecoland', name: '에코랜드 테마파크', name_en: 'Ecoland Theme Park', domains: ['ecolandjeju.co.kr', 'visitjeju.net/ko/detail/CNTS_000000000018497'], keywords: ['에코랜드', '에코랜드 테마파크', 'ecoland'], color: '#84cc16', comparative_pairs: ['aquaplanet'] },
+  { slug: 'camelliahill', name: '카멜리아힐', name_en: 'Camellia Hill', domains: ['camelliahill.co.kr', 'visitjeju.net/ko/detail/CNTS_000000000018502'], keywords: ['카멜리아힐', 'camellia hill'], color: '#ec4899', comparative_pairs: ['osulloc'] },
+  { slug: 'jungmun', name: '중문관광단지', name_en: 'Jungmun Tourist Complex', domains: ['visitjeju.net/ko/detail/CNTS_000000000018505'], keywords: ['중문관광단지', '중문단지', 'jungmun complex'], color: '#a855f7', comparative_pairs: ['seogwipo'] },
+  { slug: 'hyeopjae', name: '협재해수욕장', name_en: 'Hyeopjae Beach', domains: ['visitjeju.net/ko/detail/CNTS_000000000018510'], keywords: ['협재해수욕장', '협재해변', 'hyeopjae beach'], color: '#0ea5e9', comparative_pairs: ['woljeongri', 'hamdeok'] },
+  { slug: 'jejuolle', name: '제주올레길', name_en: 'Jeju Olle Trail', domains: ['jejuolle.org', 'visitjeju.net/ko/detail/CNTS_000000000018509'], keywords: ['올레길', '제주올레', 'olle trail'], color: '#38bdf8', comparative_pairs: ['hallasan'] },
+  { slug: 'woljeongri', name: '월정리해변', name_en: 'Woljeongri Beach', domains: ['visitjeju.net/ko/detail/CNTS_000000000018511'], keywords: ['월정리', '월정리해수욕장', 'woljeongri beach'], color: '#2dd4bf', comparative_pairs: ['hyeopjae', 'hamdeok'] },
+  { slug: 'bontemuseum', name: '본태박물관', name_en: 'Bonte Museum', domains: ['bontemuseum.com', 'visitjeju.net/ko/detail/CNTS_000000000018496'], keywords: ['본태박물관', 'bonte museum'], color: '#f43f5e', comparative_pairs: ['osulloc'] },
+  { slug: 'folkmuseum', name: '제주민속자연사박물관', name_en: 'Jeju Folk Museum', domains: ['museum.jeju.go.kr', 'visitjeju.net/ko/detail/CNTS_000000000018499'], keywords: ['제주민속자연사박물관', '민속자연사박물관', 'jeju folk museum'], color: '#fd7e14', comparative_pairs: ['haenyeomuseum'] },
+  { slug: 'heritagecenter', name: '제주세계자연유산센터', name_en: 'World Heritage Center', domains: ['jeju.go.kr/wnhcenter', 'visitjeju.net/ko/detail/CNTS_000000000018500'], keywords: ['세계자연유산센터', '제주세계자연유산센터', 'world heritage center'], color: '#20c997', comparative_pairs: ['hallasan'] },
+  { slug: 'innisfreejeju', name: '이니스프리 제주하우스', name_en: 'Innisfree Jeju House', domains: ['innisfree.com', 'visitjeju.net/ko/detail/CNTS_000000000018504'], keywords: ['이니스프리 제주하우스', '이니스프리 제주', 'innisfree jeju house'], color: '#82c91e', comparative_pairs: ['osulloc'] },
+  { slug: 'okinawatravel', name: '오키나와 공식 관광', name_en: 'Okinawa Travel', domains: ['visitokinawa.jp'], keywords: ['오키나와 관광', '오키나와 공식', 'visit okinawa'], color: '#adb5bd', comparative_pairs: ['seongsanilchulbong'] },
+  { slug: 'balitravel', name: '발리 공식 관광', name_en: 'Bali Travel', domains: ['indonesia.travel', 'balitourismboard.org'], keywords: ['발리 관광', '발리 공식', 'visit bali'], color: '#adb5bd', comparative_pairs: ['udo'] },
+  { slug: 'hawaiitravel', name: '하와이 공식 관광', name_en: 'Hawaii Travel', domains: ['gohawaii.com'], keywords: ['하와이 관광', '하와이 공식', 'go hawaii'], color: '#adb5bd', comparative_pairs: ['hallasan'] },
+  { slug: 'phukettravel', name: '푸켓 공식 관광', name_en: 'Phuket Travel', domains: ['tourismthailand.org'], keywords: ['푸켓 관광', '푸켓 공식', 'visit phuket'], color: '#adb5bd', comparative_pairs: ['hyeopjae'] },
+  { slug: 'santorinitravel', name: '산토리니 공식 관광', name_en: 'Santorini Travel', domains: ['santorini.gr'], keywords: ['산토리니 관광', '산토리니 공식', 'visit santorini'], color: '#adb5bd', comparative_pairs: ['woljeongri'] }
 ];
 
 export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
@@ -485,42 +525,42 @@ export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
     repetitionCount: 1,
     brands: [
       // ── 맛집 / 식당 ──
-      { slug: 'donsadon', name: '돈사돈', name_en: 'Donsadon', domains: ['donsadon.com', 'donsadon'], keywords: ['돈사돈', 'donsadon', '제주 흑돼지'], color: '#ef4444', comparative_pairs: ['heukdonga', 'sukseongdo'] },
-      { slug: 'heukdonga', name: '흑돈가', name_en: 'Heukdonga', domains: ['heukdonga.com', 'heukdonga'], keywords: ['흑돈가', '제주 흑돼지 맛집'], color: '#f97316', comparative_pairs: ['donsadon', 'sukseongdo'] },
-      { slug: 'haenyeo-kitchen', name: '해녀의부엌', name_en: 'Haenyeo Kitchen', domains: ['haenyeokitchen.com', 'haenyeo-kitchen'], keywords: ['해녀의부엌', '해녀 해산물', 'haenyeo'], color: '#0ea5e9', comparative_pairs: ['donsadon', 'chunsimne'] },
-      { slug: 'sukseongdo', name: '숙성도', name_en: 'Sukseongdo', domains: ['sukseongdo'], keywords: ['숙성도', 'sukseongdo'], color: '#3b82f6', comparative_pairs: ['donsadon', 'gobdeullak'] },
-      { slug: 'ujin-haejangguk', name: '우진해장국', name_en: 'Ujin Haejangguk', domains: ['woojinhj', 'ujin-haejangguk'], keywords: ['우진해장국', '고사리육개장'], color: '#10b981', comparative_pairs: ['ollae-guksu', 'jamae-guksu'] },
-      { slug: 'chunsimne', name: '춘심이네', name_en: 'Chunsimne', domains: ['chunsimne'], keywords: ['춘심이네', 'chunsimne'], color: '#84cc16', comparative_pairs: ['haenyeo-kitchen'] },
-      { slug: 'hyeopjae-kalguksu', name: '협재칼국수', name_en: 'Hyeopjae Kalguksu', domains: ['hyeopjae-kalguksu'], keywords: ['협재칼국수', '협재 칼국수'], color: '#06b6d4', comparative_pairs: ['ollae-guksu'] },
-      { slug: 'gobdeullak', name: '곱들락', name_en: 'Gobdeullak', domains: ['gobdeullak'], keywords: ['곱들락', 'gobdeullak'], color: '#a855f7', comparative_pairs: ['sukseongdo'] },
-      { slug: 'ollae-guksu', name: '올래국수', name_en: 'Ollae Guksu', domains: ['ollae-guksu'], keywords: ['올래국수', '올래 국수'], color: '#d946ef', comparative_pairs: ['ujin-haejangguk', 'jamae-guksu'] },
-      { slug: 'mungae-eomung', name: '문개어멍', name_en: 'Mungae Eomung', domains: ['mungae-eomung'], keywords: ['문개어멍', '문개어머'], color: '#ec4899', comparative_pairs: ['haenyeo-kitchen'] },
-      { slug: 'matna-sikdang', name: '맛나식당', name_en: 'Matna Sikdang', domains: ['matna-sikdang'], keywords: ['맛나식당', '맛나 식당'], color: '#f43f5e', comparative_pairs: ['chunsimne'] },
-      { slug: 'sinseol-oreum', name: '신설오름', name_en: 'Sinseol Oreum', domains: ['sinseol-oreum'], keywords: ['신설오름', '신설 오름'], color: '#fb7185', comparative_pairs: ['ujin-haejangguk'] },
-      { slug: 'oneunjeong-gimbap', name: '오는정김밥', name_en: 'Oneunjeong Gimbap', domains: ['oneunjeong'], keywords: ['오는정김밥', '오는정'], color: '#fbbf24', comparative_pairs: ['yeondon'] },
-      { slug: 'jamae-guksu', name: '자매국수', name_en: 'Jamae Guksu', domains: ['jamae-guksu'], keywords: ['자매국수', '자매 국수'], color: '#f97316', comparative_pairs: ['ollae-guksu', 'ujin-haejangguk'] },
-      { slug: 'yeondon', name: '연돈', name_en: 'Yeondon', domains: ['yeondon'], keywords: ['연돈', 'yeondon'], color: '#eab308', comparative_pairs: ['oneunjeong-gimbap'] },
-      { slug: 'suwoondong', name: '수우동', name_en: 'Suwoondong', domains: ['suwoondong.com', 'suwoondong'], keywords: ['수우동', '협재 수우동'], color: '#14b8a6', comparative_pairs: ['hyeopjae-kalguksu'] },
-      { slug: 'bbolsaljib', name: '뽈살집', name_en: 'Bbolsaljib', domains: ['bbolsaljib'], keywords: ['뽈살집', '서귀포 뽈살집'], color: '#8b5cf6', comparative_pairs: ['donsadon'] },
+      { slug: 'donsadon', name: '돈사돈', name_en: 'Donsadon', domains: ['donsadon.com', 'donsadon'], keywords: ['돈사돈', 'donsadon', '제주 흑돼지'], color: '#ef4444', comparative_pairs: ['heukdonga', 'sukseongdo'], brand_identity: '제주 흑돼지 연탄구이 전문점. 제주산 흑돼지를 연탄불 직화로 굽는 차별화된 풍미. 제주시 노형동 본점 중심 웨이팅 필수 인기 맛집.', product_categories: ['흑돼지 구이', '연탄구이', '제주 맛집', '흑돼지 모듬'] },
+      { slug: 'heukdonga', name: '흑돈가', name_en: 'Heukdonga', domains: ['heukdonga.com', 'heukdonga'], keywords: ['흑돈가', '제주 흑돼지 맛집'], color: '#f97316', comparative_pairs: ['donsadon', 'sukseongdo'], brand_identity: '제주 흑돼지 숯불구이 전문점. 두꺼운 오겹살과 항정살을 숯불에 구워 제공. 제주시 연동 위치.', product_categories: ['흑돼지 오겹살', '숯불구이', '제주 맛집', '항정살'] },
+      { slug: 'haenyeo-kitchen', name: '해녀의부엌', name_en: 'Haenyeo Kitchen', domains: ['haenyeokitchen.com', 'haenyeo-kitchen'], keywords: ['해녀의부엌', '해녀 해산물', 'haenyeo'], color: '#0ea5e9', comparative_pairs: ['donsadon', 'chunsimne'], brand_identity: '제주 해녀 문화 체험형 해산물 레스토랑. 실제 해녀의 물질 공연과 신선한 해산물 코스 요리 제공. 종달리 소재.', product_categories: ['해산물 코스', '해녀 체험', '전복 요리', '성게 요리'] },
+      { slug: 'sukseongdo', name: '숙성도', name_en: 'Sukseongdo', domains: ['sukseongdo'], keywords: ['숙성도', 'sukseongdo'], color: '#3b82f6', comparative_pairs: ['donsadon', 'gobdeullak'], brand_identity: '제주 흑돼지 숙성 전문점. 저온 숙성 기법으로 풍미를 극대화한 프리미엄 흑돼지 구이. 제주시 소재.', product_categories: ['숙성 흑돼지', '프리미엄 구이', '제주 맛집'] },
+      { slug: 'ujin-haejangguk', name: '우진해장국', name_en: 'Ujin Haejangguk', domains: ['woojinhj', 'ujin-haejangguk'], keywords: ['우진해장국', '고사리육개장'], color: '#10b981', comparative_pairs: ['ollae-guksu', 'jamae-guksu'], brand_identity: '제주 대표 해장국 전문점. 제주산 고사리를 활용한 고사리육개장이 시그니처. 제주시 삼도동 로컬 맛집.', product_categories: ['고사리육개장', '해장국', '몸국', '제주 로컬 맛집'] },
+      { slug: 'chunsimne', name: '춘심이네', name_en: 'Chunsimne', domains: ['chunsimne'], keywords: ['춘심이네', 'chunsimne'], color: '#84cc16', comparative_pairs: ['haenyeo-kitchen'], brand_identity: '제주 성게 전문 해산물 식당. 성게비빔밥과 성게미역국이 시그니처. 함덕 해수욕장 인근 로컬 맛집.', product_categories: ['성게비빔밥', '성게미역국', '해산물', '제주 로컬 맛집'] },
+      { slug: 'hyeopjae-kalguksu', name: '협재칼국수', name_en: 'Hyeopjae Kalguksu', domains: ['hyeopjae-kalguksu'], keywords: ['협재칼국수', '협재 칼국수'], color: '#06b6d4', comparative_pairs: ['ollae-guksu'], brand_identity: '협재 해변 인근 해물칼국수 전문점. 제주산 해물을 듬뿍 넣은 시원한 칼국수와 보말죽이 인기 메뉴.', product_categories: ['해물칼국수', '보말죽', '제주 국수', '해물 요리'] },
+      { slug: 'gobdeullak', name: '곱들락', name_en: 'Gobdeullak', domains: ['gobdeullak'], keywords: ['곱들락', 'gobdeullak'], color: '#a855f7', comparative_pairs: ['sukseongdo'], brand_identity: '제주 곱창·대창 전문 구이 맛집. 신선한 곱창과 대창을 직접 구워 제공. 제주시 소재.', product_categories: ['곱창구이', '대창구이', '모듬곱창', '제주 맛집'] },
+      { slug: 'ollae-guksu', name: '올래국수', name_en: 'Ollae Guksu', domains: ['ollae-guksu'], keywords: ['올래국수', '올래 국수'], color: '#d946ef', comparative_pairs: ['ujin-haejangguk', 'jamae-guksu'], brand_identity: '제주시 대표 고기국수 맛집. 진한 돼지뼈 육수의 고기국수가 시그니처. 항상 긴 웨이팅 줄이 특징.', product_categories: ['고기국수', '비빔국수', '제주 국수'] },
+      { slug: 'mungae-eomung', name: '문개어멍', name_en: 'Mungae Eomung', domains: ['mungae-eomung'], keywords: ['문개어멍', '문개어머'], color: '#ec4899', comparative_pairs: ['haenyeo-kitchen'], brand_identity: '제주 전통 해녀 해산물 전문점. 직접 물질해 잡은 신선한 해산물 모듬과 전복죽 제공. 서귀포시 소재.', product_categories: ['해산물 모듬', '전복죽', '회', '제주 해산물'] },
+      { slug: 'matna-sikdang', name: '맛나식당', name_en: 'Matna Sikdang', domains: ['matna-sikdang'], keywords: ['맛나식당', '맛나 식당'], color: '#f43f5e', comparative_pairs: ['chunsimne'], brand_identity: '제주 가정식 백반 전문 식당. 제주산 재료로 만든 정갈한 한상차림. 현지인 단골 맛집.', product_categories: ['제주 백반', '가정식', '한상차림', '로컬 맛집'] },
+      { slug: 'sinseol-oreum', name: '신설오름', name_en: 'Sinseol Oreum', domains: ['sinseol-oreum'], keywords: ['신설오름', '신설 오름'], color: '#fb7185', comparative_pairs: ['ujin-haejangguk'], brand_identity: '제주 전통 향토 음식 전문점. 돔베고기(수육)와 빙떡 등 제주 고유의 전통 메뉴 제공.', product_categories: ['돔베고기', '빙떡', '제주 향토음식', '수육'] },
+      { slug: 'oneunjeong-gimbap', name: '오는정김밥', name_en: 'Oneunjeong Gimbap', domains: ['oneunjeong'], keywords: ['오는정김밥', '오는정'], color: '#fbbf24', comparative_pairs: ['yeondon'], brand_identity: '제주식 재료를 활용한 특색 김밥 전문점. 제주 당근, 톳 등 로컬 식재료로 만든 김밥이 인기.', product_categories: ['제주 김밥', '톳김밥', '분식', '간편식'] },
+      { slug: 'jamae-guksu', name: '자매국수', name_en: 'Jamae Guksu', domains: ['jamae-guksu'], keywords: ['자매국수', '자매 국수'], color: '#f97316', comparative_pairs: ['ollae-guksu', 'ujin-haejangguk'], brand_identity: '제주시 고기국수 원조 맛집 중 하나. 담백한 돼지뼈 육수에 푸짐한 고기 토핑. 올래국수와 양대산맥.', product_categories: ['고기국수', '비빔국수', '만두', '제주 국수'] },
+      { slug: 'yeondon', name: '연돈', name_en: 'Yeondon', domains: ['yeondon'], keywords: ['연돈', 'yeondon'], color: '#eab308', comparative_pairs: ['oneunjeong-gimbap'], brand_identity: '제주 돈카츠 명소. 일본식 로스카츠·히레카츠를 제주산 흑돼지로 제공. 서귀포시 예래동 소재 웨이팅 필수.', product_categories: ['돈카츠', '로스카츠', '히레카츠', '제주 흑돼지 돈카츠'] },
+      { slug: 'suwoondong', name: '수우동', name_en: 'Suwoondong', domains: ['suwoondong.com', 'suwoondong'], keywords: ['수우동', '협재 수우동'], color: '#14b8a6', comparative_pairs: ['hyeopjae-kalguksu'], brand_identity: '협재 해변 인근 수제 우동 전문점. 직접 뽑은 면과 깊은 육수의 일본식 우동. 협재 맛집.', product_categories: ['수제 우동', '일본식 우동', '튀김', '협재 맛집'] },
+      { slug: 'bbolsaljib', name: '뽈살집', name_en: 'Bbolsaljib', domains: ['bbolsaljib'], keywords: ['뽈살집', '서귀포 뽈살집'], color: '#8b5cf6', comparative_pairs: ['donsadon'], brand_identity: '서귀포 뽈살(볼살) 전문 구이 맛집. 돼지 볼살과 특수부위 구이를 제공. 서귀포 야시장 인근.', product_categories: ['뽈살 구이', '특수부위', '돼지구이', '서귀포 맛집'] },
       // ── 카페 / 베이커리 / 기타 ──
-      { slug: 'mongsang-aewol', name: '몽상드애월', name_en: 'Mongsang de Aewol', domains: ['mongsang.co.kr', 'mongsang-aewol'], keywords: ['몽상드애월', '몽상', '애월 카페'], color: '#8b5cf6', comparative_pairs: ['cafe-delmundo', 'cafe-gongbaek'] },
-      { slug: 'cafe-delmundo', name: '카페 델문도', name_en: 'Cafe Delmundo', domains: ['cafedelmundo.kr', 'cafe-delmundo'], keywords: ['카페 델문도', '델문도', '제주 카페'], color: '#6366f1', comparative_pairs: ['mongsang-aewol', 'hotel-sand'] },
-      { slug: 'cafe-gongbaek', name: '카페 공백', name_en: 'Cafe Gongbaek', domains: ['cafegongbaek.com', 'cafe-gongbaek'], keywords: ['카페 공백', '공백카페'], color: '#a855f7', comparative_pairs: ['mongsang-aewol'] },
-      { slug: 'osulloc', name: '오설록 티뮤지엄', name_en: 'Osulloc Tea Museum', domains: ['osulloc.com', 'osulloc'], keywords: ['오설록', 'osulloc', '녹차 체험'], color: '#22c55e', comparative_pairs: ['innisfree-jeju'] },
-      { slug: 'innisfree-jeju', name: '이니스프리 제주하우스', name_en: 'Innisfree Jeju House', domains: ['innisfree.com', 'innisfree-jeju'], keywords: ['이니스프리 제주하우스', '이니스프리 제주'], color: '#84cc16', comparative_pairs: ['osulloc'] },
-      { slug: 'anthracite-hallim', name: '앤트러사이트 한림', name_en: 'Anthracite Hallim', domains: ['anthracite', 'anthracite-hallim'], keywords: ['앤트러사이트 한림', '앤트러사이트'], color: '#10b981', comparative_pairs: ['cafe-gongbaek'] },
-      { slug: 'the-cliff', name: '더클리프', name_en: 'The Cliff', domains: ['thecliff', 'the-cliff'], keywords: ['더클리프', 'the cliff'], color: '#ef4444', comparative_pairs: ['cafe-delmundo'] },
-      { slug: 'oasis80', name: '오아시스80', name_en: 'Oasis 80', domains: ['oasis80'], keywords: ['오아시스80', 'oasis80'], color: '#f59e0b', comparative_pairs: ['lazypump'] },
-      { slug: 'lazypump', name: '레이지펌프', name_en: 'Lazy Pump', domains: ['lazypump'], keywords: ['레이지펌프', 'lazypump'], color: '#eab308', comparative_pairs: ['oasis80'] },
-      { slug: 'cafe-orrn', name: '카페 오른', name_en: 'Cafe Orrn', domains: ['orrn', 'cafe-orrn'], keywords: ['카페 오른', '카페오른', 'orrn'], color: '#fca5a5', comparative_pairs: ['cafe-gongbaek'] },
-      { slug: 'hotel-sand', name: '호텔샌드', name_en: 'Hotel Sand', domains: ['hotelsand', 'hotel-sand'], keywords: ['호텔샌드', '호텔 샌드'], color: '#fdba74', comparative_pairs: ['cafe-delmundo'] },
-      { slug: 'bomnal-cafe', name: '봄날카페', name_en: 'Bomnal Cafe', domains: ['bomnal-cafe'], keywords: ['봄날카페', '봄날 카페'], color: '#fcd34d', comparative_pairs: ['mongsang-aewol'] },
-      { slug: 'ultramarine', name: '울트라마린', name_en: 'Ultramarine', domains: ['ultramarine'], keywords: ['울트라마린', 'ultramarine'], color: '#fde047', comparative_pairs: ['hotel-sand'] },
-      { slug: 'azulejo', name: '아줄레주', name_en: 'Azulejo', domains: ['azulejo'], keywords: ['아줄레주', 'azulejo'], color: '#bef264', comparative_pairs: ['cafe-orrn'] },
-      { slug: 'abebe-bakery', name: '아베베 베이커리', name_en: 'Abebe Bakery', domains: ['abebe', 'abebe-bakery'], keywords: ['아베베 베이커리', '아베베'], color: '#86efac', comparative_pairs: ['randys-donut-jeju'] },
-      { slug: 'randys-donut-jeju', name: '랜디스도넛 제주', name_en: 'Randys Donut Jeju', domains: ['randys-donut', 'randys-donut-jeju'], keywords: ['랜디스도넛', '랜디스 도넛'], color: '#6ee7b7', comparative_pairs: ['abebe-bakery'] },
-      { slug: 'jeju-beer', name: '제주맥주', name_en: 'Jeju Beer', domains: ['jejubeer.co.kr', 'jeju-beer'], keywords: ['제주맥주', 'jeju beer', '크래프트 맥주'], color: '#f59e0b', comparative_pairs: ['magpie'] },
-      { slug: 'nohyeong-supermaket', name: '노형슈퍼마켙', name_en: 'Nohyeong Supermaket', domains: ['nohyeongsupermaket.com', 'nohyeong-supermaket'], keywords: ['노형슈퍼마켙', '노형슈퍼마켓'], color: '#ec4899', comparative_pairs: ['jeju-beer'] },
+      { slug: 'mongsang-aewol', name: '몽상드애월', name_en: 'Mongsang de Aewol', domains: ['mongsang.co.kr', 'mongsang-aewol'], keywords: ['몽상드애월', '몽상', '애월 카페'], color: '#8b5cf6', comparative_pairs: ['cafe-delmundo', 'cafe-gongbaek'], brand_identity: '애월 해안 절벽 위 오션뷰 카페. 통유리 건축과 바다 전망이 시그니처. 제주 대표 감성 카페.', product_categories: ['커피', '디저트', '오션뷰 카페', '애월 카페'] },
+      { slug: 'cafe-delmundo', name: '카페 델문도', name_en: 'Cafe Delmundo', domains: ['cafedelmundo.kr', 'cafe-delmundo'], keywords: ['카페 델문도', '델문도', '제주 카페'], color: '#6366f1', comparative_pairs: ['mongsang-aewol', 'hotel-sand'], brand_identity: '제주 한림 소재 유럽풍 브런치 카페. 자가 로스팅 스페셜티 커피와 브런치 메뉴. 이국적 인테리어.', product_categories: ['스페셜티 커피', '브런치', '디저트', '제주 카페'] },
+      { slug: 'cafe-gongbaek', name: '카페 공백', name_en: 'Cafe Gongbaek', domains: ['cafegongbaek.com', 'cafe-gongbaek'], keywords: ['카페 공백', '공백카페'], color: '#a855f7', comparative_pairs: ['mongsang-aewol'], brand_identity: '제주 미니멀리즘 감성 카페. 여백과 공간의 미학을 살린 인테리어. 시그니처 음료와 디저트.', product_categories: ['커피', '시그니처 음료', '디저트', '감성 카페'] },
+      { slug: 'osulloc', name: '오설록 티뮤지엄', name_en: 'Osulloc Tea Museum', domains: ['osulloc.com', 'osulloc'], keywords: ['오설록', 'osulloc', '녹차 체험'], color: '#22c55e', comparative_pairs: ['innisfree-jeju'], brand_identity: '아모레퍼시픽 운영 제주 녹차 체험 뮤지엄. 제주 서광다원의 녹차밭 투어와 녹차 디저트 카페. 제주 필수 관광코스.', product_categories: ['녹차', '녹차 디저트', '녹차 아이스크림', '차 체험', '티 뮤지엄'] },
+      { slug: 'innisfree-jeju', name: '이니스프리 제주하우스', name_en: 'Innisfree Jeju House', domains: ['innisfree.com', 'innisfree-jeju'], keywords: ['이니스프리 제주하우스', '이니스프리 제주'], color: '#84cc16', comparative_pairs: ['osulloc'], brand_identity: '이니스프리 브랜드 체험 공간. 제주 자연 원료 기반 화장품 체험과 DIY 비누 만들기. 오설록 인근.', product_categories: ['화장품 체험', 'DIY 비누', '제주 화장품', '브랜드 체험'] },
+      { slug: 'anthracite-hallim', name: '앤트러사이트 한림', name_en: 'Anthracite Hallim', domains: ['anthracite', 'anthracite-hallim'], keywords: ['앤트러사이트 한림', '앤트러사이트'], color: '#10b981', comparative_pairs: ['cafe-gongbaek'], brand_identity: '서울 합정 본점의 제주 한림 분점. 산업 건축을 리모델링한 공간에서 자가 로스팅 스페셜티 커피 제공.', product_categories: ['스페셜티 커피', '로스팅 커피', '디저트', '한림 카페'] },
+      { slug: 'the-cliff', name: '더클리프', name_en: 'The Cliff', domains: ['thecliff', 'the-cliff'], keywords: ['더클리프', 'the cliff'], color: '#ef4444', comparative_pairs: ['cafe-delmundo'], brand_identity: '제주 서귀포 해안절벽 위 프리미엄 카페. 압도적 절벽 오션뷰와 고급스러운 인테리어. 웨딩 촬영 명소.', product_categories: ['커피', '디저트', '절벽 오션뷰', '프리미엄 카페'] },
+      { slug: 'oasis80', name: '오아시스80', name_en: 'Oasis 80', domains: ['oasis80'], keywords: ['오아시스80', 'oasis80'], color: '#f59e0b', comparative_pairs: ['lazypump'], brand_identity: '제주 협재 인근 트로피컬 감성 카페. 야자수와 빈티지 인테리어, 수제 에이드와 스무디가 인기.', product_categories: ['에이드', '스무디', '디저트', '감성 카페'] },
+      { slug: 'lazypump', name: '레이지펌프', name_en: 'Lazy Pump', domains: ['lazypump'], keywords: ['레이지펌프', 'lazypump'], color: '#eab308', comparative_pairs: ['oasis80'], brand_identity: '제주 감성 수제버거 카페. 두툼한 수제버거와 밀크셰이크를 미국 다이너 콘셉트 공간에서 제공.', product_categories: ['수제버거', '밀크셰이크', '감성 카페', '브런치'] },
+      { slug: 'cafe-orrn', name: '카페 오른', name_en: 'Cafe Orrn', domains: ['orrn', 'cafe-orrn'], keywords: ['카페 오른', '카페오른', 'orrn'], color: '#fca5a5', comparative_pairs: ['cafe-gongbaek'], brand_identity: '제주 자연과 어우러진 정원형 카페. 넓은 정원과 감귤밭 뷰, 시그니처 감귤 디저트가 특징.', product_categories: ['감귤 디저트', '커피', '정원 카페', '감성 카페'] },
+      { slug: 'hotel-sand', name: '호텔샌드', name_en: 'Hotel Sand', domains: ['hotelsand', 'hotel-sand'], keywords: ['호텔샌드', '호텔 샌드'], color: '#fdba74', comparative_pairs: ['cafe-delmundo'], brand_identity: '제주 함덕 해수욕장 앞 복합문화공간 카페. 호텔 로비 콘셉트 인테리어, 바다 뷰와 루프탑 공간 보유.', product_categories: ['커피', '디저트', '루프탑 카페', '함덕 카페'] },
+      { slug: 'bomnal-cafe', name: '봄날카페', name_en: 'Bomnal Cafe', domains: ['bomnal-cafe'], keywords: ['봄날카페', '봄날 카페'], color: '#fcd34d', comparative_pairs: ['mongsang-aewol'], brand_identity: '제주 월정리 해변 감성 카페. 파스텔톤 인테리어와 바다 뷰. 시그니처 티라미수와 라떼가 인기.', product_categories: ['티라미수', '라떼', '디저트', '월정리 카페'] },
+      { slug: 'ultramarine', name: '울트라마린', name_en: 'Ultramarine', domains: ['ultramarine'], keywords: ['울트라마린', 'ultramarine'], color: '#fde047', comparative_pairs: ['hotel-sand'], brand_identity: '제주 애월 소재 블루톤 감성 카페. 울트라마린 블루 인테리어와 오션뷰. SNS 포토존 인기 카페.', product_categories: ['커피', '에이드', '디저트', '포토존 카페'] },
+      { slug: 'azulejo', name: '아줄레주', name_en: 'Azulejo', domains: ['azulejo'], keywords: ['아줄레주', 'azulejo'], color: '#bef264', comparative_pairs: ['cafe-orrn'], brand_identity: '포르투갈 타일 콘셉트의 제주 이국적 카페. 아줄레주 타일 인테리어와 포르투갈식 에그타르트가 시그니처.', product_categories: ['에그타르트', '커피', '포르투갈 디저트', '이국적 카페'] },
+      { slug: 'abebe-bakery', name: '아베베 베이커리', name_en: 'Abebe Bakery', domains: ['abebe', 'abebe-bakery'], keywords: ['아베베 베이커리', '아베베'], color: '#86efac', comparative_pairs: ['randys-donut-jeju'], brand_identity: '제주 수제 베이커리 카페. 천연 발효 사워도우 빵과 크루아상이 시그니처. 로컬 밀가루 사용.', product_categories: ['사워도우', '크루아상', '수제빵', '베이커리 카페'] },
+      { slug: 'randys-donut-jeju', name: '랜디스도넛 제주', name_en: 'Randys Donut Jeju', domains: ['randys-donut', 'randys-donut-jeju'], keywords: ['랜디스도넛', '랜디스 도넛'], color: '#6ee7b7', comparative_pairs: ['abebe-bakery'], brand_identity: 'LA 랜디스도넛의 제주 분점. 거대 도넛 조형물이 랜드마크. 미국식 클래식 도넛과 커피 제공.', product_categories: ['도넛', '커피', '미국식 베이커리', '랜드마크 카페'] },
+      { slug: 'jeju-beer', name: '제주맥주', name_en: 'Jeju Beer', domains: ['jejubeer.co.kr', 'jeju-beer'], keywords: ['제주맥주', 'jeju beer', '크래프트 맥주'], color: '#f59e0b', comparative_pairs: ['magpie'], brand_identity: '제주산 원료로 양조하는 크래프트 맥주 브랜드. 제주 위트 에일, 펠롱 에일 등 시그니처 맥주. 한림 양조장 투어 가능.', product_categories: ['크래프트 맥주', '제주 위트 에일', '양조장 투어', '맥주 체험'] },
+      { slug: 'nohyeong-supermaket', name: '노형슈퍼마켙', name_en: 'Nohyeong Supermaket', domains: ['nohyeongsupermaket.com', 'nohyeong-supermaket'], keywords: ['노형슈퍼마켙', '노형슈퍼마켓'], color: '#ec4899', comparative_pairs: ['jeju-beer'], brand_identity: '제주시 노형동 로컬 슈퍼마켓을 리모델링한 복합문화공간. 로컬 식재료 셀렉트숍과 델리·카페 복합 운영.', product_categories: ['로컬 식재료', '델리', '카페', '복합문화공간'] },
     ],
   },
 
@@ -531,10 +571,24 @@ export const BENCHMARK_DOMAINS: Record<string, DomainConfig> = {
     description: 'Jeju Island vs 20 Global Resort Destination AI Visibility Benchmark (EN)',
     industryType: 'jeju_place_en',
     deep_dive_enabled: true,
-    sampleQuestionsForLight: 50,
+    sampleQuestionsForLight: 51,
+    sampleQuestionsForFull: 51,
+    repetitionCount: 1,
+    brands: JEJU_COMPETITOR_BRANDS,
+    measurementProfile: 'fair_comparison'
+  },
+
+  jeju_attraction_ko: {
+    slug: 'jeju_attraction_ko',
+    name: '제주 관광지 벤치마크',
+    icon: '🏔️',
+    description: '제주 주요 관광명소 웹사이트 AI AEO/GEO 준비도 실측',
+    industryType: 'jeju_attraction_ko',
+    deep_dive_enabled: true,
+    sampleQuestionsForLight: 40,
     sampleQuestionsForFull: 80,
     repetitionCount: 1,
-    brands: JEJU_COMPETITOR_BRANDS
+    brands: JEJU_ATTRACTION_BRANDS
   },
 } as const;
 

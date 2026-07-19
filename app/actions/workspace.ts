@@ -281,3 +281,54 @@ export async function resolveWorkspaceSlug(slug: string): Promise<string | null>
   return data.id;
 }
 
+/**
+ * Derive the industry key for a workspace.
+ * Strategy: check workspace slug → match against BENCHMARK_DOMAINS keys.
+ * Fallback: check workspace name for industry hints.
+ */
+export async function getWorkspaceIndustryKey(workspaceId: string): Promise<string | null> {
+  const { BENCHMARK_DOMAINS } = await import("../../lib/benchmark/domain-config");
+  const adminClient = getSupabaseAdminClient();
+
+  const { data: workspace } = await adminClient
+    .from('workspaces')
+    .select('slug, name')
+    .eq('id', workspaceId)
+    .maybeSingle();
+
+  if (!workspace) return null;
+
+  const allKeys = Object.keys(BENCHMARK_DOMAINS);
+
+  // 1차: slug 자체가 industryKey와 일치하는지 확인
+  if (workspace.slug && allKeys.includes(workspace.slug)) {
+    return workspace.slug;
+  }
+
+  // 2차: slug에 industryKey가 포함되어 있는지 확인
+  for (const key of allKeys) {
+    if (workspace.slug?.includes(key)) return key;
+  }
+
+  // 3차: workspace name에서 매칭
+  const nameHints: Record<string, string> = {
+    '제주': 'jeju_smb',
+    'jeju': 'jeju_smb',
+    '스킨케어': 'skincare',
+    'skincare': 'skincare',
+    '웨딩': 'wedding_studio',
+    'wedding': 'wedding_studio',
+    '아이돌': 'kpop_idol_ko',
+    'kpop': 'kpop_idol_ko',
+  };
+
+  if (workspace.name) {
+    const lower = workspace.name.toLowerCase();
+    for (const [hint, key] of Object.entries(nameHints)) {
+      if (lower.includes(hint.toLowerCase())) return key;
+    }
+  }
+
+  // 4차: 첫 번째 도메인 설정 반환 (fallback)
+  return allKeys.length > 0 ? allKeys[0] : null;
+}

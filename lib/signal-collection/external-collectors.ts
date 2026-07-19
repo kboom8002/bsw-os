@@ -11,12 +11,11 @@ export class ExternalCollectors {
   
   // ─── 1. 네이버 뉴스 수집기 ───
   static async collectNaverNews(workspaceId: string, source: CollectionSource, keywords: string[]): Promise<ExternalSignal[]> {
-    const clientId = process.env.NAVER_CLIENT_ID || 'rIBVb71m9Rxaqk88udQ1';
-    const clientSecret = process.env.NAVER_CLIENT_SECRET || '5OID9sCTqq';
+    const clientId = process.env.NAVER_CLIENT_ID;
+    const clientSecret = process.env.NAVER_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-      console.warn('[NaverNewsCollector] Missing Naver API credentials.');
-      return [];
+      throw new Error('[NaverNewsCollector] NAVER_CLIENT_ID 및 NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다. .env.local에 설정해주세요.');
     }
 
     const allSignals: Omit<ExternalSignal, 'id'>[] = [];
@@ -70,14 +69,72 @@ export class ExternalCollectors {
     return await CollectionStorage.getExternalSignals(workspaceId);
   }
 
-  // ─── 2. 네이버 DataLab 검색 트렌드 수집기 ───
-  static async collectNaverDatalab(workspaceId: string, source: CollectionSource, keywords: string[]): Promise<SearchTrend[]> {
-    const clientId = process.env.NAVER_CLIENT_ID || 'rIBVb71m9Rxaqk88udQ1';
-    const clientSecret = process.env.NAVER_CLIENT_SECRET || '5OID9sCTqq';
+  // ─── 1.5. 네이버 블로그 검색 수집기 ───
+  static async collectNaverBlog(workspaceId: string, source: CollectionSource, keywords: string[]): Promise<ExternalSignal[]> {
+    const clientId = process.env.NAVER_CLIENT_ID;
+    const clientSecret = process.env.NAVER_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-      console.warn('[NaverDatalabCollector] Missing Naver API credentials.');
-      return [];
+      throw new Error('[NaverBlogCollector] NAVER_CLIENT_ID 및 NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다. .env.local에 설정해주세요.');
+    }
+
+    const allSignals: Omit<ExternalSignal, 'id'>[] = [];
+
+    for (const kw of keywords.slice(0, 3)) {
+      try {
+        console.log(`[NaverBlogCollector] Fetching blog posts for: "${kw}"`);
+        const url = `https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(kw)}&display=10&sort=date`;
+
+        const res = await fetch(url, {
+          headers: {
+            'X-Naver-Client-Id': clientId,
+            'X-Naver-Client-Secret': clientSecret,
+          },
+          signal: AbortSignal.timeout(8000)
+        });
+
+        if (!res.ok) {
+          console.warn(`[NaverBlogCollector] API error ${res.status} for: ${kw}`);
+          continue;
+        }
+
+        const json = await res.json();
+        for (const item of json.items ?? []) {
+          const title = item.title.replace(/<[^>]*>/g, '').trim();
+          const desc = item.description.replace(/<[^>]*>/g, '').trim();
+
+          allSignals.push({
+            workspace_id: workspaceId,
+            source_id: source.id,
+            source_type: 'naver_blog',
+            content: `${title}\n${desc}`,
+            url: item.link,
+            published_at: item.postdate ? new Date(item.postdate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')).toISOString() : new Date().toISOString(),
+            metadata: {
+              keyword: kw,
+              title,
+              blogger_name: item.bloggername || '',
+              description: desc
+            }
+          });
+        }
+      } catch (err: any) {
+        console.error(`[NaverBlogCollector] Failed to fetch blogs for ${kw}:`, err.message);
+      }
+    }
+
+    const savedCount = await CollectionStorage.saveExternalSignals(workspaceId, allSignals);
+    console.log(`[NaverBlogCollector] Successfully saved ${savedCount} new blog signals.`);
+    return await CollectionStorage.getExternalSignals(workspaceId);
+  }
+
+  // ─── 2. 네이버 DataLab 검색 트렌드 수집기 ───
+  static async collectNaverDatalab(workspaceId: string, source: CollectionSource, keywords: string[]): Promise<SearchTrend[]> {
+    const clientId = process.env.NAVER_CLIENT_ID;
+    const clientSecret = process.env.NAVER_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      throw new Error('[NaverDatalabCollector] NAVER_CLIENT_ID 및 NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다. .env.local에 설정해주세요.');
     }
 
     try {
@@ -204,16 +261,25 @@ export class ExternalCollectors {
     } catch (err: any) {
       console.error(`[RssCollector] Failed to fetch RSS for ${source.name}:`, err.message);
       
-      // Fallback: RSS가 실패한 경우 업종에 맞추어 유용한 트렌드 뉴스 시그널을 시뮬레이션 삽입
+      // Fallback: RSS가 실패한 경우 업종 맥락에 맞는 시그널을 시뮬레이션 삽입
+      const industry = source.industry || 'generic';
+      const fallbackContent = ExternalCollectors.getIndustryFallbackContent(industry, source.name, 'rss');
       const fallbackSignals: Omit<ExternalSignal, 'id'>[] = [
         {
           workspace_id: workspaceId,
           source_id: source.id,
           source_type: 'rss',
-          content: `[Fallback] ${source.name} 트렌드: 민감성 피부 장벽 회복용 성분으로 판테놀과 세라마이드 고함량 배합 제품이 동아시아 시장에서 인기를 끌고 있습니다.`,
+          content: fallbackContent,
           url: source.url + '/fallback-1',
           published_at: new Date().toISOString(),
-          metadata: { feed_name: source.name, is_fallback: true }
+          metadata: { 
+            feed_name: source.name, 
+            is_fallback: true, 
+            is_synthetic: true,
+            synthetic_reason: 'rss_fetch_failure',
+            data_provenance: 'SYSTEM_GENERATED_FALLBACK',
+            industry 
+          }
         }
       ];
       await CollectionStorage.saveExternalSignals(workspaceId, fallbackSignals);
@@ -304,7 +370,10 @@ export class ExternalCollectors {
             metadata: {
               site_name: source.name,
               channel: source.identifier,
-              is_synthesized: true
+              is_synthetic: true,
+              synthetic_reason: 'insufficient_scraped_items',
+              data_provenance: 'SYSTEM_GENERATED_SYNTHETIC',
+              scraped_count_before_injection: items.length - syntheticPosts.length
             }
           });
         }
@@ -317,20 +386,77 @@ export class ExternalCollectors {
     } catch (err: any) {
       console.error(`[CommunityCrawler] Failed to crawl community ${source.name}:`, err.message);
       
-      // Fallback
+      // Fallback: 크롤링 실패 시 업종 맥락에 맞는 커뮤니티 시그널 삽입
+      const industry = source.industry || 'generic';
+      const fallbackContent = ExternalCollectors.getIndustryFallbackContent(industry, source.name, 'community');
       const fallbackSignals: Omit<ExternalSignal, 'id'>[] = [
         {
           workspace_id: workspaceId,
           source_id: source.id,
           source_type: 'community',
-          content: `[Fallback] ${source.name} 유저: 필링 시술 이후 얼굴에 각질 심하게 일어나고 장벽 완전히 깨진 것 같아요. 급속 회복 패치나 마스크 추천해 주세요.`,
+          content: fallbackContent,
           url: source.url + '/fallback-post',
           published_at: new Date().toISOString(),
-          metadata: { site_name: source.name, channel: source.identifier, is_fallback: true }
+          metadata: { 
+            site_name: source.name, 
+            channel: source.identifier, 
+            is_fallback: true, 
+            is_synthetic: true,
+            synthetic_reason: 'community_crawl_failure',
+            data_provenance: 'SYSTEM_GENERATED_FALLBACK',
+            industry 
+          }
         }
       ];
       await CollectionStorage.saveExternalSignals(workspaceId, fallbackSignals);
       return await CollectionStorage.getExternalSignals(workspaceId);
     }
+  }
+
+  // ─── 업종별 Fallback 콘텐츠 생성기 ───
+  private static getIndustryFallbackContent(industry: string, sourceName: string, type: 'rss' | 'community'): string {
+    const fallbacks: Record<string, { rss: string; community: string }> = {
+      jeju_smb: {
+        rss: `[Fallback] ${sourceName} 트렌드: 제주도 흑돼지 맛집 예약 대기 시간 단축을 위한 네이버 사전예약 시스템 도입이 확산되고 있으며, 애월·한림 지역 카페들이 오션뷰 루프탑을 강화하고 있습니다.`,
+        community: `[Fallback] ${sourceName} 유저: 제주 여행 3박 4일 일정인데 흑돼지 맛집 돈사돈이랑 숙성도 중에 어디가 더 나은가요? 1인 기준 가격이랑 웨이팅 시간도 알려주세요.`
+      },
+      beauty: {
+        rss: `[Fallback] ${sourceName} 트렌드: 민감성 피부 장벽 회복용 성분으로 판테놀과 세라마이드 고함량 배합 제품이 동아시아 시장에서 인기를 끌고 있습니다.`,
+        community: `[Fallback] ${sourceName} 유저: 필링 시술 이후 얼굴에 각질 심하게 일어나고 장벽 완전히 깨진 것 같아요. 급속 회복 패치나 마스크 추천해 주세요.`
+      },
+      skincare: {
+        rss: `[Fallback] ${sourceName} 트렌드: 레티놀 사용 후 피부 민감도 관리 및 선크림 병용 프로토콜이 피부과 전문의 사이에서 표준화되고 있습니다.`,
+        community: `[Fallback] ${sourceName} 유저: 레티놀 크림 쓰고 볼 화끈거림이 심한데 세라마이드 크림으로 진정 가능한가요?`
+      },
+      wedding_studio: {
+        rss: `[Fallback] ${sourceName} 트렌드: 스드메 원스톱 패키지에서 개별 스튜디오·드레스·메이크업 분리 선택이 증가하고 있으며, 야외 촬영 수요가 급증하고 있습니다.`,
+        community: `[Fallback] ${sourceName} 유저: 웨딩스튜디오 계약 전 꼭 확인해야 할 체크리스트 알려주세요. 추가 비용 함정이 있다고 들었어요.`
+      },
+    };
+
+    const fb = fallbacks[industry] || {
+      rss: `[Fallback] ${sourceName} 트렌드: 해당 업종의 최신 트렌드 데이터를 수집 중입니다.`,
+      community: `[Fallback] ${sourceName} 유저: 해당 업종 관련 소비자 질문을 수집 중입니다.`
+    };
+
+    return type === 'rss' ? fb.rss : fb.community;
+  }
+
+  /**
+   * 합성 데이터 비율 진단 — 전체 시그널 중 합성 데이터가 20%를 초과하면 경고
+   */
+  static async checkSyntheticRatio(workspaceId: string): Promise<{ total: number; synthetic: number; ratio: number; warning: boolean }> {
+    const signals = await CollectionStorage.getExternalSignals(workspaceId);
+    const syntheticCount = signals.filter(s => 
+      s.metadata?.is_synthetic === true || 
+      s.metadata?.is_synthesized === true || 
+      s.metadata?.is_fallback === true
+    ).length;
+    const ratio = signals.length > 0 ? syntheticCount / signals.length : 0;
+    const warning = ratio > 0.2;
+    if (warning) {
+      console.warn(`[ExternalCollectors] ⚠️ Synthetic data ratio ${(ratio * 100).toFixed(1)}% exceeds 20% threshold for workspace ${workspaceId}. Total: ${signals.length}, Synthetic: ${syntheticCount}.`);
+    }
+    return { total: signals.length, synthetic: syntheticCount, ratio: Number(ratio.toFixed(4)), warning };
   }
 }

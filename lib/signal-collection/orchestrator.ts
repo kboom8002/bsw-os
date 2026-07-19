@@ -15,6 +15,8 @@ import { ReverseQuestionEngine } from './reverse-question-engine';
 import { getSupabaseAdminClient } from '../supabase';
 import { INDUSTRY_PANELS_DATA } from '../../db/seed/industry-panels/questions-data';
 import { TcoKgMapper } from '../knowledge-graph/tco-kg-mapper';
+import { TcoConceptEnricher } from './tco-concept-enricher';
+import { TcoCoverageMetrics } from './tco-coverage-metrics';
 import type { RawSignalCandidate, PipelineResultV2, SignalCluster, PipelineOptionsV3 } from './types';
 import { SignalBridge } from './signal-bridge';
 
@@ -322,13 +324,28 @@ export class SignalOrchestrator {
 
           allQvsScores.push(evalResult.qvs_total);
 
-          // TCO 개념 매칭 계산 (간단 자카드 매칭)
+          // TCO 개념 매칭 계산 (문자열 매칭 + 의미적 매칭 병행)
           let tcoMatchScore = 0;
+          const matchedConceptNames: string[] = [];
           if (tcoSeeds.length > 0) {
-            const matches = tcoSeeds.filter(seed => 
-              candidate.query.toLowerCase().includes(seed.concept_name.toLowerCase())
-            ).length;
-            tcoMatchScore = Math.min(10, matches * 4); // 매칭 당 4점, 최대 10점
+            // 1차: 문자열 포함 매칭 (빠른 필터)
+            for (const seed of tcoSeeds) {
+              if (candidate.query.toLowerCase().includes(seed.concept_name.toLowerCase())) {
+                matchedConceptNames.push(seed.concept_name);
+              }
+            }
+            // 2차: 의미적 매칭 (문자열 매칭이 부족할 때)
+            if (matchedConceptNames.length === 0) {
+              try {
+                const semanticMatches = await TcoKgMapper.semanticMatch(
+                  candidate.query, tcoSeeds, 0.75
+                );
+                for (const m of semanticMatches.slice(0, 3)) {
+                  matchedConceptNames.push(m.concept_name);
+                }
+              } catch { /* 임베딩 실패 시 무시 */ }
+            }
+            tcoMatchScore = Math.min(10, matchedConceptNames.length * 4);
           }
 
           return {
@@ -343,6 +360,7 @@ export class SignalOrchestrator {
             qvsDimensions: evalResult.qvs,
             kgCoverage,
             tcoMatchScore,
+            matchedConceptNames,
             panelLayer: panelMatch?.layer || 'L1_universal'
           };
         })
@@ -398,7 +416,8 @@ export class SignalOrchestrator {
             is_ymyl: sig.isYmyl,
             gate_status: sig.gateStatus,
             eval_confidence: sig.confidence,
-            panel_layer: sig.panelLayer
+            panel_layer: sig.panelLayer,
+            matched_tco_concepts: sig.matchedConceptNames || []
           });
 
         if (insertError) {
@@ -422,6 +441,68 @@ export class SignalOrchestrator {
     if (evalErrors > 0) {
       phaseWarnings.push(`Phase E: ${evalErrors}개 시그널 평가 중 API/DB 오류 발생`);
     }
+    // ═══ Phase T: TCO Enrichment (미매칭 시그널 기반 TCO 보강) ═══
+    const unmatchedSignals = evaluatedSignals
+      .filter(s => !s.matchedConceptNames || s.matchedConceptNames.length === 0)
+      .map(s => s.query);
+
+    if (unmatchedSignals.length >= 5) {
+      log(`Phase T 시작: 미매칭 시그널 ${unmatchedSignals.length}개에서 TCO 보강 시도...`);
+      try {
+        const newConcepts = await TcoConceptEnricher.extractFromSignals(
+          unmatchedSignals.slice(0, 50),
+          tcoSeeds,
+          domainName,
+          brandName
+        );
+
+        let enrichedCount = 0;
+        for (const nc of newConcepts) {
+          const slug = `${domainName}-${nc.concept_name.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60)}`.substring(0, 100);
+
+          const { data: existing } = await supabase
+            .from('tco_concepts')
+            .select('id')
+            .eq('workspace_id', workspaceId)
+            .eq('slug', slug)
+            .maybeSingle();
+
+          if (!existing) {
+            const { error } = await supabase.from('tco_concepts').insert({
+              workspace_id: workspaceId,
+              concept_name: nc.concept_name,
+              slug,
+              definition: nc.definition,
+              is_strategic: nc.is_strategic,
+              operational_fields: {
+                importance_weight: nc.importance_weight,
+                generated_at: new Date().toISOString(),
+                generation_method: 'phase_t_enrichment',
+                source_signal_count: nc.source_signal_indices.length
+              }
+            });
+            if (!error) enrichedCount++;
+          }
+        }
+        if (enrichedCount > 0) {
+          log(`Phase T 완료: ${enrichedCount}개 새 TCO 개념 추가`);
+        }
+      } catch (e: any) {
+        console.warn(`[S-OGDE Phase T] Enrichment failed: ${e.message}`);
+        phaseWarnings.push(`Phase T: TCO 보강 실패 (${e.message.slice(0, 100)})`);
+      }
+    }
+
+    // ═══ TCO Coverage Metrics ═══
+    try {
+      const coverage = await TcoCoverageMetrics.calculate(workspaceId);
+      const coverageLog = TcoCoverageMetrics.formatReport(coverage);
+      console.log(coverageLog);
+      log(`TCO Coverage: ${(coverage.coverage * 100).toFixed(1)}% | Utilization: ${(coverage.conceptUtilization * 100).toFixed(1)}%`);
+    } catch (e: any) {
+      console.warn(`[S-OGDE] Coverage metrics failed: ${e.message}`);
+    }
+
     log(`파이프라인 완료! 총 ${Date.now() - pipelineStart}ms 소요.`);
 
     return {

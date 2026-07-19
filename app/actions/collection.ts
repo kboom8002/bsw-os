@@ -121,6 +121,50 @@ export async function triggerCollectionAction(workspaceId: string, id: string, c
     await ExternalCollectors.collectNaverDatalab(workspaceId, source, keywords);
     const after = await CollectionStorage.getSearchTrends(workspaceId);
     countAfter = after.length;
+  } else if (source.source_type === 'api' && source.identifier === 'NAVER_BLOG') {
+    const before = await CollectionStorage.getExternalSignals(workspaceId);
+    countBefore = before.length;
+    await ExternalCollectors.collectNaverBlog(workspaceId, source, keywords);
+    const after = await CollectionStorage.getExternalSignals(workspaceId);
+    countAfter = after.length;
+  } else if (source.source_type === 'api' && source.identifier === 'GOOGLE_SEARCH_CONSOLE') {
+    const before = await CollectionStorage.getExternalSignals(workspaceId);
+    countBefore = before.length;
+    const { GSCConnector } = await import('../../lib/signal-collection/connectors/gsc-connector');
+    const rows = await GSCConnector.fetchQueryData({ siteUrl: source.url || 'sc-domain:example.com' });
+    const filtered = GSCConnector.filterQuestionQueries(rows);
+    await GSCConnector.convertToSignals(workspaceId, source.id, filtered);
+    await GSCConnector.recordSamplingMetadata(workspaceId, {
+      collected_at: new Date().toISOString(),
+      total_gsc_rows_fetched: rows.length,
+      filtered_question_signals: filtered.length,
+      start_date: new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString().split('T')[0],
+      end_date: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString().split('T')[0]
+    });
+    const after = await CollectionStorage.getExternalSignals(workspaceId);
+    countAfter = after.length;
+  } else if (source.source_type === 'api' && source.identifier === 'NAVER_SEARCH_ADVISOR') {
+    const before = await CollectionStorage.getExternalSignals(workspaceId);
+    countBefore = before.length;
+    const { NaverSAConnector } = await import('../../lib/signal-collection/connectors/naver-sa-connector');
+    const rows = await NaverSAConnector.fetchQueryData({ targetUrl: source.url || 'example.com' });
+    const filtered = NaverSAConnector.filterQuestionQueries(rows);
+    await NaverSAConnector.convertToSignals(workspaceId, source.id, filtered);
+    const after = await CollectionStorage.getExternalSignals(workspaceId);
+    countAfter = after.length;
+  } else if (source.source_type === 'api' && source.identifier.startsWith('VOC_')) {
+    const before = await CollectionStorage.getExternalSignals(workspaceId);
+    countBefore = before.length;
+    const { VOCConnector } = await import('../../lib/signal-collection/connectors/voc-connector');
+    let type: 'site_search' | 'ai_guide' | 'inquiry' | 'review' = 'site_search';
+    if (source.identifier === 'VOC_AI_GUIDE') type = 'ai_guide';
+    else if (source.identifier === 'VOC_INQUIRY') type = 'inquiry';
+    else if (source.identifier === 'VOC_REVIEW') type = 'review';
+    
+    const rows = await VOCConnector.fetchVOCData(workspaceId, { sourceType: type });
+    await VOCConnector.convertToSignals(workspaceId, source.id, rows, type); // Store all redacted VOC items (not just questions, as bridge filters them or uses them as context)
+    const after = await CollectionStorage.getExternalSignals(workspaceId);
+    countAfter = after.length;
   } else if (source.source_type === 'rss') {
     const before = await CollectionStorage.getExternalSignals(workspaceId);
     countBefore = before.length;
@@ -133,6 +177,8 @@ export async function triggerCollectionAction(workspaceId: string, id: string, c
     await ExternalCollectors.collectCommunity(workspaceId, source, keywords);
     const after = await CollectionStorage.getExternalSignals(workspaceId);
     countAfter = after.length;
+  } else {
+    console.warn(`[triggerCollectionAction] Unhandled source_type/identifier: ${source.source_type}/${source.identifier} for source "${source.name}". Skipping.`);
   }
 
   // 통계 업데이트
@@ -165,6 +211,9 @@ export async function triggerAllCollectionsAction(workspaceId: string, customKey
   const INDUSTRY_ALIASES: Record<string, string[]> = {
     skincare: ['beauty', 'skincare'],
     jeju_smb: ['jeju_smb', 'jeju'],
+    wedding_studio: ['wedding_studio', 'wedding'],
+    kpop_idol_ko: ['kpop_idol_ko', 'kpop'],
+    seoul_district_ko: ['seoul_district_ko', 'seoul'],
   };
   const matchIndustries = industryKey ? (INDUSTRY_ALIASES[industryKey] || [industryKey]) : [];
   const enabledSources = sources.filter(s => {

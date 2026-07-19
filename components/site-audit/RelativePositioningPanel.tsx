@@ -17,12 +17,12 @@ const OVERALL_TIER_CONFIG: Record<PositionTier, {
   border: string;
   gradient: string;
 }> = {
-  top10:     { label: "업종 최상위", color: "text-emerald-300", bg: "bg-emerald-500/10", border: "border-emerald-500/30", gradient: "from-emerald-500/20 to-teal-500/10" },
-  top25:     { label: "업종 상위",   color: "text-violet-300",  bg: "bg-violet-500/10",  border: "border-violet-500/30",  gradient: "from-violet-500/20 to-indigo-500/10" },
-  above_avg: { label: "평균 이상",   color: "text-indigo-300",  bg: "bg-indigo-500/10",  border: "border-indigo-500/30",  gradient: "from-indigo-500/20 to-blue-500/10" },
-  average:   { label: "업종 평균",   color: "text-blue-300",    bg: "bg-blue-500/10",    border: "border-blue-500/30",    gradient: "from-blue-500/20 to-sky-500/10" },
-  below_avg: { label: "평균 이하",   color: "text-amber-300",   bg: "bg-amber-500/10",   border: "border-amber-500/30",   gradient: "from-amber-500/20 to-orange-500/10" },
-  bottom25:  { label: "업종 하위",   color: "text-red-300",     bg: "bg-red-500/10",     border: "border-red-500/30",     gradient: "from-red-500/20 to-rose-500/10" },
+  top10:     { label: "AEO 최적화 최상위", color: "text-emerald-300", bg: "bg-emerald-500/10", border: "border-emerald-500/30", gradient: "from-emerald-500/20 to-teal-500/10" },
+  top25:     { label: "AEO 최적화 상위",   color: "text-violet-300",  bg: "bg-violet-500/10",  border: "border-violet-500/30",  gradient: "from-violet-500/20 to-indigo-500/10" },
+  above_avg: { label: "AEO 최적화 평균 이상", color: "text-indigo-300",  bg: "bg-indigo-500/10",  border: "border-indigo-500/30",  gradient: "from-indigo-500/20 to-blue-500/10" },
+  average:   { label: "AEO 최적화 평균",   color: "text-blue-300",    bg: "bg-blue-500/10",    border: "border-blue-500/30",    gradient: "from-blue-500/20 to-sky-500/10" },
+  below_avg: { label: "AEO 최적화 평균 이하", color: "text-amber-300",   bg: "bg-amber-500/10",   border: "border-amber-500/30",   gradient: "from-amber-500/20 to-orange-500/10" },
+  bottom25:  { label: "AEO 최적화 하위",   color: "text-red-300",     bg: "bg-red-500/10",     border: "border-red-500/30",     gradient: "from-red-500/20 to-rose-500/10" },
 };
 
 const GRADE_MAP: Record<number, string> = {};
@@ -52,7 +52,7 @@ export default function RelativePositioningPanel({ position }: RelativePositioni
         <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${tierConf.bg} ${tierConf.color} border ${tierConf.border} mb-3`}>
-              📊 업종 내 상대 포지션: {position.displayNameKo}
+              📊 업종 내 AEO 기술 최적화 포지션: {position.displayNameKo}
             </div>
             <h2 className="text-2xl font-black text-slate-100">
               {position.brandName}
@@ -73,7 +73,7 @@ export default function RelativePositioningPanel({ position }: RelativePositioni
               <div className={`text-6xl font-black ${tierConf.color} leading-none`}>
                 {grade}
               </div>
-              <div className="text-xs text-slate-500 mt-1 font-semibold">종합 등급</div>
+              <div className="text-xs text-slate-500 mt-1 font-semibold">AEO 등급</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-black text-slate-200 leading-none">

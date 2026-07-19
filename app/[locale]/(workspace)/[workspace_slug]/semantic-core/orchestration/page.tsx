@@ -12,6 +12,7 @@ import {
   retryFromFailedPhaseAction,
   resetBootstrapAction,
   resetPipelineDataAction,
+  getBootstrapDataAction,
 } from "@/app/actions/pipeline-control";
 import { PHASE_LABELS, type ResetScope } from "@/lib/pipeline/pipeline-state-manager";
 import {
@@ -98,6 +99,11 @@ export default function OrchestrationPage() {
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({});
   const [pipelineLogs, setPipelineLogs] = useState<string[]>([]);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Bootstrap 데이터 모달 상태
+  const [isBootstrapModalOpen, setIsBootstrapModalOpen] = useState(false);
+  const [bootstrapData, setBootstrapData] = useState<{tcoConcepts: any[], kgNodes: any[]}>({ tcoConcepts: [], kgNodes: [] });
+  const [loadingBootstrapData, setLoadingBootstrapData] = useState(false);
 
   // 스텝별 상태
   const [activeTab, setActiveTab] = useState<'stepwise' | 'full'>('stepwise');
@@ -228,6 +234,7 @@ export default function OrchestrationPage() {
       setPipelineLogs(prev => [
         ...prev,
         `✅ Bootstrap ${skipped ? '(캐시 사용)' : '완료'} — TCO: ${tco}개, KG 노드: ${kg}개`,
+        ...(result.phase0_bootstrap?._debug?.length > 0 ? result.phase0_bootstrap._debug.map((d: string) => `  🔍 ${d}`) : []),
         ...(result.phaseErrors?.length > 0 ? result.phaseErrors.map((e: any) => `⚠️ ${e.phase}: ${e.message}`) : []),
       ]);
       if (result.runId) { setCurrentRunId(result.runId); startPolling(result.runId); }
@@ -236,6 +243,23 @@ export default function OrchestrationPage() {
     } catch (err: any) {
       setPipelineLogs(prev => [...prev, `❌ Bootstrap 실패: ${err.message}`]);
     } finally { setRunningPipeline(false); }
+  };
+
+  const openBootstrapModal = async () => {
+    setIsBootstrapModalOpen(true);
+    setLoadingBootstrapData(true);
+    try {
+      const res = await getBootstrapDataAction(workspaceSlug, selectedDomain);
+      if (res.success) {
+        setBootstrapData({ tcoConcepts: res.tcoConcepts || [], kgNodes: res.kgNodes || [] });
+      } else {
+        console.error("Failed to fetch bootstrap data:", res.error);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingBootstrapData(false);
+    }
   };
 
   // ── Step 2: 시그널 수집 ──────────────────────────────────────
@@ -595,10 +619,12 @@ export default function OrchestrationPage() {
                 </div>
                 <div className="text-[11px] text-slate-500">TCO 개념 및 온톨로지 KG를 생성합니다. 이미 존재하면 캐시에서 로드합니다.</div>
                 {stepDone('bootstrap') && (
-                  <div className="flex gap-4 text-xs font-mono">
+                  <div className="flex items-center gap-4 text-xs font-mono">
                     <span className="text-slate-400">TCO: <span className="text-emerald-400 font-bold">{stepResults.bootstrap?.phase0_bootstrap?.tcoConcepts ?? 0}</span></span>
-                    <span className="text-slate-400">KG 노드: <span className="text-emerald-400 font-bold">{stepResults.bootstrap?.phase0_bootstrap?.kgNodes ?? 0}</span></span>
-                    {stepResults.bootstrap?.phase0_bootstrap?.skipped && <span className="text-slate-500">(캐시 사용)</span>}
+                    <span className="text-slate-400">KG: <span className="text-emerald-400 font-bold">{stepResults.bootstrap?.phase0_bootstrap?.kgNodes ?? 0}</span></span>
+                    <button onClick={openBootstrapModal} className="px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded flex items-center gap-1 text-slate-300">
+                      <Eye className="w-3 h-3" /> 조회
+                    </button>
                   </div>
                 )}
               </div>
@@ -1066,8 +1092,99 @@ export default function OrchestrationPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
     </div>
+  )}
+
+  {/* ── Bootstrap 데이터 조회 모달 ── */}
+  {isBootstrapModalOpen && (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-5xl h-[80vh] flex flex-col shadow-2xl">
+        <div className="p-4 border-b border-white/10 flex justify-between items-center">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Database className="w-5 h-5 text-cyan-400" />
+            생성된 Bootstrap 데이터 조회 ({selectedDomain})
+          </h2>
+          <button onClick={() => setIsBootstrapModalOpen(false)} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg">
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-auto p-4">
+          {loadingBootstrapData ? (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+              <span>데이터를 불러오는 중...</span>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* TCO Concepts Table */}
+              <div className="space-y-3">
+                <h3 className="text-md font-bold text-emerald-400 flex items-center gap-2">
+                  TCO 개념 <span className="bg-emerald-500/20 px-2 py-0.5 rounded-full text-xs">{bootstrapData.tcoConcepts.length}개</span>
+                </h3>
+                <div className="border border-white/10 rounded-xl overflow-hidden bg-slate-950/50">
+                  <table className="w-full text-left text-sm text-slate-300">
+                    <thead className="bg-slate-900 border-b border-white/10 text-xs uppercase text-slate-400">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold">Concept Name</th>
+                        <th className="px-4 py-3 font-semibold">Definition</th>
+                        <th className="px-4 py-3 font-semibold w-24 text-center">Strategic</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {bootstrapData.tcoConcepts.map((c) => (
+                        <tr key={c.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-4 py-3 font-medium text-white break-keep">{c.concept_name}</td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">{c.definition}</td>
+                          <td className="px-4 py-3 text-center">
+                            {c.is_strategic ? <span className="px-2 py-1 bg-violet-500/20 text-violet-400 rounded text-[10px] font-bold">YES</span> : <span className="text-slate-600">-</span>}
+                          </td>
+                        </tr>
+                      ))}
+                      {bootstrapData.tcoConcepts.length === 0 && (
+                        <tr><td colSpan={3} className="px-4 py-8 text-center text-slate-500">생성된 TCO 개념이 없습니다.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* KG Nodes Table */}
+              <div className="space-y-3">
+                <h3 className="text-md font-bold text-amber-400 flex items-center gap-2">
+                  온톨로지 KG 노드 <span className="bg-amber-500/20 px-2 py-0.5 rounded-full text-xs">{bootstrapData.kgNodes.length}개</span>
+                </h3>
+                <div className="border border-white/10 rounded-xl overflow-hidden bg-slate-950/50">
+                  <table className="w-full text-left text-sm text-slate-300">
+                    <thead className="bg-slate-900 border-b border-white/10 text-xs uppercase text-slate-400">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold">Node Name</th>
+                        <th className="px-4 py-3 font-semibold w-32">Type</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {bootstrapData.kgNodes.map((n) => (
+                        <tr key={n.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-4 py-3 font-medium text-white">{n.name}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-1 bg-amber-500/10 text-amber-400 rounded text-xs border border-amber-500/20">{n.node_type}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {bootstrapData.kgNodes.length === 0 && (
+                        <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-500">생성된 KG 노드가 없습니다.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )}
+
+</div>
   );
 }

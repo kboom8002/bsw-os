@@ -13,7 +13,7 @@ import {
   Wrench, Settings, Clock, User, ChevronDown, ChevronRight, LayoutDashboard,
   Menu, X, Search, Award, Diamond, Target, LogOut, Loader2, Store,
   Megaphone, MapPin, Globe, Network, GitMerge, ListFilter, Cpu, BookOpen, Activity, Users,
-  Database, SlidersHorizontal
+  Database, SlidersHorizontal, Factory, Stethoscope
 } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n/context";
@@ -53,12 +53,9 @@ export default function WorkspaceLayout({
 
   const { locale, t } = useTranslation();
 
-  const workspaceSlug = (params?.workspace_slug as string) || "demo-brand-semantic-lab";
+  const workspaceSlug = (params?.workspace_slug as string) || "";
 
-  // Dynamic workspace list from DB
-  const [workspacesList, setWorkspacesList] = useState<Array<{ id: string; name: string; slug: string; role: string; workspace_type?: string }>>([
-    { id: 'demo-ws', name: 'Demo Brand Semantic Lab', slug: 'demo-brand-semantic-lab', role: 'owner', workspace_type: 'brand' }
-  ]);
+  const [workspacesList, setWorkspacesList] = useState<Array<{ id: string; name: string; slug: string; role: string; workspace_type?: string }>>([]);
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -101,7 +98,8 @@ export default function WorkspaceLayout({
   const userRole = activeWorkspace && 'role' in activeWorkspace ? (activeWorkspace as any).role : 'owner';
   const activeWsType = activeWorkspace && 'workspace_type' in activeWorkspace ? (activeWorkspace as any).workspace_type : 'brand';
   const mainWorkspaces = workspacesList.filter(ws => ws.workspace_type === 'main');
-  const brandWorkspaces = workspacesList.filter(ws => ws.workspace_type === 'brand');
+  const brandWorkspaces = workspacesList.filter(ws => ws.workspace_type === 'brand' || !ws.workspace_type);
+  const isLoadingWorkspaces = workspacesList.length === 0;
 
   const checkAccess = (item: SidebarItem) => {
     // BSW 플랫폼 어드민 전용 메뉴는 메인 워크스페이스에서만 보임
@@ -172,6 +170,7 @@ export default function WorkspaceLayout({
         { name: "QIS Signals", href: `/${locale}/${workspaceSlug}/semantic-core/signals`, icon: Activity, module: "signals" },
         { name: "Canonical Questions", href: `/${locale}/${workspaceSlug}/semantic-core/canonical-questions`, icon: ListFilter, module: "canonical-questions" },
         { name: "QIS Scenes", href: `/${locale}/${workspaceSlug}/semantic-core/qis`, icon: Layers, module: "qis-scenes" },
+        { name: "🏭 Answer Factory", href: `/${locale}/${workspaceSlug}/semantic-core/answer-factory`, icon: Factory, badge: "NEW", module: "answer-factory" },
         { name: "TCO Concepts", href: `/${locale}/${workspaceSlug}/semantic-core/concepts`, icon: BookOpen, module: "concepts" },
         { name: "Pattern Attractors", href: `/${locale}/${workspaceSlug}/semantic-core/attractors`, icon: Target, module: "attractors" },
         { name: "Orchestration", href: `/${locale}/${workspaceSlug}/semantic-core/orchestration`, icon: GitMerge, module: "orchestration" },
@@ -191,6 +190,7 @@ export default function WorkspaceLayout({
     { name: "nav.observatory", href: `/${locale}/${workspaceSlug}/observatory`, icon: Eye, module: "observatory", scope: 'brand', requiredRoles: ['semantic_architect', 'brand_strategist', 'evidence_reviewer', 'observatory_analyst', 'executive_viewer', 'agency_operator'] },
     { name: "nav.deep_dive", href: `/${locale}/${workspaceSlug}/deep-dive`, icon: Search, badge: "심층", module: "deep-dive", scope: 'brand', requiredRoles: ['semantic_architect', 'brand_strategist', 'observatory_analyst', 'executive_viewer', 'agency_operator'] },
     { name: "nav.reports", href: `/${locale}/${workspaceSlug}/reports`, icon: FileBarChart, module: "reports", scope: 'brand', requiredRoles: ['semantic_architect', 'brand_strategist', 'evidence_reviewer', 'observatory_analyst', 'executive_viewer', 'agency_operator'] },
+    { name: "Brand MRI", href: `/${locale}/${workspaceSlug}/reports/brand-mri`, icon: Stethoscope, badge: "MRI", module: "brand-mri", scope: 'brand', requiredRoles: ['semantic_architect', 'brand_strategist', 'observatory_analyst', 'executive_viewer', 'agency_operator'] },
     { name: "nav.golden_reference", href: `/${locale}/${workspaceSlug}/golden-reference`, icon: Diamond, badge: "GR", module: "golden-reference", scope: 'brand', requiredRoles: ['semantic_architect', 'brand_strategist', 'observatory_analyst'] },
 
     // ─ Products (진단 상품) ─
@@ -200,6 +200,7 @@ export default function WorkspaceLayout({
     { name: "nav.fixit", href: `/${locale}/${workspaceSlug}/fixit`, icon: Wrench, badge: "Hypo", module: "fixit", scope: 'brand', requiredRoles: ['brand_strategist', 'executive_viewer', 'agency_operator'] },
     { name: "nav.kculture_studio", href: `/${locale}/${workspaceSlug}/kculture`, icon: Building2, module: "kculture", scope: 'brand', requiredRoles: ['brand_strategist', 'executive_viewer', 'agency_operator'] },
     { name: "nav.settings", href: `/${locale}/${workspaceSlug}/settings`, icon: Settings, module: "settings", scope: 'brand', requiredRoles: ['owner', 'admin'] },
+    { name: "nav.domain_packs", href: `/${locale}/${workspaceSlug}/settings/packs`, icon: Database, badge: "Pack", module: "domain-packs", scope: 'brand', requiredRoles: ['owner', 'admin'] },
     { name: "nav.team", href: `/${locale}/${workspaceSlug}/settings/team`, icon: Users, module: "team", scope: 'brand', requiredRoles: ['owner', 'admin'] }
   ];
 
@@ -210,9 +211,9 @@ export default function WorkspaceLayout({
     { label: "nav.group_site_audit", items: ["site-audit-history", "industry-benchmark", "site-audit-llms", "site-audit-settings"], scope: 'brand' },
     { label: "nav.group_semantic_intel", items: ["truth", "semantic-core"], scope: 'brand' },
     { label: "nav.group_execution", items: ["objects", "surfaces", "persona", "website"], scope: 'brand' },
-    { label: "nav.group_monitoring", items: ["observatory", "deep-dive", "reports", "golden-reference"], scope: 'brand' },
+    { label: "nav.group_monitoring", items: ["observatory", "deep-dive", "reports", "brand-mri", "golden-reference"], scope: 'brand' },
     { label: "nav.group_products", items: ["aihompy-pack", "sales-automation", "regional-report", "fixit", "kculture"], scope: 'brand' },
-    { label: "nav.group_settings", items: ["settings", "team"], scope: 'brand' }
+    { label: "nav.group_settings", items: ["settings", "domain-packs", "team"], scope: 'brand' }
   ];
 
 
@@ -241,78 +242,89 @@ export default function WorkspaceLayout({
           onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
           className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all text-left"
         >
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center font-bold text-slate-950 flex-shrink-0">
               {activeWsType === 'main' ? '★' : 'Ω'}
             </div>
             <div className="min-w-0">
               <div className="text-xs text-slate-400 font-mono leading-none mb-1">{t('common.workspace').toUpperCase()}</div>
               <div className="font-semibold text-sm truncate text-slate-100 leading-tight">
-                {activeWorkspace.name}
+                {isLoadingWorkspaces ? (
+                  <span className="inline-block w-28 h-3 bg-white/10 rounded animate-pulse" />
+                ) : (
+                  activeWorkspace?.name || workspaceSlug
+                )}
               </div>
             </div>
           </div>
           <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
         </button>
 
-        {/* Switcher Dropdown */}
+        {/* Switcher Dropdown - rendered as fixed overlay to avoid sidebar overflow clipping */}
         {showWorkspaceMenu && (
-          <div className="absolute left-4 right-4 top-[76px] z-50 rounded-xl border border-white/10 bg-slate-900 p-2.5 shadow-2xl shadow-black/80 space-y-2">
-            {/* Main Workspaces Group */}
-            {mainWorkspaces.length > 0 && (
-              <div>
-                <div className="text-[10px] text-amber-400 font-mono px-2 py-1 uppercase tracking-wider font-bold">BSW 관제 센터</div>
-                {mainWorkspaces.map((ws) => (
-                  <button
-                    key={ws.slug}
-                    onClick={() => switchWorkspace(ws.slug)}
-                    className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ${
-                      ws.slug === workspaceSlug 
-                        ? "bg-amber-500/10 text-amber-400 font-bold" 
-                        : "text-slate-300 hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    <span>⭐ {ws.name}</span>
-                    {ws.slug === workspaceSlug && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            {/* Brand Workspaces Group */}
-            {brandWorkspaces.length > 0 && (
-              <div>
-                <div className="text-[10px] text-cyan-400 font-mono px-2 py-1 uppercase tracking-wider font-bold">브랜드 워크스페이스</div>
-                {brandWorkspaces.map((ws) => (
-                  <button
-                    key={ws.slug}
-                    onClick={() => switchWorkspace(ws.slug)}
-                    className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ${
-                      ws.slug === workspaceSlug 
-                        ? "bg-cyan-500/10 text-cyan-400 font-bold" 
-                        : "text-slate-300 hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    <span>🏢 {ws.name}</span>
-                    {ws.slug === workspaceSlug && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
-                  </button>
-                ))}
-              </div>
-            )}
+          <>
+            {/* Invisible backdrop */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setShowWorkspaceMenu(false)}
+            />
+            <div className="fixed left-4 top-20 w-64 z-50 rounded-xl border border-white/10 bg-slate-900 p-2.5 shadow-2xl shadow-black/80 space-y-2">
+              {/* Main Workspaces Group */}
+              {mainWorkspaces.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-amber-400 font-mono px-2 py-1 uppercase tracking-wider font-bold">BSW 관제 센터</div>
+                  {mainWorkspaces.map((ws) => (
+                    <button
+                      key={ws.slug}
+                      onClick={() => switchWorkspace(ws.slug)}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ${
+                        ws.slug === workspaceSlug
+                          ? "bg-amber-500/10 text-amber-400 font-bold"
+                          : "text-slate-300 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      <span>⭐ {ws.name}</span>
+                      {ws.slug === workspaceSlug && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-            {/* Create Brand Workspace Link (Only for Super Admin) */}
-            {mainWorkspaces.length > 0 && (
-              <div className="border-t border-white/5 pt-2 mt-1">
-                <Link
-                  href={`/${locale}/onboarding`}
-                  onClick={() => setShowWorkspaceMenu(false)}
-                  className="w-full text-center block px-2 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
-                >
-                  + 새 브랜드 워크스페이스 생성
-                </Link>
-              </div>
-            )}
-          </div>
+              {/* Brand Workspaces Group */}
+              {brandWorkspaces.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-cyan-400 font-mono px-2 py-1 uppercase tracking-wider font-bold">브랜드 워크스페이스</div>
+                  {brandWorkspaces.map((ws) => (
+                    <button
+                      key={ws.slug}
+                      onClick={() => switchWorkspace(ws.slug)}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ${
+                        ws.slug === workspaceSlug
+                          ? "bg-cyan-500/10 text-cyan-400 font-bold"
+                          : "text-slate-300 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      <span>🏢 {ws.name}</span>
+                      {ws.slug === workspaceSlug && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Create Brand Workspace Link (Only for Super Admin) */}
+              {mainWorkspaces.length > 0 && (
+                <div className="border-t border-white/5 pt-2 mt-1">
+                  <Link
+                    href={`/${locale}/onboarding`}
+                    onClick={() => setShowWorkspaceMenu(false)}
+                    className="w-full text-center block px-2 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
+                  >
+                    + 새 브랜드 워크스페이스 생성
+                  </Link>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
@@ -432,7 +444,7 @@ export default function WorkspaceLayout({
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold leading-tight truncate">
-              {currentUser?.email || 'Demo Strategist'}
+              {currentUser?.email || '로딩 중...'}
             </div>
             <div className="text-[10px] text-slate-500 font-mono truncate">
               Role: {activeWorkspace && 'role' in activeWorkspace ? (activeWorkspace as any).role : 'owner'}

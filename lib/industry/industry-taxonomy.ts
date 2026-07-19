@@ -261,6 +261,8 @@ export const V1_TO_V3_KEY_MAP: Record<string, string> = {
   construction: 'real_estate',
   education: 'academy',
   auto: 'auto_service',
+  jeju_attraction_ko: 'travel_tourism',
+  jeju_smb: 'restaurant_cafe',
 };
 
 // ═══════════════════════════════════════════════════════════════

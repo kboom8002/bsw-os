@@ -304,7 +304,7 @@ export class PipelineStateManager {
       .maybeSingle();
 
     const cachedPhase = (lastRun?.phase_results as any)?.phase0_bootstrap;
-    if (cachedPhase?.status === 'completed' && cachedPhase?.tcoConcepts > 0) {
+    if (cachedPhase?.status === 'completed' && cachedPhase?.tcoConcepts >= 30) {
       return {
         isComplete: true,
         isPartial: false,
@@ -324,7 +324,7 @@ export class PipelineStateManager {
     const kgCount = kgRes.count ?? 0;
 
     return {
-      isComplete: tcoCount > 0 && kgCount > 0,
+      isComplete: tcoCount >= 30 && kgCount > 0,
       isPartial: (tcoCount > 0) !== (kgCount > 0),
       tcoCount,
       kgCount,
@@ -361,15 +361,12 @@ export class PipelineStateManager {
     const [sigRes, cqRes, sceneRes] = await Promise.all([
       supabase.from('question_signals').delete()
         .eq('workspace_id', workspaceId)
-        .eq('metadata->>domain', domainKey)
         .select('id'),
       supabase.from('canonical_questions').delete()
         .eq('workspace_id', workspaceId)
-        .eq('domain_key', domainKey)
         .select('id'),
       supabase.from('qis_scenes').delete()
         .eq('workspace_id', workspaceId)
-        .eq('domain_key', domainKey)
         .select('id'),
     ]);
 

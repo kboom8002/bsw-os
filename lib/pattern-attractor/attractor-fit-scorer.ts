@@ -129,12 +129,20 @@ Return the result matching the requested schema.`;
     }
   }
 
-  // Batch score candidates
+  // Batch score candidates with actual evidence sources
   async batchScore(
     candidates: PatternAttractorSpec[],
     query: string,
-    tensor: ContextTensor
+    tensor: ContextTensor,
+    availableEvidence?: string[]
   ): Promise<AttractorFitResult[]> {
-    return Promise.all(candidates.map((c) => this.scoreAttractorFit(c, query, tensor, [])));
+    return Promise.all(candidates.map((c) => {
+      // If no evidence list provided, derive from the attractor's own required sources
+      // so the scorer can at least evaluate self-consistency of evidence requirements
+      const evidence = availableEvidence
+        ?? c.evidence_anchor?.required_sources
+        ?? [];
+      return this.scoreAttractorFit(c, query, tensor, evidence);
+    }));
   }
 }

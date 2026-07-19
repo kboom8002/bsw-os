@@ -30,20 +30,19 @@ export default function AihompyPackPage() {
   const [phone, setPhone] = useState('');
   const [hours, setHours] = useState('');
   const [description, setDescription] = useState('');
-  const [industryType, setIndustryType] = useState<'restaurant_cafe' | 'accommodation' | 'experience' | 'wellness_kbeauty'>('restaurant_cafe');
+  const [industryType, setIndustryType] = useState<'restaurant_cafe' | 'accommodation' | 'experience' | 'wellness_kbeauty' | 'tourism_activity'>('restaurant_cafe');
   
-  // 시설 조건 상태
-  const [parking, setParking] = useState(true);
+  // 시설 조건 상태 — 기본값 false (동기화 또는 수동 입력 시 true 전환)
+  const [parking, setParking] = useState(false);
   const [parkingDetail, setParkingDetail] = useState('');
-  const [indoorSeats, setIndoorSeats] = useState(true);
-  const [wheelchairAccess, setWheelchairAccess] = useState(true);
-  const [kidsMenu, setKidsMenu] = useState(true);
+  const [indoorSeats, setIndoorSeats] = useState(false);
+  const [wheelchairAccess, setWheelchairAccess] = useState(false);
+  const [kidsMenu, setKidsMenu] = useState(false);
   const [petAllowed, setPetAllowed] = useState(false);
-  const [foreignLang, setForeignLang] = useState<string[]>(['en']);
+  const [foreignLang, setForeignLang] = useState<string[]>([]);
 
-  // 메뉴 리스트
+  // 메뉴 리스트 — 빈 배열 (동기화 또는 수동 추가 시 채움)
   const [menuItems, setMenuItems] = useState<Array<{ name: string; price: number }>>([
-    { name: '시그니처 로컬 메뉴 A', price: 15000 }
   ]);
   const [newMenuName, setNewMenuName] = useState('');
   const [newMenuPrice, setNewMenuPrice] = useState('');
@@ -95,35 +94,48 @@ export default function AihompyPackPage() {
     }
   };
 
-  // 네이버 플레이스 간편 동기화 시뮬레이터
+  // 네이버 플레이스 실 크롤링 동기화
   const handleNaverSync = async () => {
     if (!naverUrl) return;
     setSyncingNaver(true);
     try {
-      // 1초 슬립으로 동기화 느낌 연출
-      await new Promise(r => setTimeout(r, 1000));
-      
-      // 애월읍 카페 모의 로딩
-      setBusinessName('애월 바다 정원 카페');
-      setAddress('제주특별자치도 제주시 애월읍 애월로 12-1');
-      setPhone('064-799-1234');
-      setHours('매일 09:00 - 21:00 (라스트오더 20:30)');
-      setDescription('제주 바다 뷰가 정면으로 트여 있는 조용하고 아늑한 대화형 카페입니다. 넓은 주차 공간을 갖추어 렌터카 주차가 쉽고, 영어 메뉴와 아기의자도 완비되어 있습니다.');
-      setParking(true);
-      setParkingDetail('전용 주차장 30대 보유');
-      setIndoorSeats(true);
-      setWheelchairAccess(true);
-      setKidsMenu(true);
-      setPetAllowed(true);
-      setForeignLang(['en', 'ja']);
-      setMenuItems([
-        { name: '제주 당근 사과 주스', price: 8000 },
-        { name: '애월 시그니처 크로플', price: 9500 }
-      ]);
-      
-      alert('네이버 플레이스 정보가 연동되었습니다!');
-    } catch (err) {
-      alert('연동에 실패했습니다. 다시 시도해 주세요.');
+      const res = await fetch('/api/aihompy-pack/naver-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ naverUrl }),
+      });
+      const json = await res.json();
+
+      if (json.success && json.data) {
+        const d = json.data;
+        if (d.business_name) setBusinessName(d.business_name);
+        if (d.address) setAddress(d.address);
+        if (d.phone) setPhone(d.phone);
+        if (d.business_hours) setHours(d.business_hours);
+        if (d.description) setDescription(d.description);
+        if (d.industry_type) setIndustryType(d.industry_type);
+        if (d.facilities) {
+          if (d.facilities.parking !== undefined) setParking(d.facilities.parking);
+          if (d.facilities.parking_detail) setParkingDetail(d.facilities.parking_detail);
+          if (d.facilities.indoor_seats !== undefined) setIndoorSeats(d.facilities.indoor_seats);
+          if (d.facilities.wheelchair_access !== undefined) setWheelchairAccess(d.facilities.wheelchair_access);
+          if (d.facilities.kids_menu !== undefined) setKidsMenu(d.facilities.kids_menu);
+          if (d.facilities.pet_allowed !== undefined) setPetAllowed(d.facilities.pet_allowed);
+          if (d.facilities.foreign_language_menu?.length > 0) setForeignLang(d.facilities.foreign_language_menu);
+        }
+        alert(`✅ ${json.message || '네이버 플레이스 정보가 연동되었습니다!'}`);
+      } else {
+        // 실 크롤링 실패 시 ID 파싱 불가 → 안내 메시지
+        throw new Error(json.error || '정보를 가져오지 못했습니다.');
+      }
+    } catch (err: any) {
+      // 환경변수 미설정 또는 네트워크 오류 시 친화적 안내
+      const msg = err.message || '연동 실패';
+      if (msg.includes('유효한 네이버') || msg.includes('ID')) {
+        alert('❌ 유효한 네이버 플레이스 URL 또는 ID를 입력해 주세요.\n예: https://map.naver.com/v5/entry/place/1234567890');
+      } else {
+        alert(`⚠️ 크롤링 중 오류가 발생했습니다. NAVER_CLIENT_ID/SECRET 환경변수가 설정되어 있으면 더 정확한 정보를 가져올 수 있습니다.\n\n오류: ${msg}`);
+      }
     } finally {
       setSyncingNaver(false);
     }
@@ -146,13 +158,8 @@ export default function AihompyPackPage() {
       foreign_language_menu: foreignLang
     },
     menu_items: menuItems,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24', category: 'interior' },
-      { url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93', category: 'food' }
-    ],
-    faq_entries: [
-      { question: '주차가 편리한가요?', answer: '네, 매장 바로 앞에 넉넉한 주차 공간이 완비되어 있습니다.' }
-    ]
+    photos: [],      // 실 사진 업로드 기능 연동 시 교체
+    faq_entries: []  // AI가 시설 정보 기반으로 자동 생성
   });
 
   // 최종 생성 파이프라인 호출
@@ -161,6 +168,9 @@ export default function AihompyPackPage() {
       alert('업체 이름을 입력해 주세요.');
       return;
     }
+    // ❌6 블로커 제거: 이전 세션 결과가 간섭하지 않도록 클리어
+    sessionStorage.removeItem('aihompy_pack_result');
+    sessionStorage.removeItem('aihompy_pack_intake');
     setGenerating(true);
     try {
       const res = await fetch(`/api/aihompy-pack/generate`, {
@@ -291,8 +301,9 @@ export default function AihompyPackPage() {
                 >
                   <option value="restaurant_cafe">맛집·카페</option>
                   <option value="accommodation">숙박·호텔</option>
-                  <option value="experience">체험·관광</option>
+                  <option value="experience">체험·레저</option>
                   <option value="wellness_kbeauty">웰니스·K뷰티</option>
+                  <option value="tourism_activity">관광·명소</option>
                 </select>
               </div>
             </div>

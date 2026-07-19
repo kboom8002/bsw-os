@@ -11,6 +11,10 @@ export interface PromotionInput {
   evidence_requirements: string[];
   cta_policy: Record<string, any>;
   risk_level: string;
+  /** Domain maturity level (0-100). Used for feasibility estimation. Defaults to 75 if not provided. */
+  domain_maturity_level?: number;
+  /** Strategic alignment score (0-100). Defaults to 80 if not provided. */
+  strategic_alignment?: number;
 }
 
 export interface PromotionResult {
@@ -37,10 +41,14 @@ export class AttractorPromoter {
     // 클러스터 사이즈 크기별 가중치 (Max 100 가정)
     const clusterSizePart = Math.min(100, (input.cluster_size || 1) * 10) * 0.20;
     const tcoRepetitionPart = Math.min(10, input.tco_entities.length) * 10 * 0.15;
-    const feasibilityPart = 75 * 0.15; // 기본 구현 가능성
+    // Dynamic feasibility: use domain maturity level if provided, else default 75
+    const feasibilityScore = input.domain_maturity_level ?? 75;
+    const feasibilityPart = Math.max(0, Math.min(100, feasibilityScore)) * 0.15;
     const evidencePart = (input.evidence_requirements.length > 0 ? 90 : 30) * 0.10;
     const ctaPart = (input.cta_policy?.primary ? 90 : 30) * 0.10;
-    const strategicPart = 80 * 0.05;
+    // Dynamic strategic value: use strategic alignment if provided, else default 80
+    const strategicScore = input.strategic_alignment ?? 80;
+    const strategicPart = Math.max(0, Math.min(100, strategicScore)) * 0.05;
 
     const computedScore = parseFloat(
       (qisCpsPart + clusterSizePart + tcoRepetitionPart + feasibilityPart + evidencePart + ctaPart + strategicPart).toFixed(2)

@@ -446,7 +446,7 @@ export async function runE2EPipeline(
 
   const startTime = Date.now();
   const mode = options?.mode || 'standalone';
-  const autoPromoteTopN = Math.max(1, Math.min(20, options?.autoPromoteTopN ?? 5));
+  const autoPromoteTopN = Math.max(1, Math.min(20, options?.autoPromoteTopN ?? 15));
   const industryKey = options?.industryKey || domainName || 'skincare';
   const resumeFromPhase = options?.resumeFromPhase;
   const phaseGroup = options?.phaseGroup || 'full';
@@ -605,14 +605,20 @@ export async function runE2EPipeline(
   // ── Phase 0: 실측 기반 TCO/KG 부트스트랩 (캐시 우선, 없으면 생성) ──
   if (shouldRunPhase('phase0_bootstrap')) try {
     await executePhase('phase0_bootstrap', async () => {
+      // 디버그 트레이스 (UI에서 확인 가능)
+      const _debug: string[] = [];
+      _debug.push(`industryKey=${industryKey}, domainName=${domainName}`);
+
       // PipelineStateManager로 캐시 확인 (DB 카운트 쿼리 최소화)
       const bootstrapStatus = await PipelineStateManager.getBootstrapStatus(workspaceId, industryKey);
+      _debug.push(`bootstrapStatus: isComplete=${bootstrapStatus.isComplete}, isPartial=${bootstrapStatus.isPartial}, tco=${bootstrapStatus.tcoCount}, kg=${bootstrapStatus.kgCount}`);
 
       if (bootstrapStatus.isComplete) {
         // 이미 완료 — 스킵 (캐시 기반)
         result.phase0_bootstrap.skipped = true;
         result.phase0_bootstrap.tcoConcepts = bootstrapStatus.tcoCount;
         result.phase0_bootstrap.kgNodes = bootstrapStatus.kgCount;
+        (result.phase0_bootstrap as any)._debug = _debug;
         console.log(`[E2E Pipeline] [Phase 0] ✅ Bootstrap 스킵 (캐시: TCO ${bootstrapStatus.tcoCount}, KG ${bootstrapStatus.kgCount})`);
         return { tcoConcepts: bootstrapStatus.tcoCount, kgNodes: bootstrapStatus.kgCount, skipped: true };
       }
@@ -621,28 +627,129 @@ export async function runE2EPipeline(
       result.phase0_bootstrap.skipped = false;
       const { generateIndustryConcepts, generateIndustryOntology } = await import('./semantic');
 
-      // TCO 개념 자동 도출
-      if (!bootstrapStatus.isPartial || bootstrapStatus.tcoCount === 0) {
-        let tcoRes = { created: 0 };
+      // TCO 개념 자동 도출 — 전략: 패널 시드 선행 보장 → LLM 보강
+      // 조건 단순화: tcoCount < 50이면 무조건 실행
+      if (bootstrapStatus.tcoCount < 50) {
+        _debug.push('TCO 생성 진입 (tcoCount < 50)');
+
+        // ── Step A: 패널 기반 시드 선행 삽입 (LLM 불필요, 무조건 보장) ──
+        let panelSeeded = 0;
         try {
-          tcoRes = await generateIndustryConcepts(workspaceId, domainName, brandName, industryKey);
+          const { INDUSTRY_PANELS_DATA } = await import('../../db/seed/industry-panels/questions-data');
+          const panel = INDUSTRY_PANELS_DATA[industryKey as keyof typeof INDUSTRY_PANELS_DATA];
+          const seedConcepts: Array<{ workspace_id: string; concept_name: string; slug: string; definition: string; is_strategic: boolean }> = [];
+
+          if (panel?.questions) {
+            // Strategy 1: intent_context별 대표 개념
+            const intentGroups: Record<string, { count: number; risk: boolean; samples: string[] }> = {};
+            for (const q of panel.questions) {
+              const intent = q.intent_context || 'general';
+              if (!intentGroups[intent]) intentGroups[intent] = { count: 0, risk: false, samples: [] };
+              intentGroups[intent].count++;
+              if (q.risk_level === 'high') intentGroups[intent].risk = true;
+              if (intentGroups[intent].samples.length < 3) intentGroups[intent].samples.push(q.question_text);
+            }
+            for (const [intent, info] of Object.entries(intentGroups)) {
+              const conceptName = intent.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              seedConcepts.push({
+                workspace_id: workspaceId, concept_name: conceptName,
+                slug: `${industryKey}-intent-${intent}`.substring(0, 100),
+                definition: `${domainName} 업종의 "${intent}" 소비자 질문 영역 (${info.count}개 질문 커버). 대표 질문: ${info.samples[0] || ''}`,
+                is_strategic: info.risk || info.count >= 5,
+              });
+            }
+
+            // Strategy 2: layer별 개념
+            const layerGroups: Record<string, number> = {};
+            for (const q of panel.questions) { layerGroups[q.layer || 'L1_universal'] = (layerGroups[q.layer || 'L1_universal'] || 0) + 1; }
+            for (const [layer, count] of Object.entries(layerGroups)) {
+              const layerName = layer.replace(/^L\d+_/, '').replace(/_/g, ' ');
+              const slug = `${industryKey}-layer-${layer}`.substring(0, 100);
+              if (!seedConcepts.some(s => s.slug === slug)) {
+                seedConcepts.push({
+                  workspace_id: workspaceId, concept_name: `${layerName} 계층`, slug,
+                  definition: `패널 ${layer} 계층의 질문 그룹 (${count}개)`,
+                  is_strategic: layer.includes('ymyl') || layer.includes('brand'),
+                });
+              }
+            }
+
+            // Strategy 3: must_include 엔티티
+            const entitySet = new Set<string>();
+            for (const q of panel.questions) {
+              if (q.must_include) for (const mi of q.must_include) { if (mi.length >= 2 && mi.length <= 20) entitySet.add(mi); }
+            }
+            for (const entity of Array.from(entitySet).slice(0, 20)) {
+              const slug = `${industryKey}-entity-${entity.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-')}`.substring(0, 100);
+              if (!seedConcepts.some(s => s.slug === slug)) {
+                seedConcepts.push({
+                  workspace_id: workspaceId, concept_name: entity, slug,
+                  definition: `${domainName} 업종에서 필수적으로 다루어야 하는 핵심 엔티티`,
+                  is_strategic: true,
+                });
+              }
+            }
+          }
+
+          // 패널 없어도 업종 기본 시드 보장
+          if (seedConcepts.length < 5) {
+            for (const name of ['핵심 서비스', '가격 및 비용', '고객 리뷰', '접근성 및 위치', '품질 기준', '안전 및 위생', '예약 및 이용', '비교 및 선택', '시즌 및 트렌드', '할인 및 프로모션', '고객 경험', '전문성 및 자격', '리스크 및 주의사항', '추천 및 입소문', '사후 관리']) {
+              const slug = `${industryKey}-basic-${name.replace(/[^가-힣a-z0-9]+/g, '-')}`.substring(0, 100);
+              if (!seedConcepts.some(s => s.slug === slug)) {
+                seedConcepts.push({
+                  workspace_id: workspaceId, concept_name: name, slug,
+                  definition: `${domainName}의 ${name} 관련 소비자 질문 영역`,
+                  is_strategic: ['안전 및 위생', '리스크 및 주의사항', '품질 기준'].includes(name),
+                });
+              }
+            }
+          }
+
+          if (seedConcepts.length > 0) {
+            console.log(`[E2E Pipeline] Step A: 패널 시드 ${seedConcepts.length}개 upsert 시도`);
+            const { data: seeded, error: seedErr } = await supabase
+              .from('tco_concepts')
+              .upsert(seedConcepts, { onConflict: 'workspace_id,slug' })
+              .select('id');
+            if (seedErr) {
+              _debug.push(`Step A upsert 에러: ${seedErr.message} | ${seedErr.details || ''} | ${seedErr.hint || ''}`);
+              console.error('[E2E Pipeline] 패널 시드 upsert 에러:', seedErr.message, seedErr.details);
+            } else {
+              panelSeeded = seeded?.length || 0;
+              _debug.push(`Step A 성공: ${panelSeeded}개`);
+              console.log(`[E2E Pipeline] Step A 완료: ${panelSeeded}개 시드 확보`);
+            }
+          }
+        } catch (panelErr: any) {
+          _debug.push(`Step A 예외: ${panelErr.message}`);
+          console.warn('[E2E Pipeline] 패널 시드 실패 (비치명적):', panelErr.message);
+        }
+
+        // ── Step B: LLM 4축 보강 (실패해도 Step A 시드는 보존) ──
+        try {
+          const tcoRes = await generateIndustryConcepts(workspaceId, domainName, brandName, industryKey);
+          _debug.push(`Step B LLM 성공: created=${tcoRes.created}`);
+          console.log(`[E2E Pipeline] Step B LLM 보강: ${tcoRes.created}개 (DB 총 보유)`);
         } catch (e: any) {
-          console.warn('[E2E Pipeline] generateIndustryConcepts failed:', e.message);
+          _debug.push(`Step B LLM 실패: ${e.message?.substring(0, 200)}`);
+          console.warn('[E2E Pipeline] Step B LLM 보강 실패 (Step A 시드 보존됨):', e.message);
         }
-        if (tcoRes.created === 0) {
-          console.log('[E2E Pipeline] TCO fallback triggered. Inserting 2 seed concepts.');
-          const seedConcepts = [
-            { workspace_id: workspaceId, concept_name: '핵심 서비스', slug: `${industryKey}-core-service`.substring(0,100), definition: `${domainName}의 기본 제공 서비스 및 상품성`, is_strategic: true },
-            { workspace_id: workspaceId, concept_name: '고객 경험', slug: `${industryKey}-customer-experience`.substring(0,100), definition: `사용자가 체감하는 ${domainName}의 전반적인 서비스 품질과 혜택`, is_strategic: true }
-          ];
-          const { data: insertedTco, error: seedErr } = await supabase.from('tco_concepts').upsert(seedConcepts, { onConflict: 'workspace_id,slug' }).select();
-          if (seedErr) console.warn('[E2E Pipeline] TCO fallback insert error:', seedErr.message);
-          tcoRes.created = insertedTco?.length || 0;
-        }
-        result.phase0_bootstrap.tcoConcepts = tcoRes.created;
+
+        // ── Step C: 최종 DB 카운트로 보고 ──
+        const { count: finalTcoCount } = await supabase
+          .from('tco_concepts')
+          .select('id', { count: 'exact', head: true })
+          .eq('workspace_id', workspaceId)
+          .like('slug', `${industryKey}-%`);
+        result.phase0_bootstrap.tcoConcepts = finalTcoCount ?? panelSeeded;
+        _debug.push(`Step C DB 카운트: ${finalTcoCount}`);
+        (result.phase0_bootstrap as any)._debug = _debug;
+        console.log(`[E2E Pipeline] Phase 0 TCO 최종: DB 보유 ${finalTcoCount}개`);
       } else {
         // TCO 이미 존재 → 기존 카운트 반영
+        _debug.push(`TCO 생성 조건 미충족, 기존 카운트 사용: ${bootstrapStatus.tcoCount}`);
         result.phase0_bootstrap.tcoConcepts = bootstrapStatus.tcoCount;
+        (result.phase0_bootstrap as any)._debug = _debug;
       }
 
       // 온톨로지 KG 구축

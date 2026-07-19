@@ -16,6 +16,7 @@ import {
 import { TechInfraAuditor, TechInfraAuditResult } from './tech-infra-auditor';
 import { SchemaQualityAuditor, SchemaQualityAuditResult } from './schema-quality-auditor';
 import { ContentSemanticAnalyzer, ContentSemanticResult } from './content-semantic-analyzer';
+import { AepiCalculator } from '../benchmark/aepi-calculator';
 
 export interface QuickAuditResult {
   websiteUrl: string;
@@ -39,15 +40,15 @@ const EEAT_SIGNALS = {
   trust: ['보증', '환불', '보험', '개인정보', 'privacy', '약관', 'terms', '안전', 'safety']
 };
 
-const PROCEDURAL_KEYWORDS = ['방법', '순서', '루틴', '가이드', '단계', 'how', 'guide', 'step', 'tutorial', 'routine', '사용법'];
-const COMPARATIVE_KEYWORDS = ['비교', 'vs', '차이', '추천', '순위', 'compare', 'best', 'top', 'ranking', '어떤'];
-const AUTHORITY_KEYWORDS = ['임상', '연구', '특허', '수상', '인증', 'clinical', 'research', 'patent', 'award', 'certified'];
-const GEO_KEYWORDS = ['위치', '주소', '매장', '지점', '오시는', 'location', 'address', 'store', 'branch', '서울', '부산', '대구'];
-const BRAND_IDENTITY_KEYWORDS = ['소개', '철학', '가치', '비전', '역사', 'about', 'philosophy', 'vision', 'history', '브랜드'];
-const PRODUCT_CATALOG_KEYWORDS = ['상품', '제품', '서비스', '가격', '구매', 'shop', 'product', 'service', 'price', 'buy', '카탈로그'];
-const EXPERTISE_KEYWORDS = ['저자', '프로필', '작가', '연구원', '이력', 'author', 'profile', 'career', 'credentials'];
-const TEMPORAL_KEYWORDS = ['이벤트', '행사', '일정', '기간', 'news', 'event', 'calendar', 'schedule'];
-const MEDIA_KEYWORDS = ['갤러리', '사진', '영상', '유튜브', 'gallery', 'photo', 'video', 'youtube'];
+const PROCEDURAL_KEYWORDS = ['방법', '순서', '루틴', '가이드', '단계', 'how', 'guide', 'step', 'tutorial', 'routine', '사용법', '바르는법', '세안법', '관리법', '케어', '스텝', '레시피', '만들기', '절차', '과정', '팁', 'tips', '노하우'];
+const COMPARATIVE_KEYWORDS = ['비교', 'vs', '차이', '추천', '순위', 'compare', 'best', 'top', 'ranking', '어떤', '선택', '고르는', '리뷰', '평가', '장단점', '효과', '성분비교', '대안', 'alternative', 'review'];
+const AUTHORITY_KEYWORDS = ['임상', '연구', '특허', '수상', '인증', 'clinical', 'research', 'patent', 'award', 'certified', '한방', '전통', '과학', '성분', '피부과', '더마', '검증', '테스트', '시험', '증명', 'FDA', 'KFDA', '학회', '논문'];
+const GEO_KEYWORDS = ['위치', '주소', '매장', '지점', '오시는', 'location', 'address', 'store', 'branch', '서울', '부산', '대구', '강남', '명동', '플래그십', 'flagship', '백화점', '면세점', '팝업'];
+const BRAND_IDENTITY_KEYWORDS = ['소개', '철학', '가치', '비전', '역사', 'about', 'philosophy', 'vision', 'history', '브랜드', '헤리티지', 'heritage', '스토리', 'story', '미션', 'mission'];
+const PRODUCT_CATALOG_KEYWORDS = ['상품', '제품', '서비스', '가격', '구매', 'shop', 'product', 'service', 'price', 'buy', '카탈로그', '컬렉션', 'collection', '라인업', '시리즈', '세럼', '크림', '에센스', '토너'];
+const EXPERTISE_KEYWORDS = ['저자', '프로필', '작가', '연구원', '이력', 'author', 'profile', 'career', 'credentials', '전문가', '박사', 'PhD', 'MD', '자격증'];
+const TEMPORAL_KEYWORDS = ['이벤트', '행사', '일정', '기간', 'news', 'event', 'calendar', 'schedule', '신제품', '출시', 'launch', '시즌', '한정판', 'limited'];
+const MEDIA_KEYWORDS = ['갤러리', '사진', '영상', '유튜브', 'gallery', 'photo', 'video', 'youtube', '룩북', 'lookbook', '캠페인', 'campaign'];
 
 export class QuickSiteAnalyzer {
   /**
@@ -380,11 +381,12 @@ export class QuickSiteAnalyzer {
     const err_topical     = Math.min(75, 10 + typeCount('topical_cluster') * 6);
     const err_geo         = Math.min(70, 5 + typeCount('local_geo') * 15);
 
-    // AEPI 계산 (default 가중치)
-    const weights = [0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.10];
+    // AEPI 계산 (업종별 동적 가중치 적용)
+    const industryWeights = AepiCalculator.getWeights('default');
+    const weightKeys = ['factoid', 'procedural', 'comparative', 'authority', 'schema_org', 'topical_cluster', 'local_geo'];
     const errValues = [err_factoid, err_procedural, err_comparative, err_authority, err_schema, err_topical, err_geo];
     let baseSum = 0;
-    for (let i = 0; i < 7; i++) baseSum += errValues[i] * weights[i];
+    for (let i = 0; i < 7; i++) baseSum += errValues[i] * (industryWeights[weightKeys[i]] || 0.15);
     const techMod = 0.8 + 0.2 * (tech_mod_score / 100);
     const eeatMod = 0.8 + 0.2 * (eeat_mod_score / 100);
     const aepi = parseFloat(Math.min(100, baseSum * techMod * eeatMod).toFixed(1));

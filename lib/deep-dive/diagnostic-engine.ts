@@ -91,10 +91,18 @@ export class DiagnosticEngine {
     const { data: strTruths } = await supabase.from('brand_strategic_truths').select('id').eq('workspace_id', workspaceId);
     const { data: lineages } = await supabase.from('lineage_records').select('id, is_publishable').eq('workspace_id', workspaceId);
     const { data: lockEvals } = await supabase.from('truth_lock_evaluations').select('gate_level, is_passed').eq('workspace_id', workspaceId).order('evaluated_at', { ascending: false }).limit(1);
+    const { data: evCovLinks } = await supabase.from('brand_operational_truth_evidence').select('operational_truth_id').eq('workspace_id', workspaceId);
+    const { data: bdCovLinks } = await supabase.from('brand_operational_truth_boundaries').select('operational_truth_id').eq('workspace_id', workspaceId);
+    const { count: activeRulesCount } = await supabase.from('boundary_rules').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('is_active', true);
 
     const totalClaims = opTruths?.length || 0;
     const approvedClaims = opTruths?.filter(t => t.review_status === 'approved').length || 0;
     const restrictedClaims = opTruths?.filter(t => t.review_status === 'restricted').length || 0;
+    // Calculate real coverage rates
+    const claimsWithEvidence = new Set((evCovLinks || []).map((l: any) => l.operational_truth_id)).size;
+    const claimsWithBoundary = new Set((bdCovLinks || []).map((l: any) => l.operational_truth_id)).size;
+    const evidenceCoverage = totalClaims > 0 ? Math.round(claimsWithEvidence / totalClaims * 100) : 0;
+    const boundaryCoverage = totalClaims > 0 ? Math.round(claimsWithBoundary / totalClaims * 100) : (activeRulesCount ? 100 : 0);
     
     // 5. Semantic Audit
     const { count: capCount } = await supabase.from('question_capital_nodes').select('id', { count: 'exact' }).eq('workspace_id', workspaceId);
@@ -113,8 +121,8 @@ export class DiagnosticEngine {
       truthAudit: {
         strategicTruthExists: !!(strTruths && strTruths.length > 0),
         operationalClaims: { total: totalClaims, approved: approvedClaims, restricted: restrictedClaims },
-        evidenceCoverage: 50, // mock calculation
-        boundaryCoverage: 50, // mock calculation
+        evidenceCoverage,
+        boundaryCoverage,
         lineageSealed: lineages?.filter(l => l.is_publishable).length || 0,
         gateLevel: (lockEvals && lockEvals[0]?.is_passed) ? lockEvals[0].gate_level as any : 'L0'
       },

@@ -82,9 +82,7 @@ ${responseText}`;
         const w = String(parsed.cwr_winner).toLowerCase();
         if (w.includes(targetBrand.toLowerCase())) winner = targetBrand;
         else if (competitorBrand && w.includes(competitorBrand.toLowerCase())) winner = competitorBrand;
-      }
-
-      return {
+      }      return {
         cwr_winner: winner,
         bsf_score: Number(parsed.bsf_score) || 0,
         reasoning: parsed.reasoning || ''
@@ -92,6 +90,72 @@ ${responseText}`;
     } catch (err: any) {
       console.error('[LightweightLLMJudge] Evaluation failed:', err.message);
       return { cwr_winner: 'tie', bsf_score: 0, reasoning: 'Evaluation failed' };
+    }
+  }
+
+  async validateMentionContext(
+    questionText: string,
+    responseText: string,
+    brandName: string
+  ): Promise<'recommended' | 'compared' | 'informational' | 'dismissed' | 'negative'> {
+    if (!this.apiKey) {
+      return 'informational';
+    }
+
+    const systemPrompt = `You are an expert AI evaluator for Brand Search Optimization (BSO).
+Evaluate the context in which the brand "${brandName}" is mentioned in the following AI response to a user query.
+Classify the mention context of "${brandName}" into one of these exact categories:
+1. "recommended": The AI recommends "${brandName}" positively as a good option.
+2. "compared": The AI compares "${brandName}" with other options in a fair or positive manner.
+3. "informational": The AI mentions "${brandName}" purely to provide facts, or as part of a list without strong praise or criticism.
+4. "dismissed": The AI mentions "${brandName}" but explicitly states it is NOT suitable, lacks a feature, or is contrasted as what NOT to choose.
+5. "negative": The AI criticizes, warns against, or advises avoiding "${brandName}".
+
+Output MUST be a valid JSON object containing exactly one key "context":
+{
+  "context": "recommended" | "compared" | "informational" | "dismissed" | "negative"
+}`;
+
+    const userPrompt = `User Question:
+${questionText}
+
+AI Response:
+${responseText}`;
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.1
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const json = await response.json();
+      const content = json.choices[0].message.content;
+      const parsed = JSON.parse(content);
+      const ctx = String(parsed.context).toLowerCase();
+
+      if (['recommended', 'compared', 'informational', 'dismissed', 'negative'].includes(ctx)) {
+        return ctx as any;
+      }
+      return 'informational';
+    } catch (err: any) {
+      console.error('[LightweightLLMJudge] validateMentionContext failed:', err.message);
+      return 'informational';
     }
   }
 }

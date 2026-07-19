@@ -2,9 +2,11 @@
  * lib/aihompy-pack/business-intake.ts
  *
  * 소상공인 업체 정보 수집, 파싱 및 네이버 플레이스 연동용 인테이크 모듈
+ * v2: 네이버 플레이스 실 크롤링 + 업종 타입 확장
  */
 
 import { getAIProvider } from '../ai/ai-provider';
+import { NaverPlaceClient } from './naver-place-client';
 
 export interface BusinessIntakeData {
   business_name: string;
@@ -13,8 +15,8 @@ export interface BusinessIntakeData {
   business_hours: string;
   description: string;
   
-  // 업종 분류
-  industry_type: 'restaurant_cafe' | 'accommodation' | 'experience' | 'wellness_kbeauty';
+  // 업종 분류 (확장: tourism_activity 추가)
+  industry_type: 'restaurant_cafe' | 'accommodation' | 'experience' | 'wellness_kbeauty' | 'tourism_activity';
   
   // 네이버 플레이스 연동용 필드 (선택)
   naver_place_url?: string;
@@ -29,6 +31,10 @@ export interface BusinessIntakeData {
     kids_menu: boolean;
     pet_allowed: boolean;
     foreign_language_menu: string[]; // ["en", "ja", "zh"]
+    /** 외국어 안내 지원 여부 */
+    foreign_language_staff?: boolean;
+    /** 반실내/루프탑 등 우천 대응 가능 여부 */
+    rain_shelter?: boolean;
   };
   
   // 콘텐츠 원천 데이터
@@ -47,55 +53,133 @@ export interface MatchingAttractorCandidate {
 
 export class BusinessIntakeProcessor {
   /**
-   * 네이버 플레이스 정보를 연동하여 기본 데이터 구조로 파싱합니다.
-   * (실제 네이버 API 호출 및 크롤링 인터페이스 플레이스홀더 포함)
+   * 네이버 플레이스 URL 또는 ID에서 업체 정보를 실 크롤링합니다.
    */
   public static async fetchAndParseNaverPlace(placeUrlOrId: string): Promise<Partial<BusinessIntakeData>> {
-    const placeId = this.extractPlaceId(placeUrlOrId);
-    if (!placeId) {
+    console.log(`[BusinessIntakeProcessor] 네이버 플레이스 실 크롤링 시작: ${placeUrlOrId}`);
+    
+    const raw = await NaverPlaceClient.fetchByUrlOrId(placeUrlOrId);
+
+    if (!raw) {
       throw new Error('[BusinessIntakeProcessor] 유효한 네이버 플레이스 ID 또는 URL이 아닙니다.');
     }
 
-    console.log(`[BusinessIntakeProcessor] 네이버 플레이스 ID ${placeId} 연동 시도 중...`);
-    
-    // Naver Place API / Crawl Mock
-    // 실제 운영 시에는 이 포인트에서 외부 모듈을 연동하거나 프록시 크롤러를 작동시킵니다.
+    // AI로 카테고리 → industry_type 매핑
+    const industryType = await this.inferIndustryType(raw.category, raw.description);
+
+    // 업체 설명에서 시설 속성 AI 추론
+    const inferredFacilities = await this.inferFacilitiesFromDescription(
+      raw.description || '',
+      raw.business_name
+    );
+
     return {
-      naver_place_id: placeId,
-      naver_place_url: `https://map.naver.com/v5/entry/place/${placeId}`,
-      business_name: '제주 애월 감성 베이커리 카페 (네이버 동기화)',
-      address: '제주특별자치도 제주시 애월읍 애월로 12-1',
-      phone: '064-123-4567',
-      business_hours: '매일 10:00 - 20:00 (라스트오더 19:30)',
-      description: '제주 애월 바다가 한눈에 들어오는 넉넉한 주차 공간을 갖춘 아늑한 카페입니다. 유기농 밀가루로 구워낸 소금빵이 대표 메뉴이며, 외국인 친구와 함께 와도 주문이 편리하도록 다국어 메뉴판을 지원합니다.',
-      facilities: {
-        parking: true,
-        parking_detail: '전용 주차장 20대 완비',
-        indoor_seats: true,
-        wheelchair_access: true,
-        kids_menu: true,
-        pet_allowed: false,
-        foreign_language_menu: ['en', 'ja']
-      },
-      menu_items: [
-        { name: '시그니처 애월 바다 소금빵', price: 4500, description: '제주 천일염을 사용하여 고소함과 짠맛의 조화가 예술인 대표 빵' },
-        { name: '한라봉 아인슈페너', price: 7500, description: '수제 한라봉 청 위에 쫀쫀한 크림이 올라간 감귤 아인슈페너' }
-      ],
-      faq_entries: [
-        { question: '주차가 가능한가요?', answer: '네, 매장 바로 앞에 20대 무료 주차가 가능한 단독 주차장이 완비되어 있어 초보 운전자도 편리합니다.' }
-      ]
+      naver_place_id: raw.place_id,
+      naver_place_url: raw.naver_url,
+      business_name: raw.business_name,
+      address: raw.address,
+      phone: raw.phone || '',
+      business_hours: raw.business_hours || '영업시간 확인 필요',
+      description: raw.description || `${raw.business_name} — ${raw.category}`,
+      industry_type: industryType,
+      facilities: inferredFacilities,
+      menu_items: [],
+      photos: [],
+      faq_entries: [],
     };
   }
 
   /**
-   * 네이버 플레이스 URL 또는 ID에서 ID 추출
+   * AI로 카테고리 문자열에서 industry_type을 추론합니다.
    */
-  private static extractPlaceId(input: string): string | null {
-    if (/^\d+$/.test(input)) {
-      return input;
+  private static async inferIndustryType(
+    category: string,
+    description?: string
+  ): Promise<BusinessIntakeData['industry_type']> {
+    const catLower = (category + ' ' + (description || '')).toLowerCase();
+
+    if (/호텔|펜션|숙소|게스트하우스|민박|리조트|풀빌라|모텔/.test(catLower)) return 'accommodation';
+    if (/스킨케어|피부|한의원|마사지|스파|뷰티|미용|네일|왁싱|화장품/.test(catLower)) return 'wellness_kbeauty';
+    if (/체험|투어|액티비티|낚시|승마|서핑|스노쿨|오름|해녀|레저|원데이/.test(catLower)) return 'experience';
+    if (/관광|명소|여행|관람|박물관|미술관|공연|전시|아쿠아|테마파크/.test(catLower)) return 'tourism_activity';
+    // 기본값: 맛집·카페
+    return 'restaurant_cafe';
+  }
+
+  /**
+   * AI로 업체 설명 텍스트에서 시설 속성을 추론합니다.
+   */
+  private static async inferFacilitiesFromDescription(
+    description: string,
+    businessName: string
+  ): Promise<BusinessIntakeData['facilities']> {
+    const desc = description.toLowerCase();
+
+    // 규칙 기반 추론 (빠른 초기값)
+    const parking = /주차|parking/.test(desc);
+    const indoorSeats = /실내|indoor|좌석|홀/.test(desc);
+    const wheelchairAccess = /휠체어|경사로|엘리베이터|무장애|배리어/.test(desc);
+    const kidsMenu = /아이|어린이|유아|키즈|아기|하이체어/.test(desc);
+    const petAllowed = /반려동물|애완|펫/.test(desc);
+    const foreignMenu = /영어|메뉴판|english menu|外文|다국어|외국어/.test(desc);
+    const rainShelter = /실내|지붕|비|우천|천막|테라스|루프탑/.test(desc);
+
+    // AI 보완: 설명이 충분히 길면 AI로 재검증
+    if (description.length > 80) {
+      try {
+        const ai = getAIProvider();
+        const prompt = `Business: "${businessName}"
+Description: "${description}"
+
+Extract facility attributes. Return JSON with exactly these boolean keys:
+parking, indoor_seats, wheelchair_access, kids_menu, pet_allowed, foreign_language_menu (array of language codes like ["en","ja"]), rain_shelter, foreign_language_staff.
+
+Only mark true if explicitly mentioned or strongly implied. Be conservative.`;
+
+        const result = await ai.generateStructuredOutput<any>(
+          `System:\n${prompt}\n\nUser:\nExtract facility attributes.`,
+          {
+            type: 'object',
+            properties: {
+              parking: { type: 'boolean' },
+              indoor_seats: { type: 'boolean' },
+              wheelchair_access: { type: 'boolean' },
+              kids_menu: { type: 'boolean' },
+              pet_allowed: { type: 'boolean' },
+              foreign_language_menu: { type: 'array', items: { type: 'string' } },
+              rain_shelter: { type: 'boolean' },
+              foreign_language_staff: { type: 'boolean' },
+            },
+            required: ['parking', 'indoor_seats'],
+          },
+          { temperature: 0.0 }
+        );
+
+        return {
+          parking: result.parking ?? parking,
+          indoor_seats: result.indoor_seats ?? indoorSeats,
+          wheelchair_access: result.wheelchair_access ?? wheelchairAccess,
+          kids_menu: result.kids_menu ?? kidsMenu,
+          pet_allowed: result.pet_allowed ?? petAllowed,
+          foreign_language_menu: result.foreign_language_menu ?? (foreignMenu ? ['en'] : []),
+          rain_shelter: result.rain_shelter ?? rainShelter,
+          foreign_language_staff: result.foreign_language_staff ?? false,
+        };
+      } catch {
+        // fallback to rule-based
+      }
     }
-    const match = input.match(/place\/(\d+)/) || input.match(/entry\/place\/(\d+)/);
-    return match ? match[1] : null;
+
+    return {
+      parking,
+      indoor_seats: indoorSeats,
+      wheelchair_access: wheelchairAccess,
+      kids_menu: kidsMenu,
+      pet_allowed: petAllowed,
+      foreign_language_menu: foreignMenu ? ['en'] : [],
+      rain_shelter: rainShelter,
+      foreign_language_staff: false,
+    };
   }
 
   /**
@@ -108,17 +192,23 @@ export class BusinessIntakeProcessor {
     if (data.facilities.parking) concepts.push(`${prefix}access.parking`);
     if (data.facilities.kids_menu) concepts.push(`${prefix}companion.child`);
     if (data.facilities.foreign_language_menu.length > 0) concepts.push(`${prefix}companion.foreigner`);
+    if (data.facilities.foreign_language_staff) concepts.push(`${prefix}companion.foreigner`);
+    if (data.facilities.rain_shelter || data.facilities.indoor_seats) concepts.push('weather.rain');
+
     if (data.facilities.wheelchair_access) {
       if (data.industry_type === 'restaurant_cafe') {
-        concepts.push('access.public_transit'); // 뚜벅이/접근성
+        concepts.push('access.public_transit');
+        concepts.push('companion.elderly');
       } else if (data.industry_type === 'accommodation') {
         concepts.push('stay.no_car_access');
-      } else if (data.industry_type === 'experience') {
+        concepts.push('stay.barrier_free');
+      } else if (data.industry_type === 'experience' || data.industry_type === 'tourism_activity') {
         concepts.push('exp.elderly_intensity');
+        concepts.push('exp.barrier_free_route');
       }
     }
     
-    // description 텍스트 마이닝을 통한 진정/쿨링/공항 버퍼 개념 활성화
+    // description 텍스트 마이닝
     const lowerDesc = data.description.toLowerCase();
     if (lowerDesc.includes('공항') || lowerDesc.includes('airport')) {
       if (data.industry_type === 'restaurant_cafe') concepts.push('time.airport_buffer');
@@ -128,13 +218,24 @@ export class BusinessIntakeProcessor {
       if (data.industry_type === 'restaurant_cafe') concepts.push('weather.rain');
       if (data.industry_type === 'experience') concepts.push('exp.indoor_facility');
     }
+    if (lowerDesc.includes('외국인') || lowerDesc.includes('영어') || lowerDesc.includes('english')) {
+      concepts.push(`${prefix}companion.foreigner`);
+    }
+    if (lowerDesc.includes('부모님') || lowerDesc.includes('어르신') || lowerDesc.includes('휠체어')) {
+      concepts.push(`${prefix}companion.elderly`);
+    }
     if (data.industry_type === 'wellness_kbeauty') {
       if (lowerDesc.includes('진정') || lowerDesc.includes('보습')) concepts.push('well.skin_soothing');
       if (lowerDesc.includes('햇볕') || lowerDesc.includes('쿨링')) concepts.push('well.sunburn_care');
-      concepts.push('well.sensitive_skin'); // 기본 장착
+      concepts.push('well.sensitive_skin');
+    }
+    if (data.industry_type === 'tourism_activity') {
+      if (lowerDesc.includes('투어') || lowerDesc.includes('가이드')) concepts.push('tourism.guided_tour');
+      if (lowerDesc.includes('예약')) concepts.push('tourism.advance_booking');
     }
 
-    return concepts;
+    // 중복 제거
+    return [...new Set(concepts)];
   }
 
   private static getConceptPrefix(industry: string): string {
@@ -143,6 +244,7 @@ export class BusinessIntakeProcessor {
       case 'accommodation': return 'stay.';
       case 'experience': return 'exp.';
       case 'wellness_kbeauty': return 'well.';
+      case 'tourism_activity': return 'tourism.';
       default: return '';
     }
   }
@@ -166,12 +268,21 @@ export class BusinessIntakeProcessor {
       const matched = reqConcepts.filter((c: string) => activeConcepts.includes(c));
       const fitScore = reqConcepts.length === 0 ? 50 : Math.round((matched.length / reqConcepts.length) * 100);
 
+      // 업종 필터: 어트랙터 ID에 업종 prefix가 있으면 해당 업종만 매칭
+      const attrIdLower = (attr.id || '').toLowerCase();
+      const industryMismatch =
+        (attrIdLower.includes('resto') && !['restaurant_cafe'].includes(data.industry_type)) ||
+        (attrIdLower.includes('stay') && !['accommodation'].includes(data.industry_type)) ||
+        (attrIdLower.includes('well') && !['wellness_kbeauty'].includes(data.industry_type));
+
+      if (industryMismatch) continue;
+
       if (fitScore >= 50 || reqConcepts.length === 0) {
         results.push({
           attractor_id: attr.id,
           fit_score: fitScore,
           matched_concepts: matched,
-          reason: `업체의 정보('${data.business_name}') 및 시설 속성이 어트랙터 요구사항인 [${reqConcepts.join(', ')}]을 충족합니다.`
+          reason: `"${data.business_name}"의 시설/속성이 어트랙터 [${reqConcepts.join(', ')}] 조건을 ${matched.length}/${reqConcepts.length}개 충족합니다.`,
         });
       }
     }

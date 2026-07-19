@@ -12,14 +12,22 @@ const NEGATIVE_PATTERNS_KO = [
 ];
 const NEGATIVE_PATTERNS_EN = [
   'not recommend', 'avoid', 'concern', 'drawback', 'caution',
-  'side effect', 'irritat', 'disappoint', 'ineffective'
+  'side effect', 'irritat', 'disappoint', 'ineffective',
+  'unlike', 'not as good', 'lacks', 'inferior', 'falls short',
+  'compared poorly', 'doesn\'t have', 'missing', 'limited compared',
+  'not suitable', 'better alternatives', 'overrated',
+  'overcrowded', 'overtourism', 'polluted', 'unsafe', 'expensive for',
+  'not worth', 'skip', 'pass on'
 ];
 
 const STRONG_PATTERNS_KO = [
   '추천', '최고', '1위', '가장 좋', '강추', '인기', '베스트', '대표', '훌륭', '더 좋', '더 나', '장점', '뛰어'
 ];
 const STRONG_PATTERNS_EN = [
-  'recommend', 'best', 'top pick', '#1', 'highly rated', 'popular', 'better', 'excellent'
+  'recommend', 'best', 'top pick', '#1', 'highly rated', 'popular', 'better', 'excellent',
+  'must-visit', 'bucket list', 'hidden gem', 'world-class',
+  'stunning', 'unforgettable', 'paradise', 'unmatched',
+  'unparalleled', 'premier destination', 'top-rated'
 ];
 
 export function classifyMention(

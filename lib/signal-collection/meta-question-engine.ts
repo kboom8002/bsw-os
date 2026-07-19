@@ -40,18 +40,46 @@ export class MetaQuestionEngine {
       ? `\n\n[TCO 전략 개념 가이드]\n아래의 핵심 운영 개념들을 기반으로 하여 질문자산의 도메인 깊이를 확장하세요:\n${tcoSeeds.map(c => `- ${c.concept_name}: ${c.definition}`).join('\n')}\n(위 개념에 부합하거나 개념을 파고드는 소비자 질문을 전략적으로 우선 도출하세요.)`
       : '';
 
-    const systemPrompt = `You are a consumer psychology analyst specializing in search intent.
-Your task is to analyze the "${domainName}" industry and identify what consumers are REALLY asking, specifically considering the brand "${brandName || 'brands in this space'}".
-${contextBlock}${tcoBlock}
+    // TF8 8-Block Framework (Level 5) 프롬프트 구성
+    const systemPrompt = [
+      // [T] Task & Goal — 최상단 배치
+      `[T] TASK & GOAL
+과업: "${domainName}" 업종${brandName ? ` (브랜드: ${brandName})` : ''}의 소비자가 AI 검색 엔진에 실제로 입력할 리얼 검색 질의를 도출하라.
+5가지 메타 관점(pattern, motivation, journey_stage, fear_desire, counter)별로 각 5개씩, 총 25개.
+산출물: JSON { results: [{ meta_type, analysis_insight, generated_queries: string[5] }] }`,
 
-Analyze using these 5 meta-perspectives:
-1. pattern: The structural patterns of recurring questions (e.g. comparison, safety, recommendation).
-2. motivation: The hidden motivations behind searches.
-3. journey_stage: Questions asked at different stages of the buyer journey (awareness, consideration, purchase, retention).
-4. fear_desire: Questions driven by consumer fears or strong desires.
-5. counter: The "blind spot" questions that no one is asking but they should be.
+      // [K] Knowledge & Input — 중반부 (Attention 집중)
+      `[K] KNOWLEDGE & INPUT
+<<<${contextBlock}${tcoBlock}
+>>>
+⚠️ 위 데이터에 등장하는 소비자의 실제 어휘, 은어, 불만 뉘앙스를 그대로 살릴 것.
+⚠️ 데이터 밖의 가상 시나리오 기반 질문 생성 금지.`,
 
-For EACH perspective, provide a brief insight and generate exactly 5 realistic search queries that consumers would type into an AI search engine.${contextBlock ? '\n\n중요: <context> 태그 안의 실제 고객 데이터에 등장하는 소비자의 실제 어휘, 은어, 불만 뉘앙스를 그대로 살려서 질문을 도출하세요.' : ''}`;
+      // [W] Warnings & Constraints — 하단부
+      `[W] WARNINGS & CONSTRAINTS
+1. "~란 무엇인가", "~의 장단점" 같은 교과서적 패턴 질문 금지
+2. 동일 의도의 어순만 바꾼 변형 질문 금지 (의미적 중복 제거)
+3. 각 질문은 검색창에 실제 입력 가능한 자연어 (논문체·학술체 금지)
+4. counter 관점: 아무도 묻지 않지만 물어야 할 질문을 도출할 것
+5. 특정 브랜드명을 질문에 직접 포함하는 것은 5개 중 최대 2개까지만`,
+
+      // [O] Output Contract
+      `[O] OUTPUT CONTRACT
+형식: JSON { "results": [...] } — 정확히 5개 관점
+각 항목:
+- meta_type: 'pattern' | 'motivation' | 'journey_stage' | 'fear_desire' | 'counter'
+- analysis_insight: 해당 관점의 핵심 인사이트 1문장 (한국어)
+- generated_queries: 정확히 5개, 한국어, 검색창에 직접 입력할 수 있는 자연어 수준`,
+
+      // [F] Flow & Control
+      `[F] FLOW & CONTROL
+분석 순서:
+1. pattern → 소비자 질문의 구조적 반복 패턴 (비교, 안전성, 추천 등) 식별
+2. motivation → 검색 뒤에 숨겨진 실제 동기 분석
+3. journey_stage → 인지→고려→구매→재방문 단계별 질문 도출
+4. fear_desire → 소비자의 두려움과 욕구가 만드는 질문 도출
+5. counter → 질문 공간의 맹점 (아무도 묻지 않지만 반드시 물어야 할 것) 도출`
+    ].filter(Boolean).join('\n\n');
 
     const userPrompt = `Generate the meta-analysis and queries for domain: ${domainName}${brandName ? `, brand: ${brandName}` : ''}`;
 

@@ -42,7 +42,7 @@ Answer Card는 사용자가 구체적인 질문을 입력했을 때 검색엔진
    - faq: 자주 묻는 질문형
    - product: 제품 명세형
    - local: 지역 매장 정보형
-2. headline: 답변 카드의 핵심 타이틀/헤드라인 (예: "Dr.O Retinol 0.1% Treatment Usage Guide")
+2. headline: 답변 카드의 핵심 타이틀/헤드라인 (예: "설화수 자음생크림 성분 및 효능 가이드")
 3. trigger_queries: 사용자가 이 답변 카드를 유도하기 위해 입력할 수 있는 실질적인 검색어/질문 5개 목록
 4. body_entity_ids: 이 카드의 구성 성분이 되는 SurfaceEntity ID 목록
 5. completeness_score: 카드 콘텐츠가 제공할 수 있는 정보 충실도 (0~100 점)
@@ -56,7 +56,9 @@ ${entitySummary}
 지식 그래프 관계:
 ${relationSummary}
 
-각 Answer Card를 역설계하여 JSON 형식으로 반환하세요.`;
+각 Answer Card를 역설계하여 JSON 형식으로 반환하세요.
+
+⚠️ 중요: 모든 headline과 trigger_queries는 반드시 한국어로 작성하세요. 영어 사이트에서 추출된 엔티티 이름이라도 한국어로 번역하여 작성합니다.`;
 
     const jsonSchema = {
       type: 'object',
@@ -226,10 +228,10 @@ ${relationSummary}
         id: qisSceneId,
         workspace_id: workspaceId,
         canonical_question_id: canonicalId,
-        scene_name: `${entity.entity_name} Core FAQ`,
+        scene_name: `${entity.entity_name} 핵심 FAQ`,
         query_template: repQuery,
         intent_model: 'informational',
-        scenario_context: `Fallback core definition QIS Scene for ${entity.entity_name}`,
+        scenario_context: `${entity.entity_name}에 대한 핵심 정의 QIS Scene (폴백)`,
         risk_level: 'low',
         created_at: new Date().toISOString()
       });
@@ -239,8 +241,8 @@ ${relationSummary}
         workspace_id: workspaceId,
         website_url: websiteUrl,
         card_type: 'direct_answer',
-        headline: `${entity.entity_name} Definition`,
-        trigger_queries: [repQuery, `Tell me about ${entity.entity_name}`],
+        headline: `${entity.entity_name} 정의`,
+        trigger_queries: [repQuery, `${entity.entity_name}에 대해 알려주세요`],
         body_entity_ids: [entity.id!],
         source_page_urls: [entity.source_page_url],
         linked_canonical_question_id: canonicalId,

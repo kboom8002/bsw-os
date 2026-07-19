@@ -1,8 +1,15 @@
 import { getAIProvider } from '../ai/ai-provider';
 import { PatternAttractorSpec, ChannelType, MediaSolitonAsset } from './types';
+import { PreservationChecker } from './preservation-checker';
 
 export class MediaSolitonGenerator {
-  // Generate multi-channel media solitons
+  private preservationChecker: PreservationChecker;
+
+  constructor() {
+    this.preservationChecker = new PreservationChecker();
+  }
+
+  // Generate multi-channel media solitons with mandatory cross-validation
   async generateForChannel(
     attractor: PatternAttractorSpec,
     channel: ChannelType
@@ -44,49 +51,72 @@ Return the result matching the requested schema.`;
             estimated_reading_time_sec: { type: "INTEGER" }
           },
           required: ["word_count", "estimated_reading_time_sec"]
-        },
-        preservation_scores: {
-          type: "OBJECT",
-          properties: {
-            proposition_preserved: { type: "NUMBER" },
-            evidence_preserved: { type: "NUMBER" },
-            vibe_preserved: { type: "NUMBER" },
-            cta_preserved: { type: "NUMBER" },
-            overall: { type: "NUMBER" }
-          },
-          required: ["proposition_preserved", "evidence_preserved", "vibe_preserved", "cta_preserved", "overall"]
         }
       },
-      required: ["content", "metadata", "preservation_scores"]
+      required: ["content", "metadata"]
     };
 
     try {
       const result = await ai.generateStructuredOutput<any>(prompt, schema, { temperature: 0.2 });
-      return {
+      const generatedContent = result.content || '';
+      const metadata = result.metadata || { word_count: 0, estimated_reading_time_sec: 0 };
+
+      // Cross-validate preservation via independent PreservationChecker
+      // instead of trusting LLM self-evaluation scores
+      const asset: MediaSolitonAsset = {
         channel,
-        content: result.content || '',
-        metadata: result.metadata || { word_count: 0, estimated_reading_time_sec: 0 },
-        preservation_scores: result.preservation_scores || {
-          proposition_preserved: 0.9,
-          evidence_preserved: 0.9,
-          vibe_preserved: 0.9,
-          cta_preserved: 0.9,
-          overall: 0.9
+        content: generatedContent,
+        metadata,
+        preservation_scores: {
+          proposition_preserved: 0,
+          evidence_preserved: 0,
+          vibe_preserved: 0,
+          cta_preserved: 0,
+          overall: 0
         }
       };
+
+      try {
+        const crossValidation = await this.preservationChecker.checkPreservation(attractor, asset);
+        asset.preservation_scores = {
+          proposition_preserved: crossValidation.proposition_preserved ?? 0.5,
+          evidence_preserved: crossValidation.evidence_preserved ?? 0.5,
+          vibe_preserved: crossValidation.vibe_preserved ?? 0.5,
+          cta_preserved: crossValidation.cta_preserved ?? 0.5,
+          overall: crossValidation.overall ?? 0.5
+        };
+
+        // Log cross-validation issues for observability
+        if (crossValidation.issues && crossValidation.issues.length > 0) {
+          console.warn(`[MediaSoliton] Cross-validation issues for ${channel}:`, crossValidation.issues);
+        }
+      } catch (checkErr) {
+        console.warn(`[MediaSoliton] PreservationChecker failed for ${channel}, using conservative defaults`, checkErr);
+        // Conservative fallback — scores intentionally lower than LLM self-eval
+        // to signal that cross-validation was unavailable
+        asset.preservation_scores = {
+          proposition_preserved: 0.6,
+          evidence_preserved: 0.6,
+          vibe_preserved: 0.6,
+          cta_preserved: 0.6,
+          overall: 0.6
+        };
+      }
+
+      return asset;
     } catch (err) {
       console.error(`MediaSolitonGenerator failed for channel ${channel}, using fallback`, err);
-      // Fallback
+      // Fallback: use channel adaptation rule or natural definition as content
       return {
         channel,
         content: attractor.media_soliton_rule?.channel_adaptation_rules?.[channel] || attractor.natural_definition,
         metadata: { word_count: 0, estimated_reading_time_sec: 0 },
         preservation_scores: {
-          proposition_preserved: 0.8,
-          evidence_preserved: 0.8,
-          vibe_preserved: 0.8,
-          cta_preserved: 0.8,
-          overall: 0.8
+          proposition_preserved: 0.5,
+          evidence_preserved: 0.5,
+          vibe_preserved: 0.5,
+          cta_preserved: 0.5,
+          overall: 0.5
         }
       };
     }

@@ -300,3 +300,30 @@ export async function getBootstrapStatusAction(workspaceSlug: string, domainKey:
     return { ok: false, status: null, message: err.message };
   }
 }
+export async function getBootstrapDataAction(workspaceSlug: string, domainKey: string) {
+  try {
+    const workspaceId = await resolveWorkspaceId(workspaceSlug);
+    const supabase = getSupabaseAdminClient();
+
+    const [tcoRes, kgRes] = await Promise.all([
+      supabase.from('tco_concepts')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .like('slug', `${domainKey}-%`)
+        .order('concept_name', { ascending: true }),
+      supabase.from('brand_ontology_nodes')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('name', { ascending: true })
+    ]);
+
+    return {
+      success: true,
+      tcoConcepts: tcoRes.data || [],
+      kgNodes: kgRes.data || [],
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+

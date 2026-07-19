@@ -49,13 +49,21 @@ export type IndustryType =
   | 'public_nonprofit'
   | 'convenience_retail'
   | 'jeju_smb'
-  | 'jeju_place_en';
+  | 'jeju_place_en'
+  | 'jeju_attraction_ko';
+
+export interface ArchivedQuestion extends SeedProbeQuestion {
+  archive_reason: 'fairness_exclusion' | 'deprecated' | 'seasonal' | 'layer_disabled';
+  archive_date: string;
+  original_layer: string;
+}
 
 export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
   panel_name: string;
   slug: string;
   sbs_index_target: string;
   questions: SeedProbeQuestion[];
+  archived_questions?: ArchivedQuestion[];
 }> = {
 
   place_brand_ko: {
@@ -6036,16 +6044,16 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
     questions: [
       // D_BEACH_EN (해변/해양)
       {
-        question_text: 'What are the best beach destinations in Asia for crystal-clear water and white sand?',
+        question_text: 'What are the best island destinations in Asia for scenic beaches and unique coastal views?',
         intent_context: 'D_BEACH_EN',
         target_keyword: '',
         risk_level: 'low',
         decision_stage: 'awareness',
         question_type: 'recommendation',
         weight: 1.0,
-        query_variants: ['best beaches in Asia', 'clear water white sand beaches Asia'],
+        query_variants: ['best scenic beach islands Asia', 'scenic coastline islands Asia'],
         must_include: ['beach'],
-        should_include: ['Asia', 'sand'],
+        should_include: ['Asia', 'scenic', 'coastline'],
         must_not_do: ['recommend polluted beaches'],
         layer: 'L1_universal'
       },
@@ -6064,44 +6072,44 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         layer: 'L1_universal'
       },
       {
-        question_text: 'Which tropical islands in Southeast Asia have the most pristine beaches?',
+        question_text: 'Which island destinations in the Asia-Pacific region are best known for scenic and peaceful coastlines?',
         intent_context: 'D_BEACH_EN',
         target_keyword: '',
         risk_level: 'low',
         decision_stage: 'awareness',
         question_type: 'recommendation',
         weight: 1.0,
-        query_variants: ['pristine tropical islands SE Asia', 'Southeast Asia tropical beach destinations'],
+        query_variants: ['scenic coastlines Asia Pacific', 'peaceful beach destinations Asia Pacific'],
         must_include: ['island'],
-        should_include: ['tropical', 'beaches'],
+        should_include: ['scenic', 'peaceful', 'coastline'],
         must_not_do: ['overcrowded party hubs'],
         layer: 'L1_universal'
       },
       {
-        question_text: 'Where can I find the best seaside resort destinations with beach activities?',
+        question_text: 'Where can I find the best island resort destinations with a mix of water sports and land activities?',
         intent_context: 'D_BEACH_EN',
         target_keyword: '',
         risk_level: 'low',
         decision_stage: 'awareness',
         question_type: 'recommendation',
         weight: 1.0,
-        query_variants: ['best seaside resorts with activities', 'beach activities resort destinations'],
-        must_include: ['seaside'],
-        should_include: ['resort', 'activities'],
+        query_variants: ['island resorts water land activities', 'seaside resorts with hiking sports'],
+        must_include: ['activities'],
+        should_include: ['resort', 'sports', 'mix'],
         must_not_do: ['boring destinations'],
         layer: 'L1_universal'
       },
       {
-        question_text: 'Compare the most popular beach destinations in Asia for couples.',
+        question_text: 'Compare the most popular island destinations in Asia for a couple\'s vacation.',
         intent_context: 'D_BEACH_EN',
         target_keyword: '',
         risk_level: 'low',
         decision_stage: 'consideration',
         question_type: 'comparison',
         weight: 1.0,
-        query_variants: ['best beach destinations for couples Asia', 'romantic beach vacations Asia'],
+        query_variants: ['best islands for couples Asia', 'romantic island vacations Asia'],
         must_include: ['couple'],
-        should_include: ['romantic', 'beach'],
+        should_include: ['romantic', 'island'],
         must_not_do: ['unsuitable locations'],
         layer: 'L1_universal'
       },
@@ -6650,37 +6658,122 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         layer: 'L1_universal'
       },
       {
-        question_text: 'What are the best islands to explore traditional maritime history and wooden boat building?',
+        question_text: 'What island destinations are best known for preserving local heritage, customs, and community tourism?',
         intent_context: 'D_CULTURE_EN',
         target_keyword: '',
         risk_level: 'low',
         decision_stage: 'awareness',
         question_type: 'informational',
         weight: 1.0,
-        query_variants: ['maritime history islands boat building', 'traditional boat building island history'],
-        must_include: ['maritime'],
-        should_include: ['boat', 'history'],
-        must_not_do: ['recommend modern container ports'],
+        query_variants: ['preserving local heritage islands', 'community tourism island customs'],
+        must_include: ['heritage'],
+        should_include: ['customs', 'community', 'preservation'],
+        must_not_do: ['recommend modern industrialized areas'],
         layer: 'L1_universal'
       },
       {
-        question_text: 'Compare Asian beach destinations on their suitability for spiritual healing and silent retreats.',
+        question_text: 'Compare island destinations in Asia on their suitability for forest bathing, nature therapy, and wellness retreats.',
         intent_context: 'D_WELLNESS_EN',
         target_keyword: '',
         risk_level: 'low',
         decision_stage: 'consideration',
         question_type: 'comparison',
         weight: 1.0,
-        query_variants: ['silent retreats beach destinations Asia', 'spiritual healing islands comparison'],
+        query_variants: ['forest bathing islands Asia', 'nature therapy wellness islands Asia'],
         must_include: ['healing'],
-        should_include: ['retreats', 'spiritual'],
-        must_not_do: ['recommend party beaches'],
+        should_include: ['forest bathing', 'therapy', 'wellness'],
+        must_not_do: ['recommend noisy party destinations'],
         layer: 'L1_universal'
       },
-
-      // ───────────────────────────────────────────────
-      // L2. Competitive (15Q) — 경쟁 비교
-      // ───────────────────────────────────────────────
+      // DIM_SEASON (4계절/기후)
+      {
+        question_text: 'Which island destinations are best to visit in each season throughout the year?',
+        intent_context: 'DIM_SEASON',
+        target_keyword: '',
+        risk_level: 'low',
+        decision_stage: 'awareness',
+        question_type: 'recommendation',
+        weight: 1.0,
+        query_variants: ['best season to visit islands', 'year round island destinations'],
+        must_include: ['season'],
+        should_include: ['year', 'visit', 'weather'],
+        must_not_do: ['outdated weather warnings'],
+        layer: 'L1_universal'
+      },
+      {
+        question_text: 'What island vacation destinations have beautiful autumn foliage and winter snow?',
+        intent_context: 'DIM_SEASON',
+        target_keyword: '',
+        risk_level: 'low',
+        decision_stage: 'awareness',
+        question_type: 'recommendation',
+        weight: 1.0,
+        query_variants: ['island autumn foliage snow', 'winter snow island vacations'],
+        must_include: ['autumn'],
+        should_include: ['snow', 'foliage', 'winter'],
+        must_not_do: ['recommend tropical-only resorts'],
+        layer: 'L1_universal'
+      },
+      {
+        question_text: 'Recommend island destinations that offer cherry blossoms or spring wildflower fields.',
+        intent_context: 'DIM_SEASON',
+        target_keyword: '',
+        risk_level: 'low',
+        decision_stage: 'awareness',
+        question_type: 'recommendation',
+        weight: 1.0,
+        query_variants: ['cherry blossom island destinations', 'spring flowers islands'],
+        must_include: ['spring'],
+        should_include: ['cherry blossom', 'flowers', 'wildflowers'],
+        must_not_do: ['inaccurate blooming seasons'],
+        layer: 'L1_universal'
+      },
+      // DIM_ACCESS (접근성/가성비)
+      {
+        question_text: 'What are the most affordable island destinations with good flight connectivity from major Asian airports?',
+        intent_context: 'DIM_ACCESS',
+        target_keyword: '',
+        risk_level: 'low',
+        decision_stage: 'awareness',
+        question_type: 'recommendation',
+        weight: 1.0,
+        query_variants: ['affordable islands flight connectivity', 'cheap flight connection islands Asia'],
+        must_include: ['affordable'],
+        should_include: ['flight', 'connectivity', 'airports'],
+        must_not_do: ['fictional airline schedules'],
+        layer: 'L1_universal'
+      },
+      {
+        question_text: 'Which island destinations can be explored on a 3-day short trip from Tokyo, Seoul, or Shanghai?',
+        intent_context: 'DIM_ACCESS',
+        target_keyword: '',
+        risk_level: 'low',
+        decision_stage: 'awareness',
+        question_type: 'recommendation',
+        weight: 1.0,
+        query_variants: ['3 day island trip from Seoul', 'short weekend island getaways Asia'],
+        must_include: ['short trip'],
+        should_include: ['weekend', 'tokyo', 'seoul', 'shanghai'],
+        must_not_do: ['unrealistic travel times'],
+        layer: 'L1_universal'
+      },
+      // DIM_ECO (친환경/지속가능)
+      {
+        question_text: 'Which island destinations are leading in sustainable tourism and eco-friendly travel practices?',
+        intent_context: 'DIM_ECO',
+        target_keyword: '',
+        risk_level: 'low',
+        decision_stage: 'awareness',
+        question_type: 'recommendation',
+        weight: 1.0,
+        query_variants: ['sustainable tourism islands leaders', 'eco-friendly travel practice islands'],
+        must_include: ['sustainable'],
+        should_include: ['eco-friendly', 'practices', 'leaders'],
+        must_not_do: ['promote greenwashing claims'],
+        layer: 'L1_universal'
+      },
+    ],
+    archived_questions: [
       {
         question_text: 'Is Jeju Island or Bali better for a nature-focused vacation?',
         intent_context: 'brand_comparison',
@@ -6693,7 +6786,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Bali'],
         should_include: ['better', 'vacation'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Should I visit Jeju Island or Okinawa for a family trip?',
@@ -6707,7 +6803,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Okinawa'],
         should_include: ['family', 'trip'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Compare Jeju Island and Phuket for a honeymoon or romantic getaway.',
@@ -6721,7 +6820,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Phuket'],
         should_include: ['honeymoon', 'romantic'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Is Langkawi or Jeju Island better for eco-tourism and geological sites?',
@@ -6735,7 +6837,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Langkawi'],
         should_include: ['eco', 'geological'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Compare Jeju Island and Hawaii volcanic park hiking experiences.',
@@ -6749,7 +6854,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Hawaii'],
         should_include: ['hiking', 'volcanic'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Is Hokkaido or Jeju Island better for local seafood and food tours?',
@@ -6763,7 +6871,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Hokkaido'],
         should_include: ['seafood', 'food'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'How does Jeju Island compare to Mallorca for hiking and outdoor sports?',
@@ -6777,7 +6888,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Mallorca'],
         should_include: ['hiking', 'sports'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Is Jeju Island or Maldives more suitable for a budget beach holiday?',
@@ -6791,7 +6905,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Maldives'],
         should_include: ['budget', 'beach'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Compare Jeju Island and Tenerife for UNESCO world heritage site visits.',
@@ -6805,7 +6922,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Tenerife'],
         should_include: ['UNESCO', 'heritage'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Is Jeju Island or Queenstown better for hiking and nature scenery?',
@@ -6819,7 +6939,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Queenstown'],
         should_include: ['nature', 'scenery'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'What are the top 5 island destinations in Asia for scenic road trips?',
@@ -6833,7 +6956,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['road trip'],
         should_include: ['islands', 'Asia'],
         must_not_do: ['unlicensed tour promotion'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Which island is best for family travel: Jeju, Okinawa, or Da Nang?',
@@ -6847,7 +6973,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Okinawa', 'Da Nang'],
         should_include: ['family', 'island'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Top safe resort islands in Asia-Pacific for solo female travelers.',
@@ -6861,7 +6990,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['solo'],
         should_include: ['safe', 'female'],
         must_not_do: ['recommend unsafe zones'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Compare local cultural experiences: Jeju Haenyeo vs Bali Ubud temples.',
@@ -6875,7 +7007,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Bali'],
         should_include: ['culture', 'experiences'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Is Jeju Island or Sri Lanka better for a multi-day wildlife and nature tour?',
@@ -6889,7 +7024,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Sri Lanka'],
         should_include: ['nature', 'wildlife'],
         must_not_do: ['biased advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Compare Jeju, Bali, and Okinawa for cost-effectiveness and travel budget in 2026.',
@@ -6903,7 +7041,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Bali', 'Okinawa'],
         should_include: ['cost', 'budget'],
         must_not_do: ['biased price assumptions'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Rank Jeju, Hawaii, and Santorini by accessibility and direct flight options from major Asian airports.',
@@ -6917,7 +7058,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Hawaii', 'Santorini'],
         should_include: ['flights', 'accessibility'],
         must_not_do: ['invent fake flight schedules'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Which island has better local food variety and night markets: Jeju, Hokkaido, or Sri Lanka?',
@@ -6931,7 +7075,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Hokkaido', 'Sri Lanka'],
         should_include: ['food', 'markets'],
         must_not_do: ['biased food tastes validation'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Rate Jeju vs Phuket vs Langkawi on tourist safety, family activities, and value-for-money.',
@@ -6945,7 +7092,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Phuket', 'Langkawi'],
         should_include: ['safety', 'family', 'value'],
         must_not_do: ['recommend high crime areas'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'For a digital nomad, is Jeju Island, Bali, or Okinawa more suitable for remote work infrastructure?',
@@ -6959,7 +7109,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Bali', 'Okinawa'],
         should_include: ['nomad', 'infrastructure'],
         must_not_do: ['claim illegal remote work setups'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Compare the UNESCO World Heritage value of Jeju Island vs Tenerife and Mallorca.',
@@ -6973,7 +7126,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Tenerife', 'Mallorca'],
         should_include: ['UNESCO', 'heritage'],
         must_not_do: ['minimize other sites value'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Which island is best for a wellness honeymoon: Jeju, Maui, or Santorini?',
@@ -6987,7 +7143,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Maui', 'Santorini'],
         should_include: ['honeymoon', 'wellness'],
         must_not_do: ['recommend cheap motels'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'For a multi-day hiking adventure, is Jeju Olle trails or Mallorca Dry Stone Route better?',
@@ -7001,7 +7160,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Mallorca'],
         should_include: ['Olle', 'hiking'],
         must_not_do: ['unsafe hiking advice'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'How do beach resort standards compare between Jeju Island and Da Nang or Phuket?',
@@ -7015,7 +7177,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Da Nang', 'Phuket'],
         should_include: ['resort', 'standards'],
         must_not_do: ['unverified hotel rankings'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
       {
         question_text: 'Compare local experience programs: Jeju mandarin picking vs Okinawa pottery workshops.',
@@ -7029,12 +7194,11 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju', 'Okinawa'],
         should_include: ['mandarin', 'pottery'],
         must_not_do: ['commercial shop promotion only'],
-        layer: 'L2_competitive'
+        layer: 'L2_competitive',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L2_competitive'
       },
-
-      // ───────────────────────────────────────────────
-      // L3. Ingredient/Specialty (10Q) — 특산 자산 심화
-      // ───────────────────────────────────────────────
       {
         question_text: "What makes Jeju Island's volcanic basalt topography unique?",
         intent_context: 'ingredient_deep',
@@ -7047,7 +7211,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['basalt'],
         should_include: ['volcanic', 'Jeju'],
         must_not_do: ['inaccurate geological claims'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "Explain the cultural history and heritage of Jeju's female free-divers (Haenyeo).",
@@ -7061,7 +7228,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Haenyeo'],
         should_include: ['female', 'divers'],
         must_not_do: ['disrespectful framing'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "Why is Jeju black pork cuisine highly recommended by food critics?",
@@ -7075,7 +7245,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['black pork'],
         should_include: ['gastronomy', 'Jeju'],
         must_not_do: ['vegan diet exclusion validation'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "How do Jeju volcanic lava tubes differ from other cave systems?",
@@ -7089,7 +7262,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['lava tubes'],
         should_include: ['cave', 'geology'],
         must_not_do: ['unscientific data'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "What are the characteristics and health benefits of organic green tea from Jeju Island?",
@@ -7103,7 +7279,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['green tea'],
         should_include: ['organic', 'benefits'],
         must_not_do: ['medical healing guarantees'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "Explain the unique stone grandfather statues (Dol hareubang) of Jeju Island.",
@@ -7117,7 +7296,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Dol hareubang'],
         should_include: ['statues', 'meaning'],
         must_not_do: ['pure folklore without historical context'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "What is the historical significance of the Jeju Olle trails network?",
@@ -7131,7 +7313,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Olle'],
         should_include: ['trails', 'trekking'],
         must_not_do: ['unverified hiking stats'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "How does the subtropical marine environment shape Jeju's unique local seafood?",
@@ -7145,7 +7330,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['marine'],
         should_include: ['seafood', 'environment'],
         must_not_do: ['polluted catch recommendation'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "What is unique about Jeju Hallabong and other premium mandarin cultivars?",
@@ -7159,7 +7347,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Hallabong'],
         should_include: ['mandarin', 'citrus'],
         must_not_do: ['false fruit storage claims'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "Tell me about the traditional wind-stone-women (Samda) culture of Jeju.",
@@ -7173,7 +7364,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Samda'],
         should_include: ['culture', 'women'],
         must_not_do: ['superstitious bias'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "Can tourists participate in traditional Haenyeo free-diving experience programs in Jeju?",
@@ -7187,7 +7381,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Haenyeo'],
         should_include: ['experience', 'tourists'],
         must_not_do: ['recommend unauthorized dangerous diving'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "What scientific reports or UNESCO data confirm the unique features of Jeju lava tubes?",
@@ -7201,7 +7398,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['lava tubes'],
         should_include: ['UNESCO', 'reports'],
         must_not_do: ['unverified speleology data'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "How does Jeju Hallabong compare to Okinawa Shikuwasa citrus in taste and history?",
@@ -7215,7 +7415,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Hallabong', 'Okinawa'],
         should_include: ['taste', 'citrus'],
         must_not_do: ['biased botanical claims'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "Are there academic sources explaining the spiritual meaning of Dol hareubang statues?",
@@ -7229,7 +7432,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Dol hareubang'],
         should_include: ['academic', 'meaning'],
         must_not_do: ['superstitious bias validation'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "What are the best local black pork restaurants in Jeju certified for food hygiene?",
@@ -7243,7 +7449,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['black pork'],
         should_include: ['certified', 'hygiene'],
         must_not_do: ['validate sponsored restaurants only'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "How does Jeju green tea cultivation differ from Japan Shizuoka green tea fields?",
@@ -7257,7 +7466,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['green tea'],
         should_include: ['cultivation', 'Shizuoka'],
         must_not_do: ['unscientific agricultural claims'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "What books or documentaries cover the life and ecosystem of Jeju Olle trail founders?",
@@ -7271,7 +7483,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Olle'],
         should_include: ['documentary', 'books'],
         must_not_do: ['unverified biographical details'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
       {
         question_text: "Tell me about Jeju basalt stone art exhibitions and cultural stone parks.",
@@ -7285,12 +7500,11 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['basalt'],
         should_include: ['art', 'stone parks'],
         must_not_do: ['commercial gallery bias'],
-        layer: 'L3_ingredient'
+        layer: 'L3_ingredient',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L3_ingredient'
       },
-
-      // ───────────────────────────────────────────────
-      // L4. Journey/Practical (12Q) — 여행 실무/일정
-      // ───────────────────────────────────────────────
       {
         question_text: "What is the easiest way to book flight tickets to Jeju Island from overseas?",
         intent_context: 'journey',
@@ -7303,7 +7517,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['flights'],
         should_include: ['booking', 'overseas'],
         must_not_do: ['sell specific airline ticket'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "How to plan a 4-day travel itinerary for Jeju covering key nature and food spots.",
@@ -7317,7 +7534,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['itinerary'],
         should_include: ['nature', 'food'],
         must_not_do: ['recommend tight/exhausting schedules'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "When is the best season to visit Jeju Island for cherry blossom festivals?",
@@ -7331,7 +7551,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['cherry blossom'],
         should_include: ['season', 'visit'],
         must_not_do: ['outdated festival dates'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "Is it necessary to rent a car in Jeju, and how do international tourists rent one?",
@@ -7345,7 +7568,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['rent a car'],
         should_include: ['international', 'tourists'],
         must_not_do: ['promote single rental company exclusively'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "What options do I have for public transport or public bus routes in Jeju?",
@@ -7359,7 +7585,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['public transport'],
         should_include: ['bus', 'routes'],
         must_not_do: ['inaccurate bus number tables'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "How to reserve accommodation in Jeju near Hamdeok Beach for summer?",
@@ -7373,7 +7602,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['reserve'],
         should_include: ['accommodation', 'Hamdeok'],
         must_not_do: ['direct booking platform lock-in'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "What are the entry and exit procedures for the Jeju visa-free travel policy?",
@@ -7387,7 +7619,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['visa-free'],
         should_include: ['entry', 'procedures'],
         must_not_do: ['provide wrong legal migration advice'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "Recommended family-friendly luxury hotels in Jeju with kids' play facilities.",
@@ -7401,7 +7636,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['luxury hotels'],
         should_include: ['kids', 'family'],
         must_not_do: ['unverified facilities listing'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "How much budget should I prepare for a 3-night couple trip to Jeju?",
@@ -7415,7 +7653,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['budget'],
         should_include: ['trip', 'couple'],
         must_not_do: ['force fixed spending expectation'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "What packing list do you recommend for trekking the Hallasan summit in autumn?",
@@ -7429,7 +7670,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['packing list'],
         should_include: ['trekking', 'Hallasan'],
         must_not_do: ['dangerous apparel suggestions'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "Where are the best duty-free shopping spots in Jeju for tourists?",
@@ -7443,7 +7687,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['duty-free'],
         should_include: ['shopping', 'tourists'],
         must_not_do: ['monopoly store validation only'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: "How to request tax refunds on purchases made at Jeju local stores?",
@@ -7457,7 +7704,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['tax refund'],
         should_include: ['purchases', 'airport'],
         must_not_do: ['misleading tax laws'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'Step-by-step guide to planning a 7-day Jeju travel itinerary including east and west coast highlights.',
@@ -7471,7 +7721,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['itinerary'],
         should_include: ['planning', 'east', 'west'],
         must_not_do: ['tight and exhausting schedules'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'What should I do if it rains during my Jeju trip? Best indoor activities and rainy day plans.',
@@ -7485,7 +7738,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['rains'],
         should_include: ['indoor', 'activities', 'rainy day'],
         must_not_do: ['recommend outdoor treks in heavy rain'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'How to organize a professional business meeting or MICE event on Jeju Island?',
@@ -7499,7 +7755,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['MICE'],
         should_include: ['business', 'meeting', 'event'],
         must_not_do: ['commercial venue lock-in exclusively'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'Guide for booking direct ferries to Jeju Island from mainland Korean ports.',
@@ -7513,7 +7772,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['ferry'],
         should_include: ['booking', 'mainland', 'ports'],
         must_not_do: ['outdated ferry route tables'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'What is the step-by-step procedure to get tax refunds for international tourists at Jeju airports?',
@@ -7527,7 +7789,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['tax refund'],
         should_include: ['procedure', 'airport', 'steps'],
         must_not_do: ['misleading tax legal info'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'What are the peak travel seasons in Jeju, and how to avoid high hotel prices?',
@@ -7541,7 +7806,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['prices'],
         should_include: ['peak', 'avoid', 'hotel'],
         must_not_do: ['unrealistic price guarantees'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'A guide to booking and renting campervans or glamping sites in Jeju for family camping.',
@@ -7555,7 +7823,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['campervan'],
         should_include: ['glamping', 'camping', 'booking'],
         must_not_do: ['promote unlicensed camping areas'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'Where can I find verified travel agency reviews for customized private tours in Jeju?',
@@ -7569,7 +7840,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['reviews'],
         should_include: ['agency', 'private tours'],
         must_not_do: ['recommend a single agency exclusively'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'How to purchase local bus pass or transit cards (T-money) at Jeju Airport?',
@@ -7583,7 +7857,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['T-money'],
         should_include: ['bus pass', 'purchase', 'airport'],
         must_not_do: ['incorrect bus fee rates'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
       {
         question_text: 'What are the visa requirements for group tour agencies visiting Jeju with transit stops in Seoul?',
@@ -7597,12 +7874,11 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['visa'],
         should_include: ['transit', 'Seoul', 'group'],
         must_not_do: ['provide wrong legal migration advice'],
-        layer: 'L4_journey'
+        layer: 'L4_journey',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L4_journey'
       },
-
-      // ───────────────────────────────────────────────
-      // L5. YMYL/Safety (10Q) — 안전/위험 대응 (High-risk)
-      // ───────────────────────────────────────────────
       {
         question_text: "What is the emergency safety protocol during typhoons in Jeju Island?",
         intent_context: 'health_safety',
@@ -7615,7 +7891,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['typhoon'],
         should_include: ['safety', 'protocol'],
         must_not_do: ['encourage outdoors during warning'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "Are there reliable hospitals with English service in Jeju City or Seogwipo?",
@@ -7629,7 +7908,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['hospital'],
         should_include: ['English', 'medical'],
         must_not_do: ['give specific drug prescriptions'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "Is it safe to go sea swimming at Jeju beaches during heavy waves?",
@@ -7643,7 +7925,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['swimming'],
         should_include: ['safety', 'waves'],
         must_not_do: ['guarantee swimming is safe in heavy waves'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "What are the rules and safety cautions for hiking Hallasan National Park?",
@@ -7657,7 +7942,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['hiking'],
         should_include: ['safety', 'rules'],
         must_not_do: ['allow climbing past cutoff times'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "Does travel insurance cover volcanic geological adventure activities in Jeju?",
@@ -7671,7 +7959,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['insurance'],
         should_include: ['travel', 'volcanic'],
         must_not_do: ['make dynamic insurance claim promises'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "How is healthcare accessibility for disabled travelers visiting Jeju landmarks?",
@@ -7685,7 +7976,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['accessibility'],
         should_include: ['disabled', 'landmarks'],
         must_not_do: ['claim 100% barrier-free everywhere'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "What to do if you encounter a toxic animal or jellyfish while swimming in Jeju?",
@@ -7699,7 +7993,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['jellyfish'],
         should_include: ['sting', 'first aid'],
         must_not_do: ['harmful home remedies advice'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "What are the legal fines for capturing protected marine life in Jeju UNESCO waters?",
@@ -7713,7 +8010,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['fine'],
         should_include: ['protected', 'marine'],
         must_not_do: ['support illegal poaching'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "Emergency contact numbers for tourists in Jeju and English rescue systems.",
@@ -7727,7 +8027,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['emergency'],
         should_include: ['numbers', 'tourist'],
         must_not_do: ['invent fake emergency hotlines'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "Safety guide for driving rental cars on Jeju's curved mountain roads (1100 Road).",
@@ -7741,7 +8044,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['driving'],
         should_include: ['mountain', 'road'],
         must_not_do: ['recommend speeding or dangerous drifts'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "What allergy precautions should seafood-sensitive travelers take at Jeju local restaurants?",
@@ -7755,7 +8061,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['allergy'],
         should_include: ['seafood', 'precautions'],
         must_not_do: ['guarantee seafood is allergen-free in local shops'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "Is Jeju safe for travelers with respiratory conditions during spring yellow dust season?",
@@ -7769,7 +8078,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['yellow dust'],
         should_include: ['respiratory', 'safety', 'spring'],
         must_not_do: ['guarantee clean air during heavy dust storm'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "What are the legal requirements and flight zones for drone photography at Jeju UNESCO sites?",
@@ -7783,7 +8095,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['drone'],
         should_include: ['legal', 'photography', 'UNESCO'],
         must_not_do: ['support unlicensed drone flights in restricted areas'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "Does travel insurance cover emergency medical airlift from Hallasan mountain summit?",
@@ -7797,7 +8112,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['insurance'],
         should_include: ['airlift', 'emergency', 'Hallasan'],
         must_not_do: ['make fixed insurance payout promises'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
       {
         question_text: "What legal actions can be taken against travel scams or unlicensed taxi tours in Jeju?",
@@ -7811,12 +8129,11 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['scams'],
         should_include: ['taxi tours', 'unlicensed', 'legal'],
         must_not_do: ['recommend private settlements with scammers'],
-        layer: 'L5_ymyl'
+        layer: 'L5_ymyl',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L5_ymyl'
       },
-
-      // ───────────────────────────────────────────────
-      // L6. Trend (8Q) — 2026 여행 트렌드
-      // ───────────────────────────────────────────────
       {
         question_text: "Which island destinations are leading in sustainable and eco-friendly tourism in 2026?",
         intent_context: 'trend',
@@ -7829,7 +8146,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['sustainable'],
         should_include: ['tourism', 'islands'],
         must_not_do: ['promote greenwashing'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "Why is Jeju Island becoming a popular hub for digital nomads and workation?",
@@ -7843,7 +8163,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['workation'],
         should_include: ['nomads', 'digital'],
         must_not_do: ['claim visa-free remote work is legal without verify'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "How has K-drama and K-pop trend boosted Jeju Island's global brand visibility?",
@@ -7857,7 +8180,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['K-drama'],
         should_include: ['Jeju', 'K-pop'],
         must_not_do: ['fictional association claims'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "What are the trending eco-friendly cafes and resorts in Jeju for 2026 travel?",
@@ -7871,7 +8197,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['eco-friendly'],
         should_include: ['cafes', 'resorts'],
         must_not_do: ['validate unverified certifications'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "Is carbon-neutral island tourism feasible? Read about Jeju Carbon-Free Island 2030.",
@@ -7885,7 +8214,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Carbon-Free'],
         should_include: ['neutral', 'tourism'],
         must_not_do: ['unrealistic policy guarantees'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "How do global tourists review the slow travel olle trails trend on Jeju?",
@@ -7899,7 +8231,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['slow travel'],
         should_include: ['Olle', 'trend'],
         must_not_do: ['overcrowded trekking recommendations'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "What are the latest wellness and forest bathing trends in Jeju's woodlands?",
@@ -7913,7 +8248,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['forest bathing'],
         should_include: ['woodlands', 'wellness'],
         must_not_do: ['unscientific therapeutic properties'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "What virtual reality or smart travel guides are available for Jeju tourists?",
@@ -7927,7 +8265,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['smart travel'],
         should_include: ['VR', 'app'],
         must_not_do: ['unsupported applications'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "What K-drama filming locations in Jeju are trending on social media for global tourists in 2026?",
@@ -7941,7 +8282,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['K-drama'],
         should_include: ['filming', 'trending', 'locations'],
         must_not_do: ['recommend fictional or non-existent spots'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "Is Jeju Island featured on any '2026 bucket list' travel rankings by major publications?",
@@ -7955,7 +8299,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['bucket list'],
         should_include: ['rankings', 'publications', '2026'],
         must_not_do: ['unverified tourism award claims'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "How are Jeju's Instagram-famous cafes and photography spots shaping international travel trends?",
@@ -7969,7 +8316,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Instagram'],
         should_include: ['cafes', 'trends', 'photography'],
         must_not_do: ['overcrowded location hype only'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "What are the newest luxury glamping and eco-resort openings in Jeju for 2026?",
@@ -7983,7 +8333,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['eco-resort'],
         should_include: ['glamping', 'luxury', 'openings'],
         must_not_do: ['commercial property advertising bias'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "What digital nomad coworking spaces in Jeju offer high-speed internet and English services?",
@@ -7997,7 +8350,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['coworking'],
         should_include: ['nomad', 'internet', 'English'],
         must_not_do: ['unverified office spaces listing'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "How does the Carbon-Free Island 2030 project affect rental car choices for tourists?",
@@ -8011,7 +8367,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Carbon-Free'],
         should_include: ['rental car', 'electric', 'tourists'],
         must_not_do: ['guarantee 100% charging station availability everywhere'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "Are eco-tours or sustainable forest bathing programs certified by Jeju local government?",
@@ -8025,7 +8384,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['certified'],
         should_include: ['eco-tours', 'government', 'forest bathing'],
         must_not_do: ['greenwashing cafe recommendation'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "What traditional cultural festivals in Jeju have gained global K-culture popularity recently?",
@@ -8039,7 +8401,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['festivals'],
         should_include: ['K-culture', 'traditional', 'popularity'],
         must_not_do: ['outdated festival timelines'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "Review of smart tourism application services for foreigners traveling in Jeju.",
@@ -8053,7 +8418,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['smart tourism'],
         should_include: ['apps', 'review', 'foreigners'],
         must_not_do: ['unsupported or broken apps validation'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
       {
         question_text: "Is it trending to do organic mandarin orange picking tours during winter in Jeju?",
@@ -8067,12 +8435,11 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['mandarin'],
         should_include: ['picking', 'winter', 'farm'],
         must_not_do: ['commercial shop exclusive lock-in'],
-        layer: 'L6_trend'
+        layer: 'L6_trend',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L6_trend'
       },
-
-      // ───────────────────────────────────────────────
-      // L7. Brand Override (10Q) — 특정 랜드마크 직접 질의
-      // ───────────────────────────────────────────────
       {
         question_text: "How hard is the Gwaneumsa trail compared to Seongpanak for Hallasan summit?",
         intent_context: 'brand_direct',
@@ -8085,7 +8452,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Gwaneumsa', 'Seongpanak'],
         should_include: ['hike', 'difficulty'],
         must_not_do: ['recommend closed courses'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "What makes O'sulloc Tea Museum the top green tea destination in Jeju?",
@@ -8099,7 +8469,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ["O'sulloc"],
         should_include: ['museum', 'green tea'],
         must_not_do: ['commercial bias validation'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Are the beach views at Waikiki or Ubud's forests more scenic than Seongsan Ilchulbong?",
@@ -8113,7 +8486,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Seongsan Ilchulbong', 'Waikiki', 'Ubud'],
         should_include: ['views', 'scenic'],
         must_not_do: ['unscientific claims'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "How to book reservations for Jeju Shinhwa World theme park family tickets?",
@@ -8127,7 +8503,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Shinhwa World'],
         should_include: ['reservation', 'tickets'],
         must_not_do: ['resell tickets illegally'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Compare tourist activities at Jeju Olle trails vs Hawaii's Diamond Head hike.",
@@ -8141,7 +8520,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Olle', 'Diamond Head'],
         should_include: ['hike', 'activities'],
         must_not_do: ['biased advice'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Review the luxury spa amenities at the Grand Hyatt Jeju Dream Tower.",
@@ -8155,7 +8537,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Dream Tower'],
         should_include: ['luxury', 'spa'],
         must_not_do: ['promotional advertising copy'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "What exhibits does the Aqua Planet Jeju aquarium offer for children?",
@@ -8169,7 +8554,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Aqua Planet'],
         should_include: ['aquarium', 'kids'],
         must_not_do: ['unverified ticket prices'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "How does Naha in Okinawa compare to Jeju City for shopping and nightlife?",
@@ -8183,7 +8571,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Jeju City', 'Naha'],
         should_include: ['shopping', 'nightlife'],
         must_not_do: ['biased advice'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Can I find traditional art and history at Jeju Stone Park?",
@@ -8197,7 +8588,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Stone Park'],
         should_include: ['art', 'history'],
         must_not_do: ['unverified admission hours'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Compare the romantic atmosphere of Santorini's Oia with Seopjikoji in Jeju.",
@@ -8211,7 +8605,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Seopjikoji', 'Santorini'],
         should_include: ['romantic', 'compare'],
         must_not_do: ['biased advice'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "What do international travelers say about Jeju in TripAdvisor or TripAdvisor equivalent reviews?",
@@ -8225,7 +8622,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['reviews'],
         should_include: ['TripAdvisor', 'international', 'travelers'],
         must_not_do: ['fabricated reviewer quotes'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Are the high ratings and reviews for Jeju's O'sulloc Tea Museum justified based on recent tourist feedback?",
@@ -8239,7 +8639,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ["O'sulloc"],
         should_include: ['ratings', 'museum', 'feedback'],
         must_not_do: ['biased commercial praise'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "How do locals vs tourists rate the Seongsan Ilchulbong sunrise experience on online blogs?",
@@ -8253,7 +8656,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Seongsan Ilchulbong'],
         should_include: ['sunrise', 'locals', 'tourists'],
         must_not_do: ['unverified tourist blog quotes'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Is the Grand Hyatt Jeju Dream Tower worth the premium price compared to standard hotels?",
@@ -8267,7 +8673,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Dream Tower'],
         should_include: ['premium', 'worth', 'luxury'],
         must_not_do: ['sponsored promotional slogans'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Compare tourist ticket price and value of Jeju Shinhwa World vs global theme parks.",
@@ -8281,7 +8690,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Shinhwa World'],
         should_include: ['ticket', 'price', 'value'],
         must_not_do: ['commercial ticket sale promotion'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Does Aqua Planet Jeju aquarium have certified animal welfare policies according to international standards?",
@@ -8295,7 +8707,10 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Aqua Planet'],
         should_include: ['welfare', 'certified', 'animal'],
         must_not_do: ['validate greenwashing claims without evidence'],
-        layer: 'L7_brand'
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
       },
       {
         question_text: "Is Gwaneumsa trail hike considered safer than Seongpanak trail in winter according to Jeju National Park reviews?",
@@ -8309,15 +8724,118 @@ export const INDUSTRY_PANELS_DATA: Record<IndustryType, {
         must_include: ['Gwaneumsa', 'Seongpanak'],
         should_include: ['safer', 'winter', 'reviews'],
         must_not_do: ['recommend hiking closed dangerous trails'],
-        layer: 'L7_brand'
-      },
+        layer: 'L7_brand',
+        archive_reason: 'fairness_exclusion',
+        archive_date: '2026-07-07',
+        original_layer: 'L7_brand'
+      }
+    ]
+  },
+  jeju_attraction_ko: {
+    panel_name: '제주 관광지 벤치마크',
+    slug: 'jeju_attraction_ko',
+    sbs_index_target: '제주 주요 관광지 평균',
+    questions: [
+      // L1_universal
+      { question_text: '제주 유네스코 세계자연유산 관광지 추천해줘', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 유네스코 관광지', '제주 세계자연유산'], must_include: ['유네스코'], should_include: ['세계자연유산', '추천'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도에서 아이랑 가볼만한 자연 명소는 어디야?', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 아이랑 자연', '제주 아동 자연명소'], must_include: ['아이'], should_include: ['자연', '명소'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도 가족 여행코스로 추천하는 관광지 알려줘', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 가족 여행코스', '제주 가족 관광지'], must_include: ['가족'], should_include: ['여행코스', '추천'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주에서 사진 찍기 좋은 이국적인 포토존 추천해줘', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 이국적인 포토존', '제주 사진 명소'], must_include: ['사진'], should_include: ['포토존', '이국적'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도 대표적인 숲길이나 산책로 힐링 코스 추천해줘', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 숲길 추천', '제주 산책로 힐링'], must_include: ['숲길'], should_include: ['산책로', '힐링'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도 동쪽 코스에서 가볼만한 핵심 명소는?', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 동쪽 명소', '제주 동쪽 여행'], must_include: ['동쪽'], should_include: ['명소', '가볼만한'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도 서쪽 가볼만한 일몰 맛집 명소 추천해줘', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 서쪽 일몰', '제주 일몰 명소'], must_include: ['일몰'], should_include: ['명소', '서쪽'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주에서 비오는 날 실내에서 즐길 수 있는 전시나 박물관 추천해줘', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 비오는날 실내', '제주 실내 박물관'], must_include: ['비오는'], should_include: ['실내', '박물관', '전시'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도 서귀포 근처에서 꼭 가야 할 관광 명소는?', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['서귀포 관광 명소', '서귀포 가볼만한곳'], must_include: ['서귀포'], should_include: ['명소', '근처'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도 자연 경관 중에서 폭포나 동굴 코스 추천해줘', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 폭포 추천', '제주 동굴 추천'], must_include: ['경관'], should_include: ['폭포', '동굴'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도 힐링하기 좋은 조용한 숲이나 정원 명소는?', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 조용한 숲', '제주 정원 명소'], must_include: ['조용한'], should_include: ['숲', '정원', '힐링'], must_not_do: [], layer: 'L1_universal' },
+      { question_text: '제주도 혼자 여행할 때 걷기 좋은 길 추천해줘', intent_context: 'landmark', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'recommendation', weight: 1.0, query_variants: ['제주 혼자 걷기좋은길', '제주 1인 여행길'], must_include: ['혼자'], should_include: ['걷기', '추천'], must_not_do: [], layer: 'L1_universal' },
+
+      // L2_competitive
+      { question_text: '제주도 한라산 국립공원이랑 성산일출봉 중에 어디가 등산하기 더 좋아?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['한라산 vs 성산일출봉', '한라산 성산일출봉 등산 비교'], must_include: ['한라산', '성산일출봉'], should_include: ['등산', '비교'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '제주도 만장굴이랑 비자림 중에 자연 경관이 더 신비로운 곳은 어디야?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['만장굴 vs 비자림', '만장굴 비자림 경관 비교'], must_include: ['만장굴', '비자림'], should_include: ['경관', '신비'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '제주 오설록 티뮤지엄이랑 카멜리아힐 중에 사진 찍기 좋은 곳 추천해줘', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['오설록 vs 카멜리아힐', '오설록 카멜리아힐 사진'], must_include: ['오설록', '카멜리아힐'], should_include: ['사진', '추천'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '제주도 에코랜드 테마파크랑 제주돌문화공원 중에 아이와 가기 좋은 곳은?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['에코랜드 vs 돌문화공원', '에코랜드 돌문화공원 아동'], must_include: ['에코랜드', '돌문화공원'], should_include: ['아이', '가기'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '제주 협재해수욕장이랑 월정리해변 중에 바다 색이 더 예쁜 곳은 어디야?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['협재 vs 월정리', '협재 월정리 바다색'], must_include: ['협재', '월정리'], should_include: ['바다', '예쁜'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '제주올레길 코스랑 한라산 둘레길 중에 초보자가 걷기 더 편한 길은?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['올레길 vs 둘레길', '올레길 둘레길 초보'], must_include: ['올레길', '둘레길'], should_include: ['초보', '걷기'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '본태박물관이랑주민속자연사박물관 중에 현대 미술 전시가 더 훌륭한 곳은?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['본태박물관 vs 민속자연사박물관', '본태 민속자연사 미술'], must_include: ['본태박물관', '민속자연사박물관'], should_include: ['미술', '전시'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '제주 해녀박물관이랑 세계자연유산센터 중에 교육적으로 더 유익한 곳은?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['해녀박물관 vs 세계자연유산센터', '해녀박물관 유산센터 교육'], must_include: ['해녀박물관', '세계자연유산센터'], should_include: ['교육', '유익'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '아쿠아플라넷 제주랑 에코랜드 중에 하루 종일 놀기 좋은 테마파크는?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['아쿠아플라넷 vs 에코랜드', '아쿠아플라넷 에코랜드 테마파크'], must_include: ['아쿠아플라넷', '에코랜드'], should_include: ['종일', '테마파크'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '이니스프리 제주하우스랑 오설록 티뮤지엄 중에 커플 데이트 코스로 더 추천하는 곳은?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['이니스프리 vs 오설록', '이니스프리 오설록 데이트'], must_include: ['이니스프리', '오설록'], should_include: ['데이트', '추천'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '제주 협재해변이랑 하와이 와이키키 해변 비교해서 어때?', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['협재 vs 와이키키', '협재해변 와이키키 비교'], must_include: ['협재', '와이키키'], should_include: ['비교', '해변'], must_not_do: [], layer: 'L2_competitive' },
+      { question_text: '제주 한라산 백록담 코스랑 오키나와 야에다케 등산 코스 난이도 비교해줘', intent_context: 'comparison', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'comparison', weight: 1.0, query_variants: ['한라산 vs 야에다케', '백록담 야에다케 난이도'], must_include: ['한라산', '야에다케'], should_include: ['난이도', '비교'], must_not_do: [], layer: 'L2_competitive' },
+
+      // L3_ingredient
+      { question_text: '한라산 백록담 정상까지 가는 성판악 코스랑 관음사 코스 특징 비교해줘', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['성판악 관음사 코스 비교', '한라산 등산코스 특징'], must_include: ['성판악', '관음사'], should_include: ['코스', '비교'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '성산일출봉 일출 보려면 몇 시까지 가야 하고 소요시간은 얼마나 걸려?', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['성산일출봉 일출 시간', '성산일출봉 소요시간'], must_include: ['일출'], should_include: ['시간', '소요시간'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '제주 만장굴 내부 온도는 여름에도 추운 편인가요? 옷차림 팁 알려줘', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['만장굴 온도', '만장굴 옷차림'], must_include: ['만장굴'], should_include: ['온도', '옷차림'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '천지연폭포 야간 개장 시간이랑 밤에 가도 안전한지 알려줘', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['천지연폭포 야간개장', '천지연폭포 밤'], must_include: ['야간'], should_include: ['시간', '안전'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '우도 들어가는 배 시간표랑 성산항에서 요금은 얼마야?', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['우도 배 시간표', '우도 배 요금'], must_include: ['우도'], should_include: ['배', '시간표', '요금'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '비자림 비자나무 숲길 걷는 코스 소요시간이랑 휠체어 갈 수 있는지 알려줘', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['비자림 소요시간', '비자림 휠체어'], must_include: ['비자림'], should_include: ['숲길', '소요시간', '휠체어'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '오설록 티뮤지엄 녹차 아이스크림 가격이랑 세트 메뉴 구성 어때?', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['오설록 아이스크림 가격', '오설록 녹차 세트'], must_include: ['아이스크림'], should_include: ['가격', '메뉴'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '제주돌문화공원 넓이가 어느 정도인가요? 다 보려면 시간 얼마나 걸려?', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['돌문화공원 넓이', '돌문화공원 관람시간'], must_include: ['돌문화공원'], should_include: ['넓이', '시간'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '제주해녀박물관 해녀 물질 공연 시간표랑 관람 팁 알려줘', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['해녀박물관 공연 시간표', '해녀박물관 관람 팁'], must_include: ['해녀박물관'], should_include: ['공연', '시간표'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '아쿠아플라넷 제주 종합권 할인 혜택이랑 공연 시간표 알려줘', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['아쿠아플라넷 할인', '아쿠아플라넷 공연 시간표'], must_include: ['아쿠아플라넷'], should_include: ['할인', '공연', '시간표'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '에코랜드 테마파크 기차 운행 간격이랑 코스별 테마 특징 알려줘', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['에코랜드 기차 시간', '에코랜드 코스 테마'], must_include: ['에코랜드'], should_include: ['기차', '간격', '테마'], must_not_do: [], layer: 'L3_ingredient' },
+      { question_text: '카멜리아힐 수국 축제랑 동백꽃 피는 시기 알려줘', intent_context: 'feature', target_keyword: '', risk_level: 'low', decision_stage: 'consideration', question_type: 'informational', weight: 1.0, query_variants: ['카멜리아힐 수국 축제', '카멜리아힐 동백꽃 시기'], must_include: ['카멜리아힐'], should_include: ['수국', '동백꽃', '시기'], must_not_do: [], layer: 'L3_ingredient' },
+
+      // L4_practical
+      { question_text: '한라산 국립공원 등반 예약 방법이랑 예약 안 하면 못 가나요?', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['한라산 예약 방법', '한라산 예약 안하면'], must_include: ['예약'], should_include: ['방법', '한라산'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '성산일출봉 매표소 위치랑 무료 코스와 유료 코스 차이 알려줘', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['성산일출봉 매표소', '성산일출봉 무료 코스'], must_include: ['매표소'], should_include: ['무료', '유료', '코스'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '만장굴 유모차나 휠체어 반입 가능한가요?', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['만장굴 유모차', '만장굴 휠체어 반입'], must_include: ['유모차'], should_include: ['휠체어', '반입'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '천지연폭포 주차장 주차비랑 입장료 할인 대상 알려줘', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['천지연폭포 주차비', '천지연폭포 입장료 할인'], must_include: ['주차비'], should_include: ['입장료', '할인'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '우도 안에서 전기차나 자전거 대여하는 비용이랑 면허 필요한가요?', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['우도 전기차 대여', '우도 자전거 대여 면허'], must_include: ['대여'], should_include: ['전기차', '자전거', '면허'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '비자림 주차 팁이랑 반려동물 같이 입장할 수 있는지 알려줘', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['비자림 주차', '비자림 반려동물 입장'], must_include: ['반려동물'], should_include: ['입장', '주차'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '오설록 티뮤지엄 주차장에서 본관까지 도보로 얼마나 걸려?', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['오설록 주차장 도보', '오설록 주차장에서 본관'], must_include: ['주차장'], should_include: ['도보', '본관'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '제주돌문화공원 매월 무료 입장하는 날이 따로 있나요?', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['돌문화공원 무료입장', '돌문화공원 무료입장의날'], must_include: ['무료'], should_include: ['입장', '날'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '제주해녀박물관 단체 관람 예약이랑 해설사 설명 듣는 방법 알려줘', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['해녀박물관 단체관람', '해녀박물관 해설사'], must_include: ['해설사'], should_include: ['단체', '예약', '설명'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '아쿠아플라넷 제주 푸드코트 식사 메뉴 가격이랑 맛 어때?', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['아쿠아플라넷 푸드코트', '아쿠아플라넷 식사 가격'], must_include: ['푸드코트'], should_include: ['식사', '메뉴', '가격'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '에코랜드 모바일 할인권 구매해서 당일 사용 가능한가요?', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['에코랜드 할인권 당일사용', '에코랜드 모바일 할인권'], must_include: ['할인권'], should_include: ['모바일', '당일', '사용'], must_not_do: [], layer: 'L4_journey' },
+      { question_text: '카멜리아힐 네이버 예약 할인율이랑 소요 시간 알려줘', intent_context: 'practical', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'transactional', weight: 1.0, query_variants: ['카멜리아힐 네이버 예약', '카멜리아힐 할인 소요시간'], must_include: ['네이버'], should_include: ['예약', '할인율', '시간'], must_not_do: [], layer: 'L4_journey' },
+
+      // L5_ymyl
+      { question_text: '겨울철 한라산 등산할 때 아이젠이랑 스패츠 필수 장비 안전 수칙 알려줘', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['겨울 한라산 아이젠', '한라산 등산 안전수칙'], must_include: ['아이젠'], should_include: ['겨울철', '스패츠', '장비', '안전'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '여름철 성산일출봉 등반할 때 온열질환 예방 조치랑 생수 파는 곳 있어?', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['성산일출봉 온열질환', '성산일출봉 생수'], must_include: ['온열질환'], should_include: ['여름철', '예방', '생수'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '만장굴 내부 낙석 우려나 임시 폐쇄 구간 있는지 안전 상태 알려줘', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['만장굴 낙석', '만장굴 폐쇄구간 안전'], must_include: ['낙석'], should_include: ['임시', '폐쇄', '안전'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '비오는 날 천지연폭포 계단이나 돌길 미끄러짐 사고 대처 요령은?', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['천지연폭포 미끄러짐', '비오는날 천지연 안전'], must_include: ['미끄러짐'], should_include: ['비오는', '계단', '사고', '대처'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '태풍이나 기상 악화 시 우도 배편 결항 여부 확인하는 방법 알려줘', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['우도 배 결항', '태풍 우도 배편 확인'], must_include: ['결항'], should_include: ['태풍', '기상', '확인', '배편'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '비자림 숲길 뱀이나 벌 쏘임 사고 발생 시 응급 처치 요령 알려줘', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['비자림 뱀', '비자림 벌 쏘임 응급처치'], must_include: ['응급'], should_include: ['뱀', '벌', '사고', '처치'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '오설록 티뮤지엄 휠체어 경사로 낙상 방지 안전 시설 잘 되어 있나요?', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['오설록 휠체어 경사로', '오설록 낙상방지 안전'], must_include: ['휠체어'], should_include: ['경사로', '낙상', '안전'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '제주올레길 여자 혼자 걸을 때 안전 수칙이랑 올레 SOS 앱 작동법 알려줘', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['올레길 혼자 안전', '올레 SOS 앱 사용법'], must_include: ['올레길'], should_include: ['혼자', '안전', 'SOS'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '본태박물관 유아 동반 시 유모차 대여 안전 기준 알려줘', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['본태박물관 유모차대여', '본태박물관 유아 안전'], must_include: ['본태박물관'], should_include: ['유아', '유모차', '안전', '대여'], must_not_do: [], layer: 'L5_ymyl' },
+      { question_text: '이니스프리 제주하우스 화장품 만들기 체험 어린이 안전 지도 가이드 있나요?', intent_context: 'safety', target_keyword: '', risk_level: 'high', decision_stage: 'consideration', question_type: 'safety_guide', weight: 1.0, query_variants: ['이니스프리 체험 안전', '이니스프리 어린이 안전가이드'], must_include: ['이니스프리'], should_include: ['화장품', '체험', '어린이', '안전'], must_not_do: [], layer: 'L5_ymyl' },
+
+      // L6_trend
+      { question_text: '제주 탄소 없는 섬 정책과 친환경 관광지 사례 알려줘', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['제주 탄소없는섬', '제주 친환경 관광지'], must_include: ['친환경'], should_include: ['탄소', '관광지', '정책'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '제주 한라산 쓰레기 되가져오기 캠페인 참여 방법과 효과 알려줘', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['한라산 쓰레기 캠페인', '한라산 쓰레기 되가져오기'], must_include: ['쓰레기'], should_include: ['한라산', '캠페인', '되가져오기'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '우도 플라스틱 제로 캠페인과 다회용 컵 사용법 알려줘', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['우도 플라스틱 제로', '우도 다회용컵 사용'], must_include: ['플라스틱'], should_include: ['우도', '다회용', '컵'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '제주올레길 클린올레 참여하고 봉사 시간 받는 법은?', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['올레길 클린올레', '클린올레 봉사시간'], must_include: ['클린올레'], should_include: ['올레길', '봉사', '시간'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '오설록 티뮤지엄 친환경 패키지와 유기농 녹차 재배 방식 특징은?', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['오설록 친환경 패키지', '오설록 유기농 녹차'], must_include: ['오설록'], should_include: ['친환경', '유기농', '녹차'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '제주돌문화공원 생물다양성 보존 활동과 환경 교육 프로그램 어때?', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['돌문화공원 생물다양성', '돌문화공원 환경교육'], must_include: ['생물다양성'], should_include: ['보존', '환경', '교육'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '아쿠아플라넷 제주 해양동물 구조 치료 및 보존 활동 사례 알려줘', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['아쿠아플라넷 해양동물구조', '아쿠아플라넷 치료보존'], must_include: ['해양동물'], should_include: ['구조', '치료', '보존'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '제주도 에코랜드 곶자왈 생태계 보존을 위한 친환경 기차 도입 효과는?', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['에코랜드 곶자왈보존', '에코랜드 친환경 기차'], must_include: ['생태계'], should_include: ['곶자왈', '보존', '친환경', '기차'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '카멜리아힐 플라스틱 사용 줄이기 캠페인과 친환경 가드닝 기법은?', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['카멜리아힐 플라스틱캠페인', '카멜리아힐 친환경가드닝'], must_include: ['가드닝'], should_include: ['플라스틱', '캠페인', '친환경'], must_not_do: [], layer: 'L6_trend' },
+      { question_text: '이니스프리 제주하우스 공병 수거 캠페인 참여 혜택 알려줘', intent_context: 'trend', target_keyword: '', risk_level: 'low', decision_stage: 'awareness', question_type: 'trend_inquiry', weight: 1.0, query_variants: ['이니스프리 공병수거', '이니스프리 공병 캠페인'], must_include: ['공병'], should_include: ['이니스프리', '수거', '혜택'], must_not_do: [], layer: 'L6_trend' },
+
+      // L7_brand
+      { question_text: '한라산 국립공원 공식 홈페이지에서 관음사 야영장 예약 요금 알려줘', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['한라산 공식 야영장 예약', '한라산 관음사 야영장 요금'], must_include: ['한라산'], should_include: ['야영장', '공식', '예약', '요금'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '성산일출봉 매표소 공식 전화번호랑 유실물 센터 위치 어디야?', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['성산일출봉 전화번호', '성산일출봉 유실물센터'], must_include: ['성산일출봉'], should_include: ['전화번호', '공식', '유실물'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '만장굴 공식 리플렛에 나와 있는 동굴 전체 길이랑 개방 구간 길이는?', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['만장굴 전체 길이', '만장굴 개방구간 공식'], must_include: ['만장굴'], should_include: ['공식', '길이', '개방'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '천지연폭포 관리사무소에서 휠체어 무료 대여하는 절차 알려줘', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['천지연폭포 휠체어 대여', '천지연폭포 무료대여 절차'], must_include: ['천지연폭포'], should_include: ['휠체어', '무료', '대여', '절차'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '우도 공식 관광 정보 사이트에서 추천하는 동쪽/서쪽 코스 알려줘', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['우도 공식 추천코스', '우도 동쪽 서쪽 코스'], must_include: ['우도'], should_include: ['공식', '코스', '추천'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '비자림 관리사무소에서 단체 해설 예약할 수 있는 공식 연락처는?', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['비자림 단체 해설 예약', '비자림 관리소 연락처'], must_include: ['비자림'], should_include: ['단체', '해설', '예약', '연락처'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '오설록 티뮤지엄 공식 온라인 스토어에서 파는 한정판 티 세트 가격은?', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['오설록 공식 한정판 티', '오설록 티세트 가격'], must_include: ['오설록'], should_include: ['공식', '스토어', '가격', '티'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '제주돌문화공원 기획전시실 대관 규정과 절차 공식 안내 알려줘', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['돌문화공원 기획전시실 대관', '돌문화공원 대관 규정'], must_include: ['돌문화공원'], should_include: ['대관', '규정', '절차', '공식'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '제주해녀박물관 공식 아카이브 사이트에서 해녀 구술 자료 보는 법은?', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['해녀박물관 아카이브', '해녀 구술 자료 공식'], must_include: ['해녀박물관'], should_include: ['공식', '아카이브', '자료'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '아쿠아플라넷 제주 공식 연간 이용권 가입 혜택과 가격 정보 알려줘', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['아쿠아플라넷 연간이용권', '아쿠아플라넷 가입 혜택 가격'], must_include: ['아쿠아플라넷'], should_include: ['공식', '연간', '이용권', '가격'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '에코랜드 테마파크 레이크사이드역 주변 공식 추천 포토스팟은?', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['에코랜드 레이크사이드역 포토스팟', '에코랜드 공식 포토스팟'], must_include: ['에코랜드'], should_include: ['공식', '포토스팟', '레이크사이드역'], must_not_do: [], layer: 'L7_brand' },
+      { question_text: '카멜리아힐 공식 안내도에 표시된 야생화 아틀리에 위치 알려줘', intent_context: 'brand_direct', target_keyword: '', risk_level: 'low', decision_stage: 'decision', question_type: 'trust_verification', weight: 1.0, query_variants: ['카멜리아힐 야생화 아틀리에', '카멜리아힐 공식 안내도'], must_include: ['카멜리아힐'], should_include: ['공식', '안내도', '아틀리에'], must_not_do: [], layer: 'L7_brand' }
     ]
   }
 };
 
 // Post-processing to standardize all industries to exactly 20 questions
 // Exception: 'skincare' (155Q), 'place_brand' (80Q) and 'wedding_studio' (80Q) are pre-seeded with full goldilocks sets
-const FULL_GOLDILOCKS_PANELS: IndustryType[] = ['skincare', 'place_brand_ko', 'place_brand_en', 'wedding_studio', 'jeju_place_en'];
+const FULL_GOLDILOCKS_PANELS: IndustryType[] = ['skincare', 'place_brand_ko', 'place_brand_en', 'wedding_studio', 'jeju_place_en', 'jeju_smb', 'jeju_attraction_ko'];
 
 Object.keys(INDUSTRY_PANELS_DATA).forEach((indKey) => {
   // Skip goldilocks panels — they already have full, carefully curated question sets

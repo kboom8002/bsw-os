@@ -8,7 +8,7 @@ import {
   TrendingUp, TrendingDown, Minus,
   Search, Activity, Award, ChevronRight,
   HelpCircle, Sparkles, Camera, Droplets,
-  BarChart3, Clock, RefreshCw, Music, Compass,
+  BarChart3, Clock, RefreshCw, Music, Compass, Building2,
   ChevronDown, Settings, History, LayoutGrid
 } from "lucide-react";
 // runLightBenchmark는 API Route(/api/benchmark/run)로 호출합니다 (maxDuration=60s)
@@ -240,6 +240,8 @@ function DomainIcon({ slug }: { slug: string }) {
   if (slug.startsWith('seoul_district')) return <Sparkles className="h-4 w-4" />;
   if (slug.startsWith('kpop_idol')) return <Music className="h-4 w-4" />;
   if (slug.startsWith('jeju_place')) return <Compass className="h-4 w-4" />;
+  if (slug.startsWith('jeju_attraction')) return <Compass className="h-4 w-4" />;
+  if (slug.startsWith('jeju_smb')) return <Building2 className="h-4 w-4" />;
   return <BarChart3 className="h-4 w-4" />;
 }
 

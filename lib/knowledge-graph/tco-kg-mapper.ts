@@ -109,6 +109,48 @@ export class TcoKgMapper {
     // 점수화: 매칭된 노드가 3개 이상이면 만점(10), 그 이하는 비례 배분
     return Math.min(10, Math.round((matches / 3) * 10));
   }
+
+  /**
+   * 시그널 텍스트와 TCO 개념 시드 간 의미적 유사도 매칭.
+   * 문자열 포함 매칭의 한계를 보완하는 임베딩 기반 매칭.
+   */
+  static async semanticMatch(
+    query: string,
+    tcoSeeds: Array<{ concept_name: string; definition: string }>,
+    threshold: number = 0.75
+  ): Promise<Array<{ concept_name: string; similarity: number }>> {
+    if (tcoSeeds.length === 0) return [];
+
+    try {
+      const provider = getEmbeddingProvider();
+      const queryEmbedding = (await provider.embedBatch([query]))[0];
+      if (!queryEmbedding) return [];
+
+      // TCO 개념의 "이름: 정의" 결합 텍스트로 임베딩
+      const seedTexts = tcoSeeds.map(s => `${s.concept_name}: ${s.definition}`);
+      const seedEmbeddings = await provider.embedBatch(seedTexts);
+
+      const matches: Array<{ concept_name: string; similarity: number }> = [];
+
+      for (let i = 0; i < tcoSeeds.length; i++) {
+        const seedEmbed = seedEmbeddings[i];
+        if (!seedEmbed) continue;
+
+        const sim = cosineSimilarity(queryEmbedding, seedEmbed);
+        if (sim >= threshold) {
+          matches.push({
+            concept_name: tcoSeeds[i].concept_name,
+            similarity: parseFloat(sim.toFixed(4))
+          });
+        }
+      }
+
+      return matches.sort((a, b) => b.similarity - a.similarity);
+    } catch (err) {
+      console.warn('[TcoKgMapper] semanticMatch embedding failed, returning empty:', err);
+      return [];
+    }
+  }
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {

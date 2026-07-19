@@ -42,6 +42,7 @@ function DomainIcon({ slug, className = "h-6 w-6" }: { slug: string; className?:
   if (slug.startsWith('seoul_district')) return <Building2 className={className} />;
   if (slug.startsWith('kpop_idol')) return <Music className={className} />;
   if (slug.startsWith('jeju_place')) return <Compass className={className} />;
+  if (slug.startsWith('jeju_attraction')) return <Compass className={className} />;
   if (slug.startsWith('jeju_smb')) return <Building2 className={className} />;
   return <BarChart3 className={className} />;
 }

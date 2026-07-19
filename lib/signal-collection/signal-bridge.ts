@@ -12,6 +12,7 @@
 
 import { getSupabaseAdminClient } from '../supabase';
 import type { VOCChunk } from './types';
+import { getAIProvider } from '../ai/ai-provider';
 
 export interface BridgeResult {
   converted: number;
@@ -74,6 +75,7 @@ export class SignalBridge {
   /**
    * 미변환 외부 시그널에서 질문 패턴을 추출하여
    * question_signals 테이블에 직접 삽입합니다.
+   * [v2.0] 다층식 QuestionDetector 모듈 도입으로 오탐률 대폭 감소.
    */
   static async convertExternalToQuestionSignals(
     workspaceId: string,
@@ -99,11 +101,14 @@ export class SignalBridge {
 
       for (const signal of signals) {
         try {
-          const question = extractQuestionFromContent(signal.content);
-          if (!question) {
+          // [v2.0] QuestionDetector 비동기 detect 함수 적용
+          const detectRes = await QuestionDetector.detect(signal.content);
+          if (!detectRes.isQuestion || !detectRes.questionText) {
             result.skipped++;
             continue;
           }
+
+          const question = detectRes.questionText;
 
           const { error: insertErr } = await supabase
             .from('question_signals')
@@ -219,23 +224,112 @@ export class SignalBridge {
 }
 
 // ──────────────────────────────────────────────────────────────
-// 헬퍼: 콘텐츠에서 질문 추출
+// [v2.0] QuestionDetector: 다층형 질문 감지 모듈
 // ──────────────────────────────────────────────────────────────
-function extractQuestionFromContent(content: string): string | null {
-  const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-  if (lines.length === 0) return null;
+export class QuestionDetector {
+  
+  /**
+   * Level 1: 규칙 기반 질문 감지 (한국어 의문사/어미 및 기호 필터)
+   */
+  public static ruleBasedDetect(text: string): { isQuestion: boolean; confidence: number } {
+    const cleanText = text.replace(/\[Fallback\]/g, '').trim().toLowerCase();
+    if (cleanText.length < 5) {
+      return { isQuestion: false, confidence: 0.0 };
+    }
 
-  const title = lines[0].slice(0, 100);
+    const interrogativeWords = /^(어디|어떻게|왜|언제|누구|얼마|몇|어느|무엇|무슨|어떤|어떻습니까|어떻게해야)/;
+    const questionEndings = /(가요|나요|ㄹ까요?|줘|주세요|알려|추천|비교|차이|방법|는지|건지|의문|치료|후기|부작용|원인|효과|대처|주의사항)\s*[\?？]?\s*$/;
 
-  if (title.includes('?') || title.endsWith('가요') || title.endsWith('나요') ||
-      title.endsWith('줘') || title.endsWith('줘요') || title.endsWith('해요') ||
-      title.includes('추천') || title.includes('알려') || title.includes('어때')) {
-    return title.replace('[Fallback]', '').trim();
+    const hasInterrogative = interrogativeWords.test(cleanText);
+    const hasEnding = questionEndings.test(cleanText);
+    const hasQuestionMark = cleanText.includes('?');
+
+    // 의문사와 질문형 어미가 모두 등장하거나, 명확한 물음표가 있는 경우 높은 확신도 부여
+    if (hasInterrogative && hasEnding) {
+      return { isQuestion: true, confidence: 0.95 };
+    }
+    if ((hasInterrogative || hasEnding) && hasQuestionMark) {
+      return { isQuestion: true, confidence: 0.90 };
+    }
+    
+    // 단순 의문형 어미 혹은 질문 키워드만 있는 경우 중간 확신도
+    if (hasInterrogative || hasEnding || hasQuestionMark) {
+      return { isQuestion: true, confidence: 0.75 };
+    }
+
+    // 명백히 질문 패턴이 안 보일 때
+    return { isQuestion: false, confidence: 0.20 };
   }
 
-  if (title.length > 10 && !title.startsWith('[')) {
-    return `${title} 관련해서 알려줘`;
+  /**
+   * Level 2: 임베딩 기반 분류 (Phase 2에서 완비 예정, 현재는 Level 1 통과 처리)
+   */
+  public static async embeddingClassify(text: string): Promise<{ isQuestion: boolean; confidence: number }> {
+    return this.ruleBasedDetect(text);
   }
 
-  return null;
+  /**
+   * Level 3: LLM 기반 최종 질문 판정 및 정규화 추출 (Confidence가 중위권일 때 가동)
+   */
+  public static async llmClassify(text: string): Promise<{ isQuestion: boolean; questionText: string | null }> {
+    try {
+      const ai = getAIProvider();
+      
+      const prompt = `당신은 유입 문장이 소비자가 입력한 실제 질문/고민형 검색 쿼리인지 판정하는 AI 전문가입니다.
+문장: "${text}"
+
+위 문장을 분석하여:
+1. 소비자가 해결하려는 실제 질문이나 고민의 목적이 드러나 있는지 (isQuestion: true/false) 판정하십시오.
+2. 질문이 맞다면, 불필요한 서술어(예: "안녕하세요", "홍길동 드림") 및 PII 정보들을 제거하고 자연스러운 한국어 검색 질문형으로 정제한 대표 쿼리를 추출하십시오 (questionText).
+
+다음 JSON 스키마를 엄격히 따르십시오.`;
+
+      const schema = {
+        type: 'OBJECT',
+        properties: {
+          isQuestion: { type: 'BOOLEAN' },
+          questionText: { type: 'STRING', nullable: true }
+        },
+        required: ['isQuestion', 'questionText']
+      };
+
+      const result = await ai.generateStructuredOutput<{ isQuestion: boolean; questionText: string | null }>(
+        prompt,
+        schema,
+        { temperature: 0.1 }
+      );
+
+      return {
+        isQuestion: result.isQuestion,
+        questionText: result.isQuestion ? (result.questionText || text) : null
+      };
+
+    } catch (err: any) {
+      console.warn('[QuestionDetector] LLM classification error (falling back to rule):', err.message);
+      const rule = this.ruleBasedDetect(text);
+      return {
+        isQuestion: rule.isQuestion,
+        questionText: rule.isQuestion ? text : null
+      };
+    }
+  }
+
+  /**
+   * E2E 다층 감지 오케스트레이션
+   */
+  public static async detect(text: string): Promise<{ isQuestion: boolean; questionText: string | null }> {
+    // 1. 규칙 기반 스캔
+    const ruleResult = this.ruleBasedDetect(text);
+    
+    // 확신도 임계값 분기
+    if (ruleResult.confidence >= 0.90) {
+      return { isQuestion: true, questionText: text.replace(/\[Fallback\]/g, '').trim() };
+    }
+    if (ruleResult.confidence < 0.30) {
+      return { isQuestion: false, questionText: null };
+    }
+
+    // 2. 중간 구역(0.30 ~ 0.90)은 LLM 기반으로 2차 정밀 판정 및 정제
+    return await this.llmClassify(text);
+  }
 }

@@ -189,7 +189,8 @@ export async function generateOutreachMessage(
       recommended_product: target.recommended_product,
       recommended_tier: target.recommended_tier
     },
-    trendingQuestions
+    trendingQuestions,
+    '제주 애월읍' // 지역 맥락 강화
   );
 
   // 3. 생성된 메시지 저장

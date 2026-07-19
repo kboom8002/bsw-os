@@ -83,6 +83,8 @@ export class AepiCalculator {
     education:      { factoid: 0.25, procedural: 0.15, comparative: 0.15, authority: 0.20, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.05 },
     finance:        { factoid: 0.20, procedural: 0.15, comparative: 0.15, authority: 0.25, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.05 },
     travel:         { factoid: 0.15, procedural: 0.15, comparative: 0.15, authority: 0.10, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.25 },
+    jeju_attraction_ko: { factoid: 0.15, procedural: 0.15, comparative: 0.15, authority: 0.10, schema_org: 0.10, topical_cluster: 0.10, local_geo: 0.25 },
+    jeju_smb:       { factoid: 0.15, procedural: 0.15, comparative: 0.20, authority: 0.10, schema_org: 0.10, topical_cluster: 0.05, local_geo: 0.25 },
 
     // ── 기본 폴백 ──
     default:        { factoid: 0.15, procedural: 0.15, comparative: 0.15, authority: 0.15, schema_org: 0.15, topical_cluster: 0.15, local_geo: 0.10 },

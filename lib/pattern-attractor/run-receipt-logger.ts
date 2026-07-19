@@ -58,7 +58,7 @@ export class RunReceiptLogger {
 
     // Update attractor stats incrementing activation count (atomic increment)
     try {
-      // Try atomic RPC first, fallback to read-modify-write if RPC not available
+      // Priority 1: Atomic RPC increment
       const { error: rpcErr } = await supabase.rpc('increment_counter', {
         table_name: 'pattern_attractors',
         column_name: 'activation_count',
@@ -66,20 +66,23 @@ export class RunReceiptLogger {
       });
       
       if (rpcErr) {
-        // Fallback: direct update if RPC not available
-        const { data: att } = await supabase
-          .from('pattern_attractors')
-          .select('activation_count')
-          .eq('id', receipt.attractor_id)
-          .single();
-        const count = (att?.activation_count || 0) + 1;
-        await supabase
-          .from('pattern_attractors')
-          .update({ activation_count: count, updated_at: new Date().toISOString() })
-          .eq('id', receipt.attractor_id);
+        // Priority 2: Direct SQL via alternative RPC to avoid read-modify-write
+        const { error: rawErr } = await supabase.rpc('run_sql', {
+          query: `UPDATE pattern_attractors SET activation_count = COALESCE(activation_count, 0) + 1, updated_at = NOW() WHERE id = $1`,
+          params: [receipt.attractor_id]
+        });
+
+        if (rawErr) {
+          // Priority 3: Last resort — simple update (may lose count under concurrency)
+          await supabase
+            .from('pattern_attractors')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', receipt.attractor_id);
+          console.warn(`[RunReceiptLogger] Atomic increment unavailable for attractor ${receipt.attractor_id}. Count may be stale.`, rawErr.message);
+        }
       }
     } catch (updateErr) {
-      console.warn(`Failed to update activation count for attractor ${receipt.attractor_id}:`, updateErr);
+      console.warn(`[RunReceiptLogger] Failed to update activation count for attractor ${receipt.attractor_id}:`, updateErr);
     }
 
     return data?.id || '';

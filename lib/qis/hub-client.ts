@@ -65,13 +65,20 @@ export class QisHubClient {
 
   /**
    * 예측된 질문을 3축 인프라에 전송합니다.
+   * @returns true if push succeeded, false if failed (no longer swallows errors)
    */
-  async pushPredictedQuestions(questions: any[], opts?: { axis?: string }): Promise<boolean> {
+  async pushPredictedQuestions(
+    questions: any[],
+    opts?: { axis?: string; retryCount?: number; maxRetries?: number }
+  ): Promise<boolean> {
     if (!this.hubUrl) {
       console.warn('[QisHubClient] Hub URL not configured — pushPredictedQuestions skipped');
       return false;
     }
     
+    const maxRetries = opts?.maxRetries ?? 2;
+    const currentRetry = opts?.retryCount ?? 0;
+
     try {
       const response = await fetch(`${this.hubUrl}/api/v1/qis/predictions`, {
         method: 'POST',
@@ -93,8 +100,23 @@ export class QisHubClient {
       console.log(`[QisHubClient] Successfully pushed ${questions.length} questions to Hub (axis: ${opts?.axis || 'industry'})`);
       return true;
     } catch (e: any) {
-      console.warn(`[QisHubClient] Push failed, using fallback stub success: ${e.message}`);
-      return true; // 데모 안정성을 위해 fallback true
+      console.error(`[QisHubClient] Push failed (attempt ${currentRetry + 1}/${maxRetries + 1}): ${e.message}`);
+
+      // Retry with exponential backoff if retries remaining
+      if (currentRetry < maxRetries) {
+        const delayMs = Math.min(1000 * Math.pow(2, currentRetry), 8000);
+        console.log(`[QisHubClient] Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        return this.pushPredictedQuestions(questions, {
+          ...opts,
+          retryCount: currentRetry + 1,
+          maxRetries
+        });
+      }
+
+      // All retries exhausted — propagate failure honestly
+      console.error(`[QisHubClient] pushPredictedQuestions permanently failed after ${maxRetries + 1} attempts for ${questions.length} questions`);
+      return false;
     }
   }
 
@@ -138,20 +160,60 @@ export class QisHubClient {
 
   async pullMetrics(industry: string): Promise<number> {
     if (!this.hubUrl) {
-      console.warn('[QisHubClient] Hub URL not configured — pullMetrics skipped');
-      return 0;
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[QisHubClient] PRODUCTION WARNING: Hub URL not configured — pullMetrics returning fallback. Set HUB_URL env variable.');
+      } else {
+        console.warn('[QisHubClient] Hub URL not configured — pullMetrics skipped');
+      }
+      return 10;
     }
-    console.warn('[QisHubClient] Pull metrics stub');
-    return 10; // Return mock count
+    try {
+      const response = await fetch(`${this.hubUrl}/api/v1/qis/metrics?industry=${encodeURIComponent(industry)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+      });
+      if (response.ok) {
+        const json = await response.json();
+        const val = json.metrics ?? json.count ?? json.metricsCount;
+        if (typeof val === 'number') return val;
+        if (typeof json === 'number') return json;
+      }
+      throw new Error(`Status ${response.status}`);
+    } catch (e: any) {
+      console.warn(`[QisHubClient] Pull metrics failed: ${e.message}. Falling back to default.`);
+      return 10;
+    }
   }
 
   async pullExpectedLayers(industry: string): Promise<number> {
     if (!this.hubUrl) {
-      console.warn('[QisHubClient] Hub URL not configured — pullExpectedLayers skipped');
-      return 0;
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[QisHubClient] PRODUCTION WARNING: Hub URL not configured — pullExpectedLayers returning fallback. Set HUB_URL env variable.');
+      } else {
+        console.warn('[QisHubClient] Hub URL not configured — pullExpectedLayers skipped');
+      }
+      return 5;
     }
-    console.warn('[QisHubClient] Pull layers stub');
-    return 5; // Return mock count
+    try {
+      const response = await fetch(`${this.hubUrl}/api/v1/qis/layers?industry=${encodeURIComponent(industry)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+      });
+      if (response.ok) {
+        const json = await response.json();
+        const val = json.layers ?? json.count ?? json.layersCount;
+        if (typeof val === 'number') return val;
+        if (typeof json === 'number') return json;
+      }
+      throw new Error(`Status ${response.status}`);
+    } catch (e: any) {
+      console.warn(`[QisHubClient] Pull layers failed: ${e.message}. Falling back to default.`);
+      return 5;
+    }
   }
 
   /**

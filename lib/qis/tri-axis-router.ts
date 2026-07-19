@@ -1,15 +1,12 @@
 /**
  * QIS 3축 라우터 (tri-axis-router.ts)
  * 
- * Signal의 컨텍스트를 분석하여 적절한 Hub 축(Industry/Place/Vortex)으로
- * 라우팅합니다. BSW-OS의 예측 질문을 aihompyhub의 3축 인프라에
- * 정확하게 전달하기 위한 핵심 모듈입니다.
- * 
- * @see issueTriAxisContentMission (aihompyhub)
- * @see autoMatchAxes (aihompyhub)
+ * Signal의 컨텍스트를 분석하여 적절한 Hub 축(Industry/Place/Vortex)으로 라우팅합니다.
+ * [v2.0] 단순 substring 매칭에서 키워드 고속 패스 + 임베딩/LLM 의미론적 의미 라우팅 하이브리드로 업그레이드.
  */
 
-import type { QisSignalPayload, QisPredictedQuestion, HubAxis } from '../qis-shared-schemas';
+import { getAIProvider } from '../ai/ai-provider';
+import type { QisSignalPayload, QisPredictedQuestion } from '../qis-shared-schemas';
 import type { QuestionAsset } from '../benchmark/benchmark-asset-extractor';
 
 // ═══════════════════════════════════════════════════════
@@ -73,7 +70,6 @@ const THEME_KEYWORDS: Record<string, string> = {
   '숙소': 'k-stay',
   '호텔': 'k-hotel',
   '펜션': 'k-stay',
-  // V3 추가 업종 키워드
   '시니어': 'senior-care',
   '시니어케어': 'senior-care',
   '네일': 'k-nail',
@@ -87,7 +83,6 @@ const THEME_KEYWORDS: Record<string, string> = {
   '펫': 'k-pet',
   '인테리어': 'k-home',
   '가구': 'k-home',
-  // 제주 소상공인 업종 키워드
   '흑돼지': 'k-food',
   '해산물': 'k-food',
   '횟집': 'k-food',
@@ -110,23 +105,104 @@ const AXIS_FORMAT_MAP: Record<string, string[]> = {
 
 export type AxisClassification = 'industry' | 'place' | 'vortex' | 'cross_axis';
 
+export interface MultiAxisResult {
+  primaryAxis: AxisClassification;
+  secondaryAxis?: AxisClassification;
+  confidence: number;
+  placeSlug?: string;
+  vortexSlug?: string;
+}
+
+/**
+ * 텍스트를 다축 분류하고, 각 축별 신뢰도 점수를 반환합니다.
+ * Rule-based fast path → LLM semantic classification with confidence fallback.
+ * SDD §5.2 multiAxisRoute: 2축 이상 유사도 > 0.60 시 cross_axis 판정.
+ */
+export async function multiAxisClassify(text: string): Promise<MultiAxisResult> {
+  const detectedPlace = detectPlaceFromText(text);
+  const detectedVortex = detectVortexFromText(text);
+
+  // Fast path: 양축 모두 감지 → cross_axis 확정
+  if (detectedPlace && detectedVortex) {
+    return { primaryAxis: 'cross_axis', confidence: 0.95, placeSlug: detectedPlace, vortexSlug: detectedVortex };
+  }
+
+  // Fast path: 단일 축 감지
+  if (detectedPlace && !detectedVortex) {
+    return { primaryAxis: 'place', confidence: 0.85, placeSlug: detectedPlace };
+  }
+  if (detectedVortex && !detectedPlace) {
+    return { primaryAxis: 'vortex', confidence: 0.85, vortexSlug: detectedVortex };
+  }
+
+  // Slow path: LLM 의미론적 분류 (축별 신뢰도 포함)
+  try {
+    const ai = getAIProvider();
+    const prompt = `당신은 한국어 텍스트를 4개 축으로 분류하는 의미론적 분석 전문가입니다.
+
+텍스트: "${text}"
+
+각 축에 대한 적합도를 0.0 ~ 1.0 신뢰도로 평가하십시오:
+- place: 특정 지리적/오프라인 지역이 핵심인 경우
+- vortex: 전문 테마 업종(뷰티, 웨딩 등)이 핵심인 경우
+- industry: 일반적 정보/지식성 검색인 경우
+- cross_axis: 지리적 요소와 전문 테마가 모두 융합된 경우
+
+규칙:
+1. 가장 높은 축을 primaryAxis로 선택
+2. 두 번째로 높은 축의 신뢰도가 0.60 이상이면 secondaryAxis로 포함
+3. place와 vortex 모두 0.60 이상이면 primaryAxis를 cross_axis로 변경
+
+JSON 스키마를 따르십시오.`;
+
+    const schema = {
+      type: "OBJECT",
+      properties: {
+        primaryAxis: { type: "STRING", enum: ["place", "vortex", "cross_axis", "industry"] },
+        secondaryAxis: { type: "STRING", enum: ["place", "vortex", "cross_axis", "industry", "none"] },
+        confidence: { type: "NUMBER" },
+        placeConfidence: { type: "NUMBER" },
+        vortexConfidence: { type: "NUMBER" }
+      },
+      required: ["primaryAxis", "confidence", "placeConfidence", "vortexConfidence"]
+    };
+
+    const res = await ai.generateStructuredOutput<{
+      primaryAxis: string;
+      secondaryAxis?: string;
+      confidence: number;
+      placeConfidence: number;
+      vortexConfidence: number;
+    }>(prompt, schema, { temperature: 0.1 });
+
+    // SDD §5.2: 2축 이상 유사도 > 0.60 시 cross_axis 판정
+    let finalPrimary = res.primaryAxis as AxisClassification;
+    if (res.placeConfidence >= 0.60 && res.vortexConfidence >= 0.60) {
+      finalPrimary = 'cross_axis';
+    }
+
+    return {
+      primaryAxis: finalPrimary,
+      secondaryAxis: res.secondaryAxis && res.secondaryAxis !== 'none' ? res.secondaryAxis as AxisClassification : undefined,
+      confidence: res.confidence,
+      placeSlug: res.placeConfidence >= 0.60 ? detectPlaceFromText(text) || undefined : undefined,
+      vortexSlug: res.vortexConfidence >= 0.60 ? detectVortexFromText(text) || undefined : undefined,
+    };
+  } catch (err) {
+    console.warn('[TriAxisRouter] multiAxisClassify LLM failed:', (err as Error).message);
+    return { primaryAxis: 'industry', confidence: 0.5 };
+  }
+}
+
 // ═══════════════════════════════════════════════════════
-// 1. 신호의 축 분류
+// 1. 신호의 축 분류 (하이브리드 엔진)
 // ═══════════════════════════════════════════════════════
 
 /**
  * Signal의 컨텍스트를 분석하여 적절한 축으로 분류합니다.
- * 
- * 우선순위:
- * 1. 명시적 hub_axis → 그대로 사용
- * 2. place_slug 또는 geo_context 존재 → place
- * 3. vortex_slug 존재 → vortex
- * 4. raw_text에서 지역/테마 키워드 감지
- * 5. place + vortex 동시 해당 → cross_axis
- * 6. 기본 → industry
  */
-export function classifySignalAxis(signal: QisSignalPayload): AxisClassification {
-  // 명시적 지정이 있으면 그대로
+export async function classifySignalAxis(signal: QisSignalPayload): Promise<AxisClassification> {
+  // 1. 명시적 지정이 있으면 즉시 반환 (Fast Path)
   if (signal.hub_axis && signal.hub_axis !== 'industry') {
     return signal.hub_axis as AxisClassification;
   }
@@ -134,12 +210,11 @@ export function classifySignalAxis(signal: QisSignalPayload): AxisClassification
   const hasPlace = !!signal.place_slug || !!signal.geo_context;
   const hasVortex = !!signal.vortex_slug;
 
-  // 명시적 slug가 있는 경우
   if (hasPlace && hasVortex) return 'cross_axis';
   if (hasPlace) return 'place';
   if (hasVortex) return 'vortex';
 
-  // raw_text에서 키워드 감지
+  // 2. 규칙 기반 텍스트 매칭 (Fast Path 2)
   const text = signal.raw_text || '';
   const detectedPlace = detectPlaceFromText(text);
   const detectedVortex = detectVortexFromText(text);
@@ -153,7 +228,35 @@ export function classifySignalAxis(signal: QisSignalPayload): AxisClassification
   if (['vortex_mission_signal'].includes(signal.signal_type)) return 'vortex';
   if (['cross_axis_trend'].includes(signal.signal_type)) return 'cross_axis';
 
-  return 'industry';
+  // 3. LLM 기반 의미론적 분류 판정 (Slow Path - 모호할 때만 호출)
+  try {
+    const ai = getAIProvider();
+    const prompt = `당신은 검색 신호(Signal)를 3개의 허브 축 중 하나로 분류하는 의미 분석 전문가입니다.
+문장: "${text}"
+
+이 문장을 분석하여 다음 4가지 축 중 가장 적합한 라우팅 대상과 사유를 선택하십시오:
+- 'place': 특정 지리적/오프라인 지역명이나 장소에 관한 내용이 주를 이룰 때
+- 'vortex': 특정 전문 테마 업종(예: 뷰티, 웨딩, 한의원, 시니어케어 등)의 고민이 뚜렷할 때
+- 'cross_axis': 지리적 요소와 전문 테마 요소가 모두 융합되어 있을 때 (예: "제주도 웨딩 야외스냅 추천")
+- 'industry': 그 외 일반적인 정보/지식성 검색 내용일 때
+
+다음 JSON 스키마를 만족하게 응답하십시오.`;
+
+    const schema = {
+      type: "OBJECT",
+      properties: {
+        axis: { type: "STRING", enum: ["place", "vortex", "cross_axis", "industry"] }
+      },
+      required: ["axis"]
+    };
+
+    const res = await ai.generateStructuredOutput<{ axis: string }>(prompt, schema, { temperature: 0.1 });
+    return res.axis as AxisClassification;
+
+  } catch (err) {
+    console.warn('[TriAxisRouter] LLM routing failed, falling back to industry:', (err as Error).message);
+    return 'industry';
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -162,14 +265,12 @@ export function classifySignalAxis(signal: QisSignalPayload): AxisClassification
 
 /**
  * 예측 질문에 3축 타겟 정보를 부여합니다.
- * Signal의 컨텍스트를 기반으로 target_axis, place_slug, vortex_slug,
- * geo_keywords, recommended_formats를 설정합니다.
  */
-export function enrichPredictionWithAxis(
+export async function enrichPredictionWithAxis(
   prediction: QisPredictedQuestion,
   signal: QisSignalPayload,
-): QisPredictedQuestion {
-  const axis = classifySignalAxis(signal);
+): Promise<QisPredictedQuestion> {
+  const axis = await classifySignalAxis(signal);
   const text = signal.raw_text || '';
 
   // place_slug 결정
@@ -216,7 +317,6 @@ export interface TriAxisPayload {
 
 /**
  * 예측 배열을 3축 그룹으로 분류합니다.
- * 이미 enrichPredictionWithAxis()로 강화된 예측을 그룹화합니다.
  */
 export function buildTriAxisPayload(predictions: QisPredictedQuestion[]): TriAxisPayload {
   const result: TriAxisPayload = {
@@ -304,7 +404,6 @@ export function routeAssetsToTargets(assets: QuestionAsset[]): {
   };
 
   for (const asset of assets) {
-    // 1. target_axis 분류에 따른 3축 분배
     switch (asset.target_axis) {
       case 'place':
         payload.place.push(asset);
@@ -316,7 +415,6 @@ export function routeAssetsToTargets(assets: QuestionAsset[]): {
         payload.industry.push(asset);
     }
 
-    // 2. brand_slug가 정의된 경우 브랜드별 매핑 추가 (Deep Dive 공급용)
     if (asset.brand_slug) {
       if (!payload.brand[asset.brand_slug]) {
         payload.brand[asset.brand_slug] = [];

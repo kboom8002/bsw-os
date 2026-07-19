@@ -186,11 +186,27 @@ export class EntityReflectionRunner {
     };
 
     let reflectedCount = 0;
+    // 확장 엔티티 타입 → 7축 ERR 매핑
+    const SURFACE_TO_ERR_MAP: Record<string, string> = {
+      factoid: 'factoid',
+      brand_identity: 'factoid',
+      product_catalog: 'factoid',
+      procedural: 'procedural',
+      comparative: 'comparative',
+      authority: 'authority',
+      person_expertise: 'authority',
+      schema_org: 'schema_org',
+      topical_cluster: 'topical_cluster',
+      temporal_event: 'topical_cluster',
+      media_asset: 'topical_cluster',
+      local_geo: 'local_geo',
+    };
+
     reflectionDetails.forEach(detail => {
-      const type = detail.surface_type;
-      if (errCounts[type]) {
-        errCounts[type].total++;
-        errCounts[type].weightedReflected += QUALITY_WEIGHTS[detail.quality];
+      const errKey = SURFACE_TO_ERR_MAP[detail.surface_type] || 'topical_cluster';
+      if (errCounts[errKey]) {
+        errCounts[errKey].total++;
+        errCounts[errKey].weightedReflected += QUALITY_WEIGHTS[detail.quality];
         if (detail.quality !== 'absent') reflectedCount++;
       }
     });

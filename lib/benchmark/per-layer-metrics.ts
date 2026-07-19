@@ -36,7 +36,7 @@ export function getBrandPosition(
   return rank === -1 ? Infinity : rank + 1; // 1-based
 }
 
-const GENERIC_LAYERS = new Set(['L1_universal', 'L3_ingredient', 'L5_ymyl', 'L6_trend']);
+const GENERIC_LAYERS = new Set(['L1_universal', 'L3_ingredient', 'L4_journey', 'L5_ymyl', 'L6_trend']);
 
 export function calculatePerLayerMetrics(
   brand: BrandConfig,

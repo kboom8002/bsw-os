@@ -37,9 +37,60 @@ export async function runUpstreamPipeline(
     throw new Error("UNAUTHORIZED: Insufficient permissions to run pipeline.");
   }
 
+  // USP 자동 도출: 명시적 USP > domain-config brand_identity > LLM 자동 생성
+  let resolvedUSP = options?.brandUSP;
+
+  if (!resolvedUSP && brandName) {
+    // 1차: domain-config에서 brand_identity 조회
+    const { BENCHMARK_DOMAINS } = await import("../../lib/benchmark/domain-config");
+    const domainCfg = BENCHMARK_DOMAINS[domainName as keyof typeof BENCHMARK_DOMAINS];
+    if (domainCfg) {
+      const brandConfig = domainCfg.brands.find(
+        (b: any) => b.name === brandName || b.slug === brandName
+      );
+      if (brandConfig?.brand_identity) {
+        resolvedUSP = brandConfig.brand_identity;
+      }
+    }
+
+    // 2차: brand_identity가 없으면 LLM으로 자동 생성
+    if (!resolvedUSP) {
+      try {
+        const { getAIProvider } = await import("../../lib/ai/ai-provider");
+        const ai = getAIProvider();
+        const identity = await ai.generateText(
+          `당신은 브랜드 분석 전문가입니다. 다음 브랜드의 핵심 아이덴티티를 한 문장으로 설명하세요.\n\n업종: ${domainName}\n브랜드명: ${brandName}\n\n형식: "[핵심 포지셔닝/차별화 요소] + [주요 제품/서비스 특징]" (50자 이내)`,
+          { temperature: 0.3, maxOutputTokens: 100 }
+        );
+        resolvedUSP = identity.trim();
+      } catch (e: any) {
+        console.warn(`[runUpstreamPipeline] Auto USP generation failed: ${e.message}`);
+        resolvedUSP = `${domainName} 업종의 ${brandName} 브랜드`;
+      }
+    }
+  }
+
+  // TCO 자동 부트스트랩: TCO가 30개 미만이면 다층 생성 자동 실행
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { count: tcoCount } = await supabase
+      .from('tco_concepts')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId);
+
+    if (!tcoCount || tcoCount < 30) {
+      console.log(`[runUpstreamPipeline] TCO 부족 (${tcoCount || 0}개) → 자동 부트스트랩 실행`);
+      await generateIndustryConcepts(workspaceId, domainName, brandName, domainName);
+    }
+  } catch (e: any) {
+    console.warn(`[runUpstreamPipeline] TCO bootstrap check failed: ${e.message}`);
+  }
+
   // The orchestrator handles meta, chain, recursive, evaluate, and save.
   const result = await SignalOrchestrator.runFullPipeline(workspaceId, domainName, brandName, {
-    brandUSP: options?.brandUSP
+    brandUSP: resolvedUSP,
+    industryKey: domainName,
+    workspaceId,
   });
   return result;
 }
@@ -1150,20 +1201,35 @@ export async function generateIndustryConcepts(
   const ai = getAIProvider();
   const supabase = getSupabaseAdminClient();
 
-  // 1. 실측 데이터 수집 A-1: 업종 패널 표준 질문 로드 (146개 중 필터링)
+  // ═══════════════════════════════════════════════════════════════
+  // 그라운딩 데이터 수집 (3종)
+  // ═══════════════════════════════════════════════════════════════
+
+  // A-1: 업종 패널 표준 질문 — 전체 활용 (intent_context별 그룹핑)
   const { INDUSTRY_PANELS_DATA } = await import('../../db/seed/industry-panels/questions-data');
   const panel = industryKey ? INDUSTRY_PANELS_DATA[industryKey as keyof typeof INDUSTRY_PANELS_DATA] : null;
   
-  let panelSummary = '';
+  let fullPanelSummary = '';
+  let panelIntentGroups: Record<string, string[]> = {};
   if (panel?.questions) {
-    // intent별 대표 질문 5개만 압축하여 프롬프트 토큰 절약 (LLM-3 해결)
-    const reps = panel.questions.slice(0, 8).map(q => 
-      `- [${q.intent_context}/${q.layer}] ${q.question_text} (필수: ${q.must_include?.join(', ') || '없음'}, risk: ${q.risk_level})`
-    );
-    panelSummary = reps.join('\n');
+    for (const q of panel.questions) {
+      const intent = q.intent_context || 'general';
+      if (!panelIntentGroups[intent]) panelIntentGroups[intent] = [];
+      panelIntentGroups[intent].push(
+        `[${q.layer}] ${q.question_text} (필수: ${q.must_include?.join(', ') || '없음'}, risk: ${q.risk_level})`
+      );
+    }
+    // 프롬프트 토큰 절약: intent별 상위 3개만 + 총 개수 표기
+    const summaryLines: string[] = [];
+    for (const [intent, qs] of Object.entries(panelIntentGroups)) {
+      summaryLines.push(`### ${intent} (총 ${qs.length}개)`);
+      summaryLines.push(...qs.slice(0, 3));
+      if (qs.length > 3) summaryLines.push(`  ... 외 ${qs.length - 3}개`);
+    }
+    fullPanelSummary = summaryLines.slice(0, 60).join('\n');
   }
 
-  // 2. 실측 데이터 수집 A-2: 벤치마크 최근 GAP 및 BLIND_SPOT 분석
+  // A-2: 벤치마크 GAP/BLIND_SPOT
   const { data: snapshots } = await supabase
     .from('industry_benchmark_snapshots')
     .select('auto_generated_signals')
@@ -1177,101 +1243,340 @@ export async function generateIndustryConcepts(
     for (const snap of snapshots) {
       if (snap.auto_generated_signals) {
         const sigs = snap.auto_generated_signals as any[];
-        gaps.push(...sigs.slice(0, 5).map(s => `- ${s.query} (source: ${s.source})`));
+        gaps.push(...sigs.slice(0, 10).map(s => `- ${s.query} (source: ${s.source})`));
       }
     }
-    gapSummary = gaps.slice(0, 10).join('\n');
+    gapSummary = gaps.slice(0, 20).join('\n');
   }
 
-  // 3. 실측 데이터 수집 A-3: 실시간 검색 그라운딩
+  // A-3: 실시간 검색 그라운딩
   const { SearchProviderFactory } = await import('../../lib/ai/search-provider-factory');
   let searchSummary = '';
   try {
     const searchRes = await SearchProviderFactory.runMultiEngine(`${industryName} 인기 검색어 및 선택 기준`, ['gemini_grounding']);
     const res = searchRes.results['gemini_grounding'];
     if (res?.citations) {
-      searchSummary = res.citations.slice(0, 5).map((c: any) => `- ${c.title} (출처: ${c.domain})`).join('\n');
+      searchSummary = res.citations.slice(0, 8).map((c: any) => `- ${c.title} (출처: ${c.domain})`).join('\n');
     }
   } catch (err: any) {
     console.warn('[Concepts Grounding] Search failed:', err.message);
   }
 
-  const prompt = `You are a domain expert for the "${industryName}" industry${brandName ? ` (brand: ${brandName})` : ''}.
-Based on the following ground truth measurement data, generate exactly 20 core operational concepts (TCO - Topic-Concept-Ontology) for content and search engine optimization strategy.
+  // A-4: domain-config 카테고리 정보
+  let categoryInfo = '';
+  try {
+    const { BENCHMARK_DOMAINS } = await import('../../lib/benchmark/domain-config');
+    const domainCfg = BENCHMARK_DOMAINS[industryKey as keyof typeof BENCHMARK_DOMAINS];
+    if (domainCfg?.brands) {
+      const categories: Record<string, string[]> = {};
+      for (const b of domainCfg.brands as any[]) {
+        const cats = b.product_categories || ['기타'];
+        const mainCat = cats[0] || '기타';
+        if (!categories[mainCat]) categories[mainCat] = [];
+        categories[mainCat].push(b.name);
+      }
+      categoryInfo = Object.entries(categories)
+        .map(([cat, brands]) => `- ${cat}: ${brands.join(', ')}`)
+        .join('\n');
+    }
+  } catch { /* domain-config 미존재 시 무시 */ }
 
-<grounding_data>
-## 업종 표준 실측 패널 질문 (일부)
-${panelSummary || '표준 패널 데이터 없음'}
+  // ═══════════════════════════════════════════════════════════════
+  // 4축(Axis) TF8 Level 8 다층 생성
+  // ═══════════════════════════════════════════════════════════════
 
-## 벤치마크 검출된 GAP/BLIND_SPOT
-${gapSummary || '최근 벤치마크 기회 없음'}
+  const allConcepts: Array<{ concept_name: string; definition: string; is_strategic: boolean; importance_weight: number }> = [];
 
-## 실시간 검색 최상위 인용 정보
-${searchSummary || '검색 정보 없음'}
-</grounding_data>
+  // --- Axis 1: 업종 기반 핵심 운용 개념 (패널 질문 전체 기반) ---
+  const axis1Prompt = [
+    `[T] TASK & GOAL
+과업: "${industryName}" 업종의 핵심 운용 개념(TCO Entity) 25개를 도출하라.
+TCO Entity = AI 검색 엔진에서 이 업종이 권위를 확보해야 할 주제 개념.
+각 개념은 소비자 질문 공간의 의미적 영역을 커버하는 보캐뷸러리 항목이다.`,
 
-For each concept, provide:
-- concept_name: 한국어 개념명 (2-6 words)
-- definition: 한국어 정의 (1-2 sentences explaining why this concept matters for search visibility based on the grounding data)
-- is_strategic: boolean (true if this is a high-impact differentiator)
+    `[A] AUDIENCE & ROLE
+역할: ${industryName} 업종의 소비자 검색 행동과 AI 엔진 응답 패턴을 연구한 도메인 전문가.
+수신자: 이 개념들을 기반으로 시그널 발굴 파이프라인을 실행할 AEO/GEO 자동화 시스템.`,
 
-Return JSON: { "concepts": [{ "concept_name": "...", "definition": "...", "is_strategic": true/false }] }`;
+    `[K] KNOWLEDGE & INPUT
+<<<
+## 업종 표준 패널 질문 (실측 데이터 전체)
+${fullPanelSummary || '표준 패널 데이터 없음'}
 
-  const result = await ai.generateStructuredOutput<{ concepts: Array<{ concept_name: string; definition: string; is_strategic: boolean }> }>(
-    prompt,
-    {
-      type: 'object',
-      properties: {
-        concepts: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              concept_name: { type: 'string' },
-              definition: { type: 'string' },
-              is_strategic: { type: 'boolean' }
-            },
-            required: ['concept_name', 'definition', 'is_strategic']
-          }
+## 벤치마크 검출 GAP/BLIND_SPOT
+${gapSummary || '최근 벤치마크 데이터 없음'}
+
+## 실시간 검색 최상위 인용
+${searchSummary || '검색 데이터 없음'}
+>>>
+⚠️ 위 <<< >>> 안의 데이터에 기반하지 않는 일반 상식 개념 생성 절대 금지.`,
+
+    `[W] WARNINGS & CONSTRAINTS
+1. "맛집 추천", "카페 추천" 같은 너무 추상적인 상위 개념 금지 → 구체적 하위 개념으로 분해
+2. 한 개념이 커버하는 질문 영역이 2개 미만이면 너무 좁음 → 병합 대상
+3. 개념 간 의미적 중복 금지 (유사도 80% 이상이면 하나로 병합)
+4. 모든 concept_name은 소비자가 실제 사용하는 어휘 기반 (전문 학술 용어 금지)
+5. importance_weight는 패널 질문 빈도와 전략적 차별화 가치를 동시 고려하여 0.0-1.0 산정`,
+
+    `[O] OUTPUT CONTRACT
+형식: JSON { "concepts": [...] } — 정확히 25개
+각 항목: concept_name(한국어 2-6어절), definition(1-2문장), is_strategic(boolean), importance_weight(0.0-1.0)`,
+
+    `[F] FLOW & CONTROL
+1단계: 패널 질문에서 반복 등장하는 주제 영역 식별 → 12개
+2단계: GAP/BLIND_SPOT에서 누락된 주제 영역 보충 → 8개
+3단계: 검색 그라운딩에서 신규 트렌드 개념 추출 → 5개`
+  ].join('\n\n');
+
+  // --- Axis 2: 카테고리/세부 분야 기반 개념 ---
+  const axis2Prompt = [
+    `[T] TASK & GOAL
+과업: "${industryName}" 업종의 세부 카테고리별 특화 개념 25개를 도출하라.
+업종 공통 개념이 아닌, 각 카테고리가 고유하게 필요로 하는 세부 전문 개념만 도출할 것.`,
+
+    `[K] KNOWLEDGE & INPUT
+<<<
+## 카테고리별 브랜드 분류
+${categoryInfo || '카테고리 정보 없음 — 업종 세부 분야를 자체 분석하여 도출'}
+
+## 패널 질문 (카테고리 특화 관점으로 분석)
+${fullPanelSummary || '표준 패널 데이터 없음'}
+>>>`,
+
+    `[W] WARNINGS & CONSTRAINTS
+1. 업종 전체에 공통인 일반 개념 금지 (예: "고객 만족", "서비스 품질")
+2. 카테고리별 최소 3개 이상의 개념을 도출할 것
+3. 각 concept_name은 해당 카테고리의 전문 어휘 반영`,
+
+    `[O] OUTPUT CONTRACT
+형식: JSON { "concepts": [...] } — 정확히 25개
+각 항목: concept_name(한국어 2-6어절), definition(1-2문장), is_strategic(boolean), importance_weight(0.0-1.0)`
+  ].join('\n\n');
+
+  // --- Axis 3: 소비자 여정 기반 개념 ---
+  const axis3Prompt = [
+    `[T] TASK & GOAL
+과업: "${industryName}" 업종의 소비자 구매 여정(인지→고려→결정→재방문) 단계별 개념 20개를 도출하라.
+각 단계에서 소비자가 AI 검색 엔진에 묻는 질문의 주제 영역을 커버하는 개념을 도출.`,
+
+    `[K] KNOWLEDGE & INPUT
+<<<
+## 패널 질문 (intent별 분류)
+${Object.entries(panelIntentGroups).map(([intent, qs]) => `### ${intent} (${qs.length}개)\n${qs.slice(0, 3).join('\n')}`).join('\n\n') || '패널 데이터 없음'}
+>>>`,
+
+    `[W] WARNINGS & CONSTRAINTS
+1. 각 여정 단계별 최소 4개 개념
+2. "구매 결정" 같은 추상적 단계명이 아닌, 그 단계의 구체적 의사결정 포인트를 개념화`,
+
+    `[O] OUTPUT CONTRACT
+형식: JSON { "concepts": [...] } — 정확히 20개
+각 항목: concept_name, definition, is_strategic, importance_weight`
+  ].join('\n\n');
+
+  // --- Axis 4: 경쟁 차별화 + 리스크 기반 개념 ---
+  const axis4Prompt = [
+    `[T] TASK & GOAL
+과업: "${industryName}" 업종의 경쟁 차별화 및 리스크 관련 개념 15개를 도출하라.
+소비자가 브랜드를 비교·선택·전환할 때 결정적 역할을 하는 주제 영역.`,
+
+    `[K] KNOWLEDGE & INPUT
+<<<
+## 벤치마크 GAP/BLIND_SPOT (경쟁 차별화 기회)
+${gapSummary || '벤치마크 데이터 없음'}
+
+## 실시간 검색 인용 (시장 트렌드)
+${searchSummary || '검색 데이터 없음'}
+>>>`,
+
+    `[W] WARNINGS & CONSTRAINTS
+1. "경쟁력", "차별화" 같은 메타 개념 금지 → 구체적 비교 기준 개념으로
+2. YMYL(건강/안전/금융) 관련 리스크 개념 포함 시 is_strategic=true 필수`,
+
+    `[O] OUTPUT CONTRACT
+형식: JSON { "concepts": [...] } — 정확히 15개
+각 항목: concept_name, definition, is_strategic, importance_weight`
+  ].join('\n\n');
+
+  const jsonSchema = {
+    type: 'object' as const,
+    properties: {
+      concepts: {
+        type: 'array' as const,
+        items: {
+          type: 'object' as const,
+          properties: {
+            concept_name: { type: 'string' as const },
+            definition: { type: 'string' as const },
+            is_strategic: { type: 'boolean' as const },
+            importance_weight: { type: 'number' as const }
+          },
+          required: ['concept_name', 'definition', 'is_strategic', 'importance_weight'] as const
         }
-      },
-      required: ['concepts']
+      }
     },
-    { temperature: 0 } // 채점/분석 성격은 결정적
+    required: ['concepts'] as const
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // SOTA 강화: 4축 병렬 호출 + 축별 재시도 + 품질 게이트 + 최소 보장
+  // (AutoGEO의 cooperative retry + REVISION의 multi-layer fallback 적용)
+  // ═══════════════════════════════════════════════════════════════
+
+  const axisPrompts = [axis1Prompt, axis2Prompt, axis3Prompt, axis4Prompt];
+  const axisTargets = [25, 25, 20, 15]; // 각 축 목표 개수
+  const axisNames = ['업종기반', '카테고리', '소비자여정', '경쟁차별화'];
+  const MIN_CONCEPTS_PER_AXIS = 8; // 품질 게이트: 축당 최소 8개
+
+  // 축별 LLM 호출 + 1회 재시도 (축약 프롬프트 fallback)
+  async function callAxisWithRetry(
+    axisIdx: number,
+    prompt: string,
+    target: number
+  ): Promise<Array<{ concept_name: string; definition: string; is_strategic: boolean; importance_weight: number }>> {
+    const opts = { temperature: 0, maxOutputTokens: 8192 };
+
+    // 1차 시도: 전체 프롬프트
+    try {
+      const res = await ai.generateStructuredOutput<{ concepts: Array<{ concept_name: string; definition: string; is_strategic: boolean; importance_weight: number }> }>(
+        prompt, jsonSchema, opts
+      );
+      if (res.concepts && res.concepts.length >= MIN_CONCEPTS_PER_AXIS) {
+        console.log(`[TCO Axis ${axisIdx + 1}/${axisNames[axisIdx]}] ✅ 1차 성공: ${res.concepts.length}개 도출`);
+        return res.concepts;
+      }
+      console.warn(`[TCO Axis ${axisIdx + 1}/${axisNames[axisIdx]}] 1차 부족 (${res.concepts?.length || 0}/${MIN_CONCEPTS_PER_AXIS}), 재시도...`);
+    } catch (err: any) {
+      console.warn(`[TCO Axis ${axisIdx + 1}/${axisNames[axisIdx]}] 1차 실패: ${err.message}, 재시도...`);
+    }
+
+    // 2차 시도: 축약 프롬프트 (입력 토큰 절약)
+    await new Promise(r => setTimeout(r, 1000)); // 1초 백오프
+    try {
+      const shortPrompt = `[T] TASK & GOAL
+"${industryName}" 업종의 핵심 TCO 개념을 ${target}개 도출하라. 
+TCO 개념 = AI 검색 엔진에서 이 업종이 권위를 확보해야 할 주제.
+관점: ${axisNames[axisIdx]}
+
+[K] KNOWLEDGE & INPUT
+<<<
+업종: ${industryName}
+${brandName ? `브랜드: ${brandName}` : '허브 모드'}
+카테고리: ${categoryInfo?.slice(0, 300) || '없음'}
+>>>
+
+[W] WARNINGS
+1. "고객 만족" 같은 추상 개념 금지 → 구체적 소비자 질문 주제
+2. concept_name은 한국어 2-6어절
+
+[O] OUTPUT CONTRACT
+JSON { "concepts": [...] } — ${target}개
+각 항목: concept_name, definition, is_strategic, importance_weight(0.0-1.0)`;
+
+      const res2 = await ai.generateStructuredOutput<{ concepts: Array<{ concept_name: string; definition: string; is_strategic: boolean; importance_weight: number }> }>(
+        shortPrompt, jsonSchema, opts
+      );
+      if (res2.concepts && res2.concepts.length > 0) {
+        console.log(`[TCO Axis ${axisIdx + 1}/${axisNames[axisIdx]}] ✅ 2차(축약) 성공: ${res2.concepts.length}개 도출`);
+        return res2.concepts;
+      }
+    } catch (err2: any) {
+      console.warn(`[TCO Axis ${axisIdx + 1}/${axisNames[axisIdx]}] 2차(축약)도 실패: ${err2.message}`);
+    }
+
+    return []; // 양쪽 모두 실패
+  }
+
+  // 4축 병렬 실행 (각 축은 내부에서 재시도)
+  const axisResults = await Promise.allSettled(
+    axisPrompts.map((prompt, i) => callAxisWithRetry(i, prompt, axisTargets[i]))
   );
 
-  const created: Array<{ id: string; concept_name: string; definition: string }> = [];
+  for (let i = 0; i < axisResults.length; i++) {
+    const res = axisResults[i];
+    if (res.status === 'fulfilled' && res.value.length > 0) {
+      allConcepts.push(...res.value);
+    } else {
+      console.warn(`[TCO Axis ${i + 1}/${axisNames[i]}] 최종 실패 (0개)`);
+    }
+  }
 
-  for (const c of (result.concepts || [])) {
+  // ── SOTA 품질 게이트: 전체 개념 수가 부족하면 단일 축 최소 보장 fallback ──
+  if (allConcepts.length < 15) {
+    console.warn(`[TCO] 전체 ${allConcepts.length}개 < 15개. 최소 보장 fallback 실행...`);
+    try {
+      const minimalPrompt = `"${industryName}" 업종에서 소비자가 AI 검색 엔진에 묻는 질문의 주제 영역 20개를 도출하세요.
+각 주제는 concept_name(한국어 2-6어절), definition(1문장), is_strategic(boolean), importance_weight(0.0-1.0).
+JSON { "concepts": [...] } 형식으로 반환.`;
+      const fallbackRes = await ai.generateStructuredOutput<{ concepts: Array<{ concept_name: string; definition: string; is_strategic: boolean; importance_weight: number }> }>(
+        minimalPrompt, jsonSchema, { temperature: 0.2, maxOutputTokens: 4096 }
+      );
+      if (fallbackRes.concepts) {
+        console.log(`[TCO] 최소 보장 fallback: ${fallbackRes.concepts.length}개 도출`);
+        allConcepts.push(...fallbackRes.concepts);
+      }
+    } catch (fbErr: any) {
+      console.warn(`[TCO] 최소 보장 fallback도 실패: ${fbErr.message}`);
+    }
+  }
+
+  console.log(`[TCO] 4축 + fallback 합산: ${allConcepts.length}개 후보 (중복 제거 전)`);
+
+  // ═══════════════════════════════════════════════════════════════
+  // 중복 제거 + DB 저장 (batch upsert — 기존 개념은 정의 업데이트)
+  // ═══════════════════════════════════════════════════════════════
+
+  const created: Array<{ id: string; concept_name: string; definition: string }> = [];
+  const seenSlugs = new Set<string>();
+  const upsertBatch: Array<{
+    workspace_id: string; concept_name: string; slug: string;
+    definition: string; is_strategic: boolean;
+  }> = [];
+
+  for (const c of allConcepts) {
+    if (!c.concept_name || !c.definition) continue;
+
     const rawSlug = c.concept_name.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60);
     const slug = industryKey ? `${industryKey}-${rawSlug}`.substring(0, 100) : rawSlug;
 
-    // 중복 방지
-    const { data: existing } = await supabase
-      .from('tco_concepts')
-      .select('id')
-      .eq('workspace_id', workspaceId)
-      .eq('slug', slug)
-      .maybeSingle();
+    // 인메모리 중복 제거
+    if (seenSlugs.has(slug)) continue;
+    seenSlugs.add(slug);
 
-    if (existing) continue;
-
-    const { data: inserted, error } = await supabase
-      .from('tco_concepts')
-      .insert({
-        workspace_id: workspaceId,
-        concept_name: c.concept_name,
-        slug,
-        definition: c.definition,
-        is_strategic: c.is_strategic,
-      })
-      .select('id, concept_name, definition')
-      .single();
-
-    if (!error && inserted) created.push(inserted);
+    upsertBatch.push({
+      workspace_id: workspaceId,
+      concept_name: c.concept_name,
+      slug,
+      definition: c.definition,
+      is_strategic: c.is_strategic,
+    });
   }
 
-  return { created: created.length, concepts: created };
+  // batch upsert (50개씩)
+  for (let i = 0; i < upsertBatch.length; i += 50) {
+    const batch = upsertBatch.slice(i, i + 50);
+    const { data: upserted, error } = await supabase
+      .from('tco_concepts')
+      .upsert(batch, { onConflict: 'workspace_id,slug' })
+      .select('id, concept_name, definition');
+
+    if (error) {
+      console.error(`[generateIndustryConcepts] upsert batch ${i} 에러:`, error.message, error.details);
+    } else if (upserted) {
+      created.push(...upserted);
+    }
+  }
+
+  // 최종 DB 카운트 (신규+기존 모두 포함)
+  const { count: dbTotal } = await supabase
+    .from('tco_concepts')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .like('slug', `${industryKey || ''}%`);
+
+  const finalCount = dbTotal ?? created.length;
+  console.log(`[generateIndustryConcepts] 총 ${allConcepts.length}개 후보 → upsert ${created.length}개 → DB 총 보유 ${finalCount}개`);
+  return { created: finalCount, concepts: created };
 }
 
 // ═══════════════════════════════════════════════════════════════
