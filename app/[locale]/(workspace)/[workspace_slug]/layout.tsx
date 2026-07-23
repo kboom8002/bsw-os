@@ -194,7 +194,8 @@ export default function WorkspaceLayout({
     { name: "Brand MRI", href: `/${locale}/${workspaceSlug}/reports/brand-mri`, icon: Stethoscope, badge: "MRI", module: "brand-mri", scope: 'brand', requiredRoles: ['semantic_architect', 'brand_strategist', 'observatory_analyst', 'executive_viewer', 'agency_operator'] },
     { name: "nav.golden_reference", href: `/${locale}/${workspaceSlug}/golden-reference`, icon: Diamond, badge: "GR", module: "golden-reference", scope: 'brand', requiredRoles: ['semantic_architect', 'brand_strategist', 'observatory_analyst'] },
 
-    // ─ Products (진단 상품) ─
+    // ─ Products (진단 상품 & 미디어 서비스) ─
+    { name: "📰 Media Series Admin", href: `/${locale}/${workspaceSlug}/semantic-core/media-series`, icon: Newspaper, badge: "8/3", module: "media-series", scope: 'brand', requiredRoles: ['semantic_architect', 'brand_strategist', 'content_editor', 'executive_viewer', 'agency_operator'] },
     { name: "nav.aihompy_pack", href: `/${locale}/${workspaceSlug}/aihompy-pack`, icon: Store, badge: "Pack", module: "aihompy-pack", scope: 'brand', requiredRoles: ['brand_strategist', 'executive_viewer', 'agency_operator'] },
     { name: "nav.sales_automation", href: `/${locale}/${workspaceSlug}/sales-automation`, icon: Megaphone, badge: "Sales", module: "sales-automation", scope: 'brand', requiredRoles: ['brand_strategist', 'executive_viewer', 'agency_operator'] },
     { name: "nav.regional_report", href: `/${locale}/${workspaceSlug}/regional-report`, icon: MapPin, badge: "지역", module: "regional-report", scope: 'brand', requiredRoles: ['brand_strategist', 'executive_viewer', 'agency_operator'] },
@@ -210,10 +211,10 @@ export default function WorkspaceLayout({
     { label: "nav.group_admin", items: ["brands"], scope: 'brand' },
     { label: "nav.group_ai_visibility", items: ["benchmark", "sbs-index", "industry-report", "site-audit"], scope: 'industry', scopeIndicator: '🌐' },
     { label: "nav.group_site_audit", items: ["site-audit-history", "industry-benchmark", "site-audit-llms", "site-audit-settings"], scope: 'brand' },
-    { label: "nav.group_semantic_intel", items: ["truth", "semantic-core"], scope: 'brand' },
+    { label: "nav.group_semantic_intel", items: ["truth", "semantic-core", "media-series"], scope: 'brand' },
     { label: "nav.group_execution", items: ["objects", "surfaces", "persona", "website"], scope: 'brand' },
     { label: "nav.group_monitoring", items: ["observatory", "deep-dive", "reports", "brand-mri", "golden-reference"], scope: 'brand' },
-    { label: "nav.group_products", items: ["aihompy-pack", "sales-automation", "regional-report", "fixit", "kculture"], scope: 'brand' },
+    { label: "nav.group_products", items: ["media-series", "aihompy-pack", "sales-automation", "regional-report", "fixit", "kculture"], scope: 'brand' },
     { label: "nav.group_settings", items: ["settings", "domain-packs", "team"], scope: 'brand' }
   ];
 

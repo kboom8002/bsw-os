@@ -17,6 +17,9 @@ import {
   Shield,
   TrendingUp,
   GitFork,
+  Newspaper,
+  Factory,
+  Sparkles,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
 import { BENCHMARK_DOMAINS } from "@/lib/benchmark/domain-config";
@@ -158,7 +161,14 @@ export default function SemanticCoreDashboard() {
             {t('semantic_core.studio_desc')}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={buildHref('media-series')}
+            className="px-4 py-2 text-sm font-bold rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-white shadow-md shadow-amber-500/20 transition-all flex items-center gap-2"
+          >
+            <Newspaper className="w-4 h-4" />
+            📰 Media Series Admin (8/3)
+          </Link>
           <button
             onClick={handleRunPipeline}
             disabled={pipelineRunning}
@@ -322,6 +332,39 @@ export default function SemanticCoreDashboard() {
         </div>
       </div>
 
+      {/* Media Series & Answer Factory Featured Banner */}
+      <div className="p-6 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-950/40 via-rose-950/30 to-slate-950/40 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-amber-500/5">
+        <div className="space-y-1">
+          <div className="text-xs text-amber-400 font-mono font-bold tracking-wider uppercase flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+            2026.08.03 미디어 파트너 독점 런칭
+          </div>
+          <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+            <Newspaper className="w-6 h-6 text-amber-400" />
+            미디어 시리즈 연재 & 핸드오프 어드민 (뷰티경제 × BNT뉴스)
+          </h2>
+          <p className="text-slate-300 text-xs leading-normal max-w-3xl">
+            주간 QVS TOP 3 자동 발굴, 3건 동시 배치 파이프라인 컴파일, 편집부 검수/승인 워크플로우 및 실시간 AI 인용 스코어보드를 관리합니다.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <Link
+            href={buildHref('answer-factory')}
+            className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all text-xs flex items-center gap-2"
+          >
+            <Factory className="w-4 h-4 text-cyan-400" />
+            Answer Factory
+          </Link>
+          <Link
+            href={buildHref('media-series')}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-white font-bold transition-all text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20"
+          >
+            <Newspaper className="w-4 h-4" />
+            미디어 어드민 가동 →
+          </Link>
+        </div>
+      </div>
+
       {/* Pipeline Orchestration Banner */}
       <div className="p-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 to-slate-950/40 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-1">
@@ -344,7 +387,28 @@ export default function SemanticCoreDashboard() {
       </div>
 
       {/* Primary Module Shortcuts Grid — with live counts */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
+        {/* Media Series Admin */}
+        <div className="p-6 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-950/20 to-slate-950/40 hover:border-amber-400 transition-all flex flex-col justify-between group shadow-lg shadow-amber-500/5">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <Newspaper className="w-5 h-5 text-amber-400" />
+              <span className="text-xs text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full font-mono border border-amber-500/30 font-bold">8/3 NEW</span>
+            </div>
+            <h3 className="font-bold text-sm text-white mb-1.5">미디어 시리즈 어드민</h3>
+            <p className="text-slate-400 text-xs leading-normal">
+              뷰티경제 & BNT뉴스 2대 연재 시리즈 TOP 3 배치 컴파일, 핸드오프, 스코어보드 관리.
+            </p>
+          </div>
+          <Link
+            href={buildHref('media-series')}
+            className="mt-6 flex items-center justify-between text-xs font-bold text-amber-400 hover:underline"
+          >
+            <span>어드민 가동</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
+        </div>
+
         {/* Signals */}
         <div className="p-6 rounded-2xl border border-white/5 bg-slate-950/20 hover:border-cyan-500/20 transition-all flex flex-col justify-between group">
           <div>
