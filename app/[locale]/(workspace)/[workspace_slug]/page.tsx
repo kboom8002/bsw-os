@@ -15,7 +15,9 @@ import {
   Database,
   Search,
   Award,
-  Loader2
+  Loader2,
+  Newspaper,
+  Sparkles
 } from "lucide-react";
 import { useTranslation } from "../../../../lib/i18n/context";
 
@@ -189,7 +191,30 @@ export default function WorkspaceDashboard() {
           <h2 className="text-xl font-bold tracking-tight text-slate-200">
             글로벌 AI 진단 및 플랫폼 관리 도구
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Media Series Admin */}
+            <div className="p-6 rounded-2xl bg-gradient-to-b from-amber-950/30 to-slate-950/40 border border-amber-500/30 hover:border-amber-400 transition-all flex flex-col justify-between relative overflow-hidden shadow-lg shadow-amber-500/5">
+              <div className="absolute right-4 top-4 text-amber-500/10">
+                <Newspaper className="w-16 h-16" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Newspaper className="w-5 h-5 text-amber-400" />
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">8/3 런칭</span>
+                  <h3 className="font-bold text-lg text-white">미디어 시리즈 어드민</h3>
+                </div>
+                <p className="text-slate-300 text-sm leading-relaxed mb-6">
+                  뷰티경제 x BNT뉴스 2대 연재 시리즈 주간 QVS TOP 3 배치 컴파일, 편집부 검수/승인 및 실시간 스코어보드를 관리합니다.
+                </p>
+              </div>
+              <div className="flex items-center justify-between text-xs font-mono border-t border-white/5 pt-4">
+                <span className="text-slate-500">Route: /semantic-core/media-series</span>
+                <Link href={`/${locale}/${workspaceSlug}/semantic-core/media-series`} className="text-amber-400 font-bold hover:underline flex items-center gap-1">
+                  어드민 가동 <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+
             <div className="p-6 rounded-2xl bg-slate-950/40 border border-cyan-500/20 hover:border-cyan-500/40 transition-all flex flex-col justify-between relative overflow-hidden">
               <div className="absolute right-4 top-4 text-cyan-500/10">
                 <Search className="w-16 h-16" />
