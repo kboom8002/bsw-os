@@ -276,16 +276,18 @@ export async function runBatchPipelineForTop3(input: BatchPipelineInput): Promis
           },
           asset: {
             id: `asset-${cqId}-${Date.now()}`,
-            workspace_id: workspaceId,
-            canonical_question_id: cqId,
-            scene_id: sceneId,
+            questionId: cqId,
+            workspaceId: workspaceId,
+            verticalId: sceneId,
+            missionId: `mission-${cqId}`,
+            canonicalRoute: `/answers/${cqId}`,
+            title,
             variations: [
-              { channel: "media_article", title, body: html, target_audience: "general" },
+              { channel: "media_article", title, body: html, metadata: { target_audience: "general" } },
             ],
-            vpa_score: 88,
             status: "ready",
             created_at: new Date().toISOString(),
-          },
+          } as any,
           page: { html, title },
           jsonLd: { "@context": "https://schema.org", "@type": "FAQPage", headline: title },
         };
@@ -493,20 +495,16 @@ export async function publishMediaSeriesAsset(
     // 1단계: aihompy AI Hub 전달
     if (targets.includes("answerhub")) {
       const hubClient = new QisHubClient();
-      await hubClient.pushToAiHub({
-        workspaceId,
-        canonicalQuestionId: item.questionIds[0] || "cq-multi",
-        sceneId: "scene-media-series",
-        variationChannel: "media_article",
-        title: item.title,
-        bodyContent: item.htmlPreview,
-        jsonLd: item.jsonLdGraph,
-        metadata: {
-          mediaPartner: item.mediaPartner,
-          seriesType: item.seriesType,
-          hreflang: item.hreflangTags,
-        },
-      });
+      await hubClient.pushToAiHub(
+        "kr",
+        [{
+          id: item.questionIds[0] || "cq-multi",
+          text: item.title,
+          industry_type: "kbeauty",
+          source: "bsw-media-series",
+          cps_score: item.vpaAvgScore,
+        }]
+      );
     }
 
     // 2단계: 에셋 상태 업데이트
