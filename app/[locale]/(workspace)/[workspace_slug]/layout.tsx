@@ -13,7 +13,7 @@ import {
   Wrench, Settings, Clock, User, ChevronDown, ChevronRight, LayoutDashboard,
   Menu, X, Search, Award, Diamond, Target, LogOut, Loader2, Store,
   Megaphone, MapPin, Globe, Network, GitMerge, ListFilter, Cpu, BookOpen, Activity, Users,
-  Database, SlidersHorizontal, Factory, Stethoscope
+  Database, SlidersHorizontal, Factory, Stethoscope, Newspaper
 } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n/context";
@@ -171,6 +171,7 @@ export default function WorkspaceLayout({
         { name: "Canonical Questions", href: `/${locale}/${workspaceSlug}/semantic-core/canonical-questions`, icon: ListFilter, module: "canonical-questions" },
         { name: "QIS Scenes", href: `/${locale}/${workspaceSlug}/semantic-core/qis`, icon: Layers, module: "qis-scenes" },
         { name: "🏭 Answer Factory", href: `/${locale}/${workspaceSlug}/semantic-core/answer-factory`, icon: Factory, badge: "NEW", module: "answer-factory" },
+        { name: "📰 Media Series Admin", href: `/${locale}/${workspaceSlug}/semantic-core/media-series`, icon: Newspaper, badge: "NEW", module: "media-series" },
         { name: "TCO Concepts", href: `/${locale}/${workspaceSlug}/semantic-core/concepts`, icon: BookOpen, module: "concepts" },
         { name: "Pattern Attractors", href: `/${locale}/${workspaceSlug}/semantic-core/attractors`, icon: Target, module: "attractors" },
         { name: "Orchestration", href: `/${locale}/${workspaceSlug}/semantic-core/orchestration`, icon: GitMerge, module: "orchestration" },
